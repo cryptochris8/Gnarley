@@ -1,0 +1,62 @@
+{
+  "name": "soccer",
+  "module": "index.mjs",
+  "main": "index.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "hytopia start",
+    "dev": "hytopia start",
+    "build": "hytopia build",
+    "package": "hytopia package",
+    "setup": "npm install && echo Setup complete - you can now use npm start",
+    "dev:bun": "bun --watch index.ts",
+    "dev:tsx": "npx tsx --watch index.ts",
+    "start:legacy": "bun run index.ts",
+    "start:node": "npx tsx index.ts",
+    "start:windows": "npx tsx index.ts",
+    "dev:windows": "npx tsx --watch index.ts",
+    "dev:node": "npx tsx --watch index.ts",
+    "install:deps": "npm install",
+    "clean:install": "rm -rf node_modules && npm install",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "type-check": "tsc --noEmit",
+    "validate": "npm run type-check && npm run lint && npm run test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/ws": "^8.18.1",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-prettier": "^5.5.4",
+    "jsdom": "^24.1.3",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.3",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@gltf-transform/cli": "^4.2.1",
+    "hytopia": "^0.14.20",
+    "mediasoup": "^3.18.0"
+  },
+  "trustedDependencies": [
+    "mediasoup"
+  ],
+  "optionalDependencies": {
+    "@hytopia.com/assets": "^0.4.6"
+  }
+}

@@ -1,0 +1,51 @@
+==============================================
+MOBILE CONTROLS INTEGRATION INSTRUCTIONS
+==============================================
+
+The new SDK-compliant mobile controls have been created in:
+  assets/ui/mobile-controls.html
+
+OPTION 1 - Manual Integration (Recommended):
+--------------------------------------------
+1. Open assets/ui/index.html in an editor
+2. Find the line with: </body> or </html> near the end
+3. BEFORE that closing tag, copy and paste the entire contents of mobile-controls.html
+4. Save the file
+
+OPTION 2 - Use the provided mobile-controls.html separately:
+------------------------------------------------------------
+This file can be loaded as an additional UI layer, but it's better to integrate it into index.html
+
+KEY CHANGES MADE:
+-----------------
+1. ✅ Disabled custom mobile input handlers in UIEventHandlers.ts (lines 138-156)
+2. ✅ Simplified handleMobileModeEnabled to not process mobile inputs
+3. ✅ Created SDK-compliant mobile controls that use hytopia.pressInput()
+4. ✅ Mobile buttons only show when body.mobile class is present (set by Hytopia)
+5. ✅ Removed custom virtual joystick (Hytopia provides this automatically)
+6. ✅ Removed custom camera handlers (Hytopia provides this automatically)
+
+WHAT HYTOPIA SDK HANDLES AUTOMATICALLY:
+----------------------------------------
+- Movement joystick (left 40% of screen)
+- Camera rotation (right 60% of screen)
+- Mobile device detection (adds .mobile class to body)
+- Input streaming from client to server
+
+WHAT WE PROVIDE:
+----------------
+- Action buttons (Shoot, Pass, Sprint, Tackle)
+- Simple hytopia.pressInput() calls for actions
+- Touch-optimized button sizes and positioning
+
+TESTING:
+--------
+1. Run: npm run build
+2. Run: npm start
+3. Test on mobile device or use browser dev tools mobile emulation
+4. Enable mobile view (F12 -> Device toolbar icon)
+5. Set to landscape mode
+6. Refresh page
+7. Verify .mobile class is added to <body>
+8. Verify action buttons appear and respond to touch
+
