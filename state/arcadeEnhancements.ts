@@ -20,6 +20,7 @@ export class ArcadeEnhancementManager {
   private activeTimers: TimerReference[] = [];
   private activeEntities: Set<Entity> = new Set(); // Track spawned entities for cleanup
   private isDestroyed: boolean = false;
+  public isRoomArcadeMode: boolean = false; // Room-specific arcade mode flag (public for debugging)
 
   constructor(world: World) {
     this.world = world;
@@ -32,6 +33,26 @@ export class ArcadeEnhancementManager {
       }, 5000),
       'freeze-safety'
     );
+  }
+
+  /**
+   * Set whether this room is in arcade mode
+   * Called by RoomManager when room's game mode is set
+   */
+  public setRoomArcadeMode(isArcade: boolean): void {
+    this.isRoomArcadeMode = isArcade;
+    console.log(`🎮 ArcadeEnhancementManager: Room arcade mode set to ${isArcade}`);
+  }
+
+  /**
+   * Check if this manager's room is in arcade mode
+   * Prefers room-specific flag, falls back to global check
+   */
+  private isInArcadeMode(): boolean {
+    // If we have a room-specific flag, use it
+    if (this.isRoomArcadeMode) return true;
+    // Otherwise fall back to global check
+    return isArcadeMode();
   }
 
   // Safe audio creation method to prevent crashes from missing files
@@ -503,11 +524,11 @@ export class ArcadeEnhancementManager {
   // Activate power-up for player (only in arcade mode)
   public activatePowerUp(playerId: string, powerUpType: EnhancementType): boolean {
     console.log(`🎮 ARCADE: Attempting to activate ${powerUpType} for player ${playerId}`);
-    console.log(`🎮 ARCADE: Current game mode check - isArcadeMode(): ${isArcadeMode()}`);
+    console.log(`🎮 ARCADE: Room arcade mode: ${this.isRoomArcadeMode}, global isArcadeMode(): ${isArcadeMode()}`);
 
     try {
-      // SAFETY CHECK: Only work in arcade mode
-      if (!isArcadeMode()) {
+      // SAFETY CHECK: Only work in arcade mode (room-aware check)
+      if (!this.isInArcadeMode()) {
         console.log(`🎮 ARCADE: Not in arcade mode, power-up activation blocked`);
         return false;
       }

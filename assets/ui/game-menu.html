@@ -1,0 +1,507 @@
+<!--
+  Gnarly Nutmeg Soccer - Game Menu UI
+  SDK-Compliant: No <html>, <body>, <head> tags
+  Works on both Desktop and Mobile
+-->
+
+<style>
+  /* ===== BASE RESET ===== */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ===== MENU CONTAINER ===== */
+  .game-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.85), rgba(20, 40, 60, 0.9));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: white;
+    z-index: 10000;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .game-menu.hidden {
+    display: none !important;
+  }
+
+  /* ===== LOGO ===== */
+  .logo-container {
+    margin-bottom: 30px;
+    text-align: center;
+  }
+
+  .logo-container img {
+    max-width: 280px;
+    height: auto;
+  }
+
+  .game-title {
+    font-size: 32px;
+    font-weight: bold;
+    color: #FFD700;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    margin-top: 10px;
+  }
+
+  /* ===== MENU PANEL ===== */
+  .menu-panel {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 16px;
+    padding: 30px;
+    width: min(400px, 90vw);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .menu-title {
+    font-size: 24px;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #FFD700;
+  }
+
+  /* ===== BUTTONS ===== */
+  .menu-btn {
+    display: block;
+    width: 100%;
+    padding: 18px 20px;
+    margin: 12px 0;
+    font-size: 18px;
+    font-weight: bold;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .menu-btn:active {
+    transform: scale(0.97);
+  }
+
+  /* Game Mode Buttons */
+  .btn-fifa {
+    background: linear-gradient(135deg, #00AA00, #008800);
+    color: white;
+    border: 2px solid #00CC00;
+  }
+
+  .btn-fifa:hover, .btn-fifa:active {
+    background: linear-gradient(135deg, #00CC00, #00AA00);
+    box-shadow: 0 4px 20px rgba(0, 200, 0, 0.4);
+  }
+
+  .btn-arcade {
+    background: linear-gradient(135deg, #FF6600, #CC5500);
+    color: white;
+    border: 2px solid #FF8800;
+  }
+
+  .btn-arcade:hover, .btn-arcade:active {
+    background: linear-gradient(135deg, #FF8800, #FF6600);
+    box-shadow: 0 4px 20px rgba(255, 130, 0, 0.4);
+  }
+
+  .btn-tournament {
+    background: linear-gradient(135deg, #FFD700, #CC9900);
+    color: #333;
+    border: 2px solid #FFEE00;
+  }
+
+  .btn-tournament:hover, .btn-tournament:active {
+    background: linear-gradient(135deg, #FFEE00, #FFD700);
+    box-shadow: 0 4px 20px rgba(255, 215, 0, 0.4);
+  }
+
+  /* Team Buttons */
+  .btn-red {
+    background: linear-gradient(135deg, #CC0000, #990000);
+    color: white;
+    border: 2px solid #FF0000;
+  }
+
+  .btn-red:hover, .btn-red:active {
+    background: linear-gradient(135deg, #FF0000, #CC0000);
+    box-shadow: 0 4px 20px rgba(255, 0, 0, 0.4);
+  }
+
+  .btn-blue {
+    background: linear-gradient(135deg, #0066CC, #004499);
+    color: white;
+    border: 2px solid #0088FF;
+  }
+
+  .btn-blue:hover, .btn-blue:active {
+    background: linear-gradient(135deg, #0088FF, #0066CC);
+    box-shadow: 0 4px 20px rgba(0, 100, 255, 0.4);
+  }
+
+  /* Player Count Buttons */
+  .btn-single {
+    background: linear-gradient(135deg, #9933CC, #772299);
+    color: white;
+    border: 2px solid #AA44DD;
+  }
+
+  .btn-single:hover, .btn-single:active {
+    background: linear-gradient(135deg, #AA44DD, #9933CC);
+    box-shadow: 0 4px 20px rgba(150, 50, 200, 0.4);
+  }
+
+  .btn-multi {
+    background: linear-gradient(135deg, #00AAAA, #008888);
+    color: white;
+    border: 2px solid #00CCCC;
+  }
+
+  .btn-multi:hover, .btn-multi:active {
+    background: linear-gradient(135deg, #00CCCC, #00AAAA);
+    box-shadow: 0 4px 20px rgba(0, 180, 180, 0.4);
+  }
+
+  /* Description text */
+  .btn-desc {
+    font-size: 12px;
+    font-weight: normal;
+    opacity: 0.9;
+    margin-top: 4px;
+  }
+
+  /* Back button */
+  .btn-back {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .btn-back:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  /* ===== SCREENS ===== */
+  .screen {
+    display: none;
+  }
+
+  .screen.active {
+    display: block;
+  }
+
+  /* ===== MOBILE OPTIMIZATIONS ===== */
+  @media (pointer: coarse) {
+    .menu-btn {
+      padding: 22px 20px;
+      font-size: 20px;
+      margin: 16px 0;
+    }
+
+    .menu-title {
+      font-size: 28px;
+    }
+  }
+
+  /* ===== HOW TO PLAY ===== */
+  .instructions {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .instructions p {
+    margin: 6px 0;
+  }
+
+  /* ===== LOADING STATE ===== */
+  .loading-text {
+    text-align: center;
+    font-size: 18px;
+    color: #FFD700;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+</style>
+
+<!-- ===== GAME MENU CONTAINER ===== -->
+<div class="game-menu" id="gameMenu">
+
+  <!-- LOGO -->
+  <div class="logo-container">
+    <img src="{{CDN_ASSETS_URL}}/ui/logos/Gnarly-nutmeg.png" alt="Gnarly Nutmeg Soccer" onerror="this.style.display='none'">
+    <div class="game-title">Gnarly Nutmeg Soccer</div>
+  </div>
+
+  <!-- SCREEN 1: Game Mode Selection -->
+  <div class="menu-panel screen active" id="screenGameMode">
+    <div class="menu-title">Choose Game Mode</div>
+
+    <button class="menu-btn btn-fifa" id="btnFifa">
+      [T] FIFA Mode
+      <div class="btn-desc">Realistic Soccer Simulation</div>
+    </button>
+
+    <button class="menu-btn btn-arcade" id="btnArcade">
+      [A] Arcade Mode
+      <div class="btn-desc">Power-ups & Fast Action</div>
+    </button>
+
+    <button class="menu-btn btn-tournament" id="btnTournament">
+      🏅 Tournament Mode
+      <div class="btn-desc">Competitive Brackets</div>
+    </button>
+
+    <div class="instructions">
+      <p>* WASD or Arrow keys to move</p>
+      <p>* Left Click to pass • Right Click to shoot</p>
+      <p>* Space to tackle/dodge • F to use ability</p>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: Player Count Selection -->
+  <div class="menu-panel screen" id="screenPlayerCount">
+    <div class="menu-title">Choose Players</div>
+
+    <button class="menu-btn btn-single" id="btnSingle">
+      👤 Single Player
+      <div class="btn-desc">You + 5 AI vs 6 AI</div>
+    </button>
+
+    <button class="menu-btn btn-multi" id="btnMulti">
+      👥 Multiplayer
+      <div class="btn-desc">Human vs Human (4 AI each)</div>
+    </button>
+
+    <button class="menu-btn btn-back" id="btnBackToMode">← Back</button>
+  </div>
+
+  <!-- SCREEN 3: Team Selection -->
+  <div class="menu-panel screen" id="screenTeam">
+    <div class="menu-title">Choose Your Team</div>
+
+    <button class="menu-btn btn-red" id="btnRed">
+      🔴 Join Red Team
+    </button>
+
+    <button class="menu-btn btn-blue" id="btnBlue">
+      🔵 Join Blue Team
+    </button>
+
+    <button class="menu-btn btn-back" id="btnBackToPlayers">← Back</button>
+  </div>
+
+  <!-- SCREEN 4: Loading/Starting -->
+  <div class="menu-panel screen" id="screenLoading">
+    <div class="loading-text">* Starting Game...</div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ===== STATE =====
+  let selectedMode = null;
+  let selectedPlayerCount = null;
+  let isMobile = false;
+
+  // ===== DOM ELEMENTS =====
+  const gameMenu = document.getElementById('gameMenu');
+  const screens = {
+    gameMode: document.getElementById('screenGameMode'),
+    playerCount: document.getElementById('screenPlayerCount'),
+    team: document.getElementById('screenTeam'),
+    loading: document.getElementById('screenLoading')
+  };
+
+  // ===== HELPER FUNCTIONS =====
+  function showScreen(screenId) {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    if (screens[screenId]) {
+      screens[screenId].classList.add('active');
+    }
+  }
+
+  function hideMenu() {
+    gameMenu.classList.add('hidden');
+  }
+
+  function sendToServer(data) {
+    if (window.hytopia && typeof window.hytopia.sendData === 'function') {
+      window.hytopia.sendData(data);
+      console.log('📤 Sent to server:', data);
+    } else {
+      console.error('❌ hytopia.sendData not available');
+    }
+  }
+
+  function lockPointerForGame() {
+    if (window.hytopia && typeof window.hytopia.lockPointer === 'function') {
+      window.hytopia.lockPointer(true);
+      console.log('🔒 Pointer locked for gameplay');
+    }
+  }
+
+  function unlockPointerForUI() {
+    if (window.hytopia && typeof window.hytopia.lockPointer === 'function') {
+      window.hytopia.lockPointer(false, false);
+      console.log('🔓 Pointer unlocked for UI');
+    }
+  }
+
+  // ===== BUTTON HANDLERS =====
+  function setupButton(btnId, handler) {
+    const btn = document.getElementById(btnId);
+    if (!btn) {
+      console.error('Button not found:', btnId);
+      return;
+    }
+
+    // Handle both click and touch
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handler();
+    });
+
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handler();
+    }, { passive: false });
+  }
+
+  // Game Mode Selection
+  function selectGameMode(mode) {
+    selectedMode = mode;
+    console.log('[A] Game mode selected:', mode);
+    sendToServer({ type: 'select-game-mode', mode: mode });
+
+    if (mode === 'tournament') {
+      // Tournament has different flow - go straight to team
+      showScreen('team');
+    } else {
+      showScreen('playerCount');
+    }
+  }
+
+  // Player Count Selection
+  function selectPlayerCount(count) {
+    selectedPlayerCount = count;
+    console.log('👥 Player count selected:', count);
+    sendToServer({ type: 'select-player-count', count: count });
+    showScreen('team');
+  }
+
+  // Team Selection
+  function selectTeam(team) {
+    console.log('* Team selected:', team);
+    showScreen('loading');
+
+    // Send team selection to server
+    sendToServer({
+      type: 'team-selected',
+      team: team,
+      mode: selectedMode,
+      playerCount: selectedPlayerCount,
+      isMobile: isMobile
+    });
+
+    // Lock pointer and hide menu after a short delay
+    setTimeout(() => {
+      lockPointerForGame();
+      hideMenu();
+    }, 500);
+  }
+
+  // ===== INITIALIZE =====
+  function init() {
+    console.log('[A] Gnarly Nutmeg Menu Initializing...');
+
+    // Detect mobile
+    isMobile = window.hytopia && window.hytopia.isMobile === true;
+    console.log('📱 Mobile device:', isMobile);
+
+    // CRITICAL: Unlock pointer so buttons are clickable
+    unlockPointerForUI();
+
+    // Setup game mode buttons
+    setupButton('btnFifa', () => selectGameMode('fifa'));
+    setupButton('btnArcade', () => selectGameMode('arcade'));
+    setupButton('btnTournament', () => selectGameMode('tournament'));
+
+    // Setup player count buttons
+    setupButton('btnSingle', () => selectPlayerCount('single'));
+    setupButton('btnMulti', () => selectPlayerCount('multiplayer'));
+    setupButton('btnBackToMode', () => showScreen('gameMode'));
+
+    // Setup team buttons
+    setupButton('btnRed', () => selectTeam('red'));
+    setupButton('btnBlue', () => selectTeam('blue'));
+    setupButton('btnBackToPlayers', () => {
+      if (selectedMode === 'tournament') {
+        showScreen('gameMode');
+      } else {
+        showScreen('playerCount');
+      }
+    });
+
+    // Listen for server messages
+    if (window.hytopia && typeof window.hytopia.onData === 'function') {
+      window.hytopia.onData((data) => {
+        console.log('📥 Received from server:', data);
+
+        if (data.type === 'game-started' || data.type === 'hide-menu') {
+          lockPointerForGame();
+          hideMenu();
+        }
+
+        if (data.type === 'show-menu') {
+          unlockPointerForUI();
+          gameMenu.classList.remove('hidden');
+          showScreen('gameMode');
+        }
+      });
+    }
+
+    // Send platform info to server
+    sendToServer({ type: 'platform-info', isMobile: isMobile });
+
+    console.log('[OK] Menu initialized successfully!');
+  }
+
+  // Run init when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // Also try unlocking pointer periodically in case it gets locked
+  setTimeout(unlockPointerForUI, 100);
+  setTimeout(unlockPointerForUI, 500);
+  setTimeout(unlockPointerForUI, 1000);
+
+})();
+</script>

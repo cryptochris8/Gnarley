@@ -26,8 +26,9 @@ import {
   TOTAL_HALVES,
   HALFTIME_DURATION
 } from "./gameConfig";
-import { getCurrentGameMode, GameMode } from "./gameModes";
+import { getCurrentGameMode, GameMode, lockGameMode, unlockGameMode } from "./gameModes";
 import sharedState from "./sharedState";
+import { RoomSharedState } from "./RoomSharedState";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
 import AIPlayerEntity from "../entities/AIPlayerEntity";
 import { ArcadeEnhancementManager } from "./arcadeEnhancements";
@@ -139,12 +140,16 @@ export class SoccerGame {
   private halfTimeManager!: HalfTimeManager; // Manages half-time logic and stoppage time
   private penaltyShootoutManager: PenaltyShootoutManager | null = null; // Manages penalty shootout mode
 
+  // Room-specific shared state (for multi-room support)
+  // If null, falls back to global sharedState singleton (backward compatibility)
+  private roomSharedState: RoomSharedState | null = null;
+
   // Automatic AI restart system - ensures ball doesn't sit idle after out-of-bounds
   private restartTimer: Timer | null = null;
   private restartTeam: "red" | "blue" | null = null;
   private restartPosition: { x: number; y: number; z: number } | null = null;
   private readonly RESTART_TIMEOUT = 5000; // 5 seconds before AI automatically takes restart
-  
+
   // Momentum tracking for announcer commentary
   private teamMomentum: {
     red: { consecutiveGoals: number; lastGoalTime: number };
@@ -153,11 +158,23 @@ export class SoccerGame {
     red: { consecutiveGoals: 0, lastGoalTime: 0 },
     blue: { consecutiveGoals: 0, lastGoalTime: 0 }
   };
-  
+
   // Player momentum tracking
   private playerMomentum: Map<string, { consecutiveGoals: number; lastGoalTime: number }> = new Map();
 
-  constructor(world: World, entity: Entity, aiPlayers: AIPlayerEntity[]) {
+  /**
+   * Create a new SoccerGame instance
+   * @param world - The Hytopia World instance
+   * @param entity - The soccer ball entity
+   * @param aiPlayers - Array of AI player entities
+   * @param roomState - Optional room-specific shared state (for multi-room support)
+   */
+  constructor(world: World, entity: Entity, aiPlayers: AIPlayerEntity[], roomState?: RoomSharedState) {
+    // Store room-specific state if provided
+    this.roomSharedState = roomState || null;
+    if (roomState) {
+      console.log(`🏠 SoccerGame created with room-specific state: ${roomState.getRoomId()}`);
+    }
     this.state = {
       status: "waiting",
       players: new Map(),
@@ -219,6 +236,22 @@ export class SoccerGame {
         this.handleGoalLineOut(data);
       }
     }) as any);
+  }
+
+  /**
+   * Get the shared state for this game instance
+   * Returns room-specific state if available, otherwise falls back to global singleton
+   * This enables both multi-room and single-room (backward compatible) operation
+   */
+  private getSharedState(): RoomSharedState | typeof sharedState {
+    return this.roomSharedState || sharedState;
+  }
+
+  /**
+   * Get the room shared state (may be null for legacy single-room mode)
+   */
+  public getRoomSharedState(): RoomSharedState | null {
+    return this.roomSharedState;
   }
 
   public joinGame(playerId: string, playerName: string): boolean {
@@ -427,7 +460,13 @@ export class SoccerGame {
 
   private beginMatch() {
     console.log("Beginning match - Starting 1st Quarter");
-    
+
+    // CRITICAL: Lock game mode so it cannot be changed during the match
+    // This prevents the bug where a second player joining with a different mode
+    // would change the mode for everyone mid-game
+    lockGameMode();
+    console.log(`🎮 Match starting in ${getCurrentGameMode()} mode`);
+
     // Switch music from opening to gameplay theme
     this.switchToGameplayMusic();
     
@@ -449,7 +488,7 @@ export class SoccerGame {
     }
     
     // Make sure the ball is not attached to any player
-    sharedState.setAttachedPlayer(null);
+    this.getSharedState().setAttachedPlayer(null);
     
     // Spawn ball at the safe spawn position (already elevated to prevent ground collision)
     const ballSpawnPos = BALL_SPAWN_POSITION;
@@ -521,7 +560,7 @@ export class SoccerGame {
     }
 
     // Update shared state with current game state
-    sharedState.setGameState(this.state);
+    this.getSharedState().setGameState(this.state);
 
     // MANUAL HALFTIME SYSTEM - No automatic countdown during halftime
     // During halftime, do nothing - wait for manual button click
@@ -582,10 +621,10 @@ export class SoccerGame {
         return;
       }
 
-      // Log game time at appropriate intervals
-      if (this.halfTimeManager.shouldLog()) {
-        console.log(this.halfTimeManager.getTimeLogMessage());
-      }
+      // Log game time at appropriate intervals (disabled for cleaner console)
+      // if (this.halfTimeManager.shouldLog()) {
+      //   console.log(this.halfTimeManager.getTimeLogMessage());
+      // }
 
       // Play ticking sound in last 5 seconds (regulation or stoppage time)
       if (this.halfTimeManager.shouldPlayTickingSound()) {
@@ -957,10 +996,10 @@ export class SoccerGame {
     this.restartTeam = team;
     this.restartPosition = position;
 
-    console.log(`⏱️ Starting ${this.RESTART_TIMEOUT/1000}s restart timer for ${team} team at (${position.x.toFixed(1)}, ${position.z.toFixed(1)})`);
+    // console.log(`⏱️ Starting ${this.RESTART_TIMEOUT/1000}s restart timer for ${team} team`);
 
     this.restartTimer = setTimeout(() => {
-      console.log(`⏰ Restart timer expired - assigning AI to take restart for ${team} team`);
+      // console.log(`⏰ Restart timer expired - assigning AI to take restart for ${team} team`);
       this.assignAIForRestart();
     }, this.RESTART_TIMEOUT);
   }
@@ -974,7 +1013,7 @@ export class SoccerGame {
       this.restartTimer = null;
       this.restartTeam = null;
       this.restartPosition = null;
-      console.log('✅ Restart timer cleared - player retrieved ball');
+      // console.log('✅ Restart timer cleared - player retrieved ball');
     }
   }
 
@@ -1018,10 +1057,10 @@ export class SoccerGame {
     }
 
     if (closestAI) {
-      console.log(`🤖 Assigning ${closestAI.player.username} to automatically take restart (distance: ${closestDistance.toFixed(1)} units)`);
+      // console.log(`🤖 Assigning ${closestAI.player.username} to automatically take restart (distance: ${closestDistance.toFixed(1)} units)`);
 
       // Attach ball to the AI player
-      sharedState.setAttachedPlayer(closestAI);
+      this.getSharedState().setAttachedPlayer(closestAI);
 
       // Play sound to indicate AI picked up ball
       new Audio({
@@ -1042,7 +1081,7 @@ export class SoccerGame {
    * Call this whenever ball possession changes
    */
   public checkBallPickupForRestart(): void {
-    if (this.restartTimer && sharedState.getAttachedPlayer() !== null) {
+    if (this.restartTimer && this.getSharedState().getAttachedPlayer() !== null) {
       console.log('👤 Player picked up ball - clearing restart timer');
       this.clearRestartTimer();
     }
@@ -1067,7 +1106,7 @@ export class SoccerGame {
     this.teamMomentum[team].lastGoalTime = currentTime;
     this.teamMomentum[concedingTeam].consecutiveGoals = 0; // Reset opponent's momentum
 
-    const lastPlayerWithBall = sharedState.getLastPlayerWithBall();
+    const lastPlayerWithBall = this.getSharedState().getLastPlayerWithBall();
     if (
       lastPlayerWithBall &&
       lastPlayerWithBall instanceof SoccerPlayerEntity
@@ -1148,7 +1187,7 @@ export class SoccerGame {
     }
 
     // Reset the ball movement flag as we're repositioning the ball
-    sharedState.resetBallMovementFlag();
+    this.getSharedState().resetBallMovementFlag();
 
     // Wait a moment, then set up kickoff positioning
     setTimeout(() => {
@@ -1210,6 +1249,9 @@ export class SoccerGame {
 
     // Store whether this was an overtime game before changing status
     const wasOvertime = this.state.status === "overtime";
+
+    // CRITICAL: Unlock game mode so players can select a new mode for the next match
+    unlockGameMode();
 
     // Stop the game loop immediately to prevent further time updates
     if (this.gameLoopInterval) {
@@ -1346,6 +1388,9 @@ export class SoccerGame {
   public resetGame() {
     console.log("🔄 RESETTING GAME - Starting cleanup process...");
 
+    // CRITICAL: Unlock game mode so players can select a new mode for the next match
+    unlockGameMode();
+
     // Clear all intervals and timers
     if (this.gameLoopInterval) {
       clearInterval(this.gameLoopInterval);
@@ -1402,7 +1447,7 @@ export class SoccerGame {
         // Ensure no ball attachments remain
         if (this.attachedPlayer === entity) {
           this.attachedPlayer = null;
-          sharedState.setAttachedPlayer(null);
+          this.getSharedState().setAttachedPlayer(null);
         }
         
         // Despawn ALL player entities to prevent duplicates when restarting
@@ -1443,7 +1488,7 @@ export class SoccerGame {
       this.soccerBall.despawn();
     }
     this.attachedPlayer = null;
-    sharedState.setAttachedPlayer(null);
+    this.getSharedState().setAttachedPlayer(null);
     
     // Spawn ball with proper physics reset
     this.soccerBall.spawn(this.world, BALL_SPAWN_POSITION);
@@ -1451,7 +1496,7 @@ export class SoccerGame {
     this.soccerBall.setAngularVelocity({ x: 0, y: 0, z: 0 });
     this.soccerBall.wakeUp(); // Ensure physics state is updated
     
-    sharedState.resetBallMovementFlag();
+    this.getSharedState().resetBallMovementFlag();
 
     // Notify all connected players that the game has been reset
     this.sendDataToAllPlayers({
@@ -1727,7 +1772,7 @@ export class SoccerGame {
     if (this.soccerBall.isSpawned) {
       this.soccerBall.despawn();
     }
-    sharedState.setAttachedPlayer(null);
+    this.getSharedState().setAttachedPlayer(null);
 
     this.soccerBall.spawn(this.world, position);
     this.soccerBall.setLinearVelocity({ x: 0, y: 0, z: 0 });
@@ -1738,7 +1783,7 @@ export class SoccerGame {
     setBallResetLockout();
 
     // Reset ball movement flag
-    sharedState.resetBallMovementFlag();
+    this.getSharedState().resetBallMovementFlag();
 
     // Play whistle
     new Audio({
@@ -1842,7 +1887,7 @@ export class SoccerGame {
     if (this.soccerBall.isSpawned) {
       this.soccerBall.despawn();
     }
-    sharedState.setAttachedPlayer(null);
+    this.getSharedState().setAttachedPlayer(null);
 
     // Spawn ball at center with proper elevation to prevent collision
     const adjustedSpawnPosition = {
@@ -1860,7 +1905,7 @@ export class SoccerGame {
     this.soccerBall.wakeUp(); // Ensure physics state is updated
     
     // Reset ball movement flag so AI knows this is a kickoff situation
-    sharedState.resetBallMovementFlag();
+    this.getSharedState().resetBallMovementFlag();
     
     // Position all players according to kickoff rules
     this.world.entityManager.getAllPlayerEntities().forEach((entity) => {

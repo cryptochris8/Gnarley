@@ -37,12 +37,12 @@ import { spawnAIPlayers as spawnAIPlayersUtil } from "../../utils/aiSpawner";
  * Return type for initialized server systems
  */
 export interface ServerSystems {
-  // Core game systems
-  game: SoccerGame;
+  // Core game systems (for lobby - rooms create their own)
+  game: SoccerGame | null; // null in lobby mode
   audioManager: AudioManager;
   sharedState: typeof sharedState;
 
-  // Feature managers
+  // Feature managers (shared across rooms via dependency injection)
   arcadeManager: ArcadeEnhancementManager;
   pickupManager: PickupGameManager;
   tournamentManager: TournamentManager;
@@ -62,6 +62,12 @@ export interface ServerSystems {
   // Mutable game state
   aiPlayers: AIPlayerEntity[];
   musicStarted: { value: boolean };
+
+  // Room system dependencies (exported for RoomManager)
+  SoccerGameClass: typeof SoccerGame;
+  createSoccerBallFn: typeof createSoccerBall;
+  spawnAIPlayersFn: typeof spawnAIPlayersUtil;
+  mapData: any;
 }
 
 export class ServerInitializer {
@@ -221,7 +227,7 @@ export class ServerInitializer {
     // Return all initialized systems
     // ========================================
     return {
-      game,
+      game, // This is the lobby game instance
       audioManager,
       sharedState,
       arcadeManager,
@@ -237,6 +243,12 @@ export class ServerInitializer {
       gameEventHandlers,
       aiPlayers,
       musicStarted,
+
+      // Export dependencies for RoomManager to create room instances
+      SoccerGameClass: SoccerGame,
+      createSoccerBallFn: createSoccerBall,
+      spawnAIPlayersFn: spawnAIPlayersUtil,
+      mapData: worldMap,
     };
   }
 

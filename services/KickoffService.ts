@@ -20,6 +20,7 @@ import {
   SAFE_SPAWN_Y
 } from "../state/gameConfig";
 import sharedState from "../state/sharedState";
+import type { RoomSharedState } from "../state/RoomSharedState";
 
 export interface OutOfBoundsData {
   side: string;
@@ -28,11 +29,21 @@ export interface OutOfBoundsData {
 }
 
 export class KickoffService {
+  private roomState: RoomSharedState | null = null;
+
   constructor(
     private world: World,
     private eventBus: EventBus,
-    private soccerBall: Entity
-  ) {}
+    private soccerBall: Entity,
+    roomState?: RoomSharedState
+  ) {
+    this.roomState = roomState || null;
+  }
+
+  /** Get the correct shared state (room or global) */
+  private getState() {
+    return this.roomState || sharedState;
+  }
 
   /**
    * Perform kickoff positioning for all players
@@ -62,7 +73,7 @@ export class KickoffService {
     if (this.soccerBall.isSpawned) {
       this.soccerBall.despawn();
     }
-    sharedState.setAttachedPlayer(null);
+    this.getState().setAttachedPlayer(null);
 
     // Spawn at center
     const centerPosition = {
@@ -81,7 +92,7 @@ export class KickoffService {
     this.soccerBall.wakeUp();
 
     // Reset ball movement tracking
-    sharedState.resetBallMovementFlag();
+    this.getState().resetBallMovementFlag();
   }
 
   /**
@@ -93,7 +104,7 @@ export class KickoffService {
     if (this.soccerBall.isSpawned) {
       this.soccerBall.despawn();
     }
-    sharedState.setAttachedPlayer(null);
+    this.getState().setAttachedPlayer(null);
 
     // Spawn at position
     this.soccerBall.spawn(this.world, position);
@@ -105,7 +116,7 @@ export class KickoffService {
     setBallResetLockout();
 
     // Reset ball movement tracking
-    sharedState.resetBallMovementFlag();
+    this.getState().resetBallMovementFlag();
   }
 
   /**

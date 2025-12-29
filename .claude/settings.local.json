@@ -57,7 +57,9 @@
       "mcp__hytopia-mcp__tree",
       "Bash(dir:*)",
       "mcp__hytopia-mcp__cat",
-      "mcp__hytopia-mcp__ls"
+      "mcp__hytopia-mcp__ls",
+      "Bash(cat:*)",
+      "Bash(git reset:*)"
     ],
     "deny": []
   },

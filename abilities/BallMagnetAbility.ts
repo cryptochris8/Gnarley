@@ -2,8 +2,11 @@ import type { Ability } from "./Ability";
 import type { ItemAbilityOptions } from "./itemTypes";
 import { type Vector3Like, Entity, Audio } from "hytopia";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
-import { isArcadeMode } from "../state/gameModes";
+import { isArcadeModeForPlayer } from "../state/gameModes";
 import sharedState from "../state/sharedState";
+
+// Helper to get correct state from entity (room or global)
+const getState = (entity: SoccerPlayerEntity) => entity.getSharedState();
 
 /**
  * Ball Magnet Power-Up Ability (Arcade Mode Only)
@@ -30,11 +33,17 @@ export class BallMagnetAbility implements Ability {
      * Activates the ball magnet power-up effect
      */
     use(origin: Vector3Like, direction: Vector3Like, source: Entity): void {
-        // SAFETY CHECK: Only work in arcade mode
-        if (!isArcadeMode()) {
+        // Validate the source entity first
+        if (!source.world || !(source instanceof SoccerPlayerEntity)) {
+            console.error("❌ BALL MAGNET: Invalid source entity for ball magnet ability");
+            return;
+        }
+
+        // SAFETY CHECK: Only work in arcade mode (room-aware)
+        if (!isArcadeModeForPlayer(source.player)) {
             console.log("🧭 BALL MAGNET: Power-up blocked - not in arcade mode");
             // Send feedback to player
-            if (source instanceof SoccerPlayerEntity && source.player.ui && typeof source.player.ui.sendData === 'function') {
+            if (source.player.ui && typeof source.player.ui.sendData === 'function') {
                 source.player.ui.sendData({
                     type: "action-feedback",
                     feedbackType: "error",
@@ -43,14 +52,12 @@ export class BallMagnetAbility implements Ability {
                 });
             }
             // Remove the ability since it can't be used
-            if (source instanceof SoccerPlayerEntity) {
-                source.abilityHolder.removeAbility();
-                source.abilityHolder.hideAbilityUI(source.player);
-            }
+            source.abilityHolder.removeAbility();
+            source.abilityHolder.hideAbilityUI(source.player);
             return;
         }
 
-        // Validate the source entity
+        // Already validated above, this is for the rest of the function
         if (!source.world || !(source instanceof SoccerPlayerEntity)) {
             console.error("❌ BALL MAGNET: Invalid source entity for ball magnet ability");
             return;
@@ -121,8 +128,8 @@ export class BallMagnetAbility implements Ability {
             const magnetForce = this.options.speed; // Magnetic pull force (10)
             const magnetRadius = this.options.projectileRadius; // Magnetic field radius (5.0)
 
-            // Get the soccer ball
-            const soccerBall = sharedState.getSoccerBall();
+            // Get the soccer ball (room-aware)
+            const soccerBall = getState(caster).getSoccerBall();
             if (!soccerBall?.isSpawned) {
                 console.error("❌ BALL MAGNET: Soccer ball not available");
                 return;

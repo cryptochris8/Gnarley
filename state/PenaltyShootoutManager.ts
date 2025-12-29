@@ -16,6 +16,7 @@ import type { Vector3Like } from "hytopia";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
 import AIPlayerEntity from "../entities/AIPlayerEntity";
 import sharedState from "./sharedState";
+import type { RoomSharedState } from "./RoomSharedState";
 import {
   PENALTY_SHOOTOUT_CONFIG,
   GameMode,
@@ -57,6 +58,17 @@ export class PenaltyShootoutManager {
   private world: World;
   private soccerBall: Entity;
   private isActive: boolean = false;
+  private roomState: RoomSharedState | null = null;
+
+  /** Get the correct shared state (room or global) */
+  private getState() {
+    return this.roomState || sharedState;
+  }
+
+  /** Set room state for room-aware mode */
+  public setRoomState(roomState: RoomSharedState) {
+    this.roomState = roomState;
+  }
 
   // Shootout state
   private phase: ShootoutPhase = 'setup';
@@ -347,7 +359,7 @@ export class PenaltyShootoutManager {
     if (this.soccerBall.isSpawned) {
       this.soccerBall.despawn();
     }
-    sharedState.setAttachedPlayer(null);
+    this.getState().setAttachedPlayer(null);
 
     const ballPos: Vector3Like = {
       x: penaltySpotX,

@@ -2,7 +2,7 @@ import type { Ability } from './Ability';
 import type { ItemAbilityOptions } from './itemTypes';
 import { type Vector3Like, type Entity, Audio } from 'hytopia';
 import SoccerPlayerEntity from '../entities/SoccerPlayerEntity';
-import { isArcadeMode } from '../state/gameModes';
+import { isArcadeModeForPlayer } from '../state/gameModes';
 
 export class PowerBoostAbility implements Ability {
     private effectDuration: number = 8000; // 8 seconds default
@@ -30,8 +30,8 @@ export class PowerBoostAbility implements Ability {
     }
 
     private applyBoostEffect(player: SoccerPlayerEntity): void {
-        // SAFETY CHECK: Only work in arcade mode
-        if (!isArcadeMode()) {
+        // SAFETY CHECK: Only work in arcade mode (room-aware)
+        if (!isArcadeModeForPlayer(player.player)) {
             console.log("🎮 POWER BOOST: Blocked - not in arcade mode");
             return;
         }

@@ -21,6 +21,8 @@ import {
 } from "../utils/direction";
 import { PASS_FORCE, BALL_SPAWN_POSITION as GLOBAL_BALL_SPAWN_POSITION, FIELD_MIN_X, FIELD_MAX_X, FIELD_MIN_Z, FIELD_MAX_Z, FIELD_MIN_Y, FIELD_MAX_Y, AI_GOAL_LINE_X_RED, AI_GOAL_LINE_X_BLUE } from "../state/gameConfig";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
+// Note: AIPlayerEntity not imported directly to avoid circular dependency
+// Use duck typing to check for notifyIncomingPass method instead
 import { isArcadeMode, getCurrentModeConfig } from "../state/gameModes";
 import { getArcadePlayerSpeed } from "../state/arcadeEnhancements";
 import { SafeAbilityWrapper } from "../abilities/SafeAbilityWrapper";
@@ -315,9 +317,12 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       return;
     }
 
+    // Get the correct shared state for this entity (room or global)
+    const entityState = (entity as any).getSharedState ? (entity as any).getSharedState() : sharedState;
+
     // Check for charging state when ball possession is lost
-    const soccerBall = sharedState.getSoccerBall();
-    const hasBall = sharedState.getAttachedPlayer() === entity;
+    const soccerBall = entityState.getSoccerBall();
+    const hasBall = entityState.getAttachedPlayer() === entity;
     
     // **CRITICAL FIX**: Clear charging state if player no longer has ball
     if (this._holdingQ !== null && !hasBall) {
@@ -339,11 +344,11 @@ export default class CustomSoccerPlayer extends BaseEntityController {
 
       // Ensure input and cameraOrientation are valid before proceeding
       if (!input) {
-        console.log("❌ Controller: Input is undefined, skipping tick.");
+        // Silent return - this can happen during initialization
         return;
       }
       if (!cameraOrientation) {
-        console.log("❌ Controller: cameraOrientation is undefined, skipping tick.");
+        // Silent return - this can happen during initialization
         return;
       }
 
@@ -352,15 +357,16 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         return;
       }
 
-      // Get ball reference and check validity
-      const soccerBall = sharedState.getSoccerBall();
+      // Get ball reference from entity's state (room or global)
+      const soccerBall = entityState.getSoccerBall();
+
       if (!soccerBall?.isSpawned || !soccerBall.world) {
-        console.log("❌ Controller: Soccer ball not spawned or no world");
+        // Silent return - ball may not be ready yet
         return;
       }
 
       // Get game state to check for halftime
-      const gameState = sharedState.getGameState();
+      const gameState = entityState.getGameState();
       const isHalftime = gameState?.isHalftime || false;
 
       // If stunned, frozen, or during halftime, ignore movement input
@@ -382,7 +388,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       }
 
       // Check attached player state
-      const attachedPlayer = sharedState.getAttachedPlayer();
+      const attachedPlayer = entityState.getAttachedPlayer();
       const hasBall = attachedPlayer?.player?.username === entity.player?.username;
 
       const { w, a, s, d, sp, ml, q, sh, mr, e } = input;
@@ -500,7 +506,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         }
 
         console.log("Charge Duration:", chargeDuration, "Power:", totalPower);
-        sharedState.setAttachedPlayer(null);
+        entityState.setAttachedPlayer(null);
         const direction = directionFromOrientation(entity, cameraOrientation);
         
         // Apply impulse based on calculated totalPower
@@ -534,7 +540,8 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         const ability = entity.abilityHolder.getAbility();
         console.log(`🎮 F key pressed by ${entity.player?.username || 'unknown'} - activating ability: ${ability?.getIcon() || 'unknown'}`);
         console.log(`🔍 Ability details: type=${ability?.constructor.name}, has use method=${typeof ability?.use === 'function'}`);
-        console.log(`🔍 Current game mode check: isArcadeMode()=${isArcadeMode()}`);
+        const worldArcadeManager = (entity.world as any)?._arcadeManager;
+        console.log(`🔍 Global isArcadeMode()=${isArcadeMode()}, World has _arcadeManager=${!!worldArcadeManager}, roomArcadeMode=${worldArcadeManager?.isRoomArcadeMode ?? 'N/A'}`);
         console.log(`🔍 Player has ball: ${hasBall} (ability activation now allowed regardless)`);
         console.log(`🔍 Player position: ${JSON.stringify(entity.position)}`);
         console.log(`🔍 Camera direction: ${entity.player?.camera?.facingDirection ? JSON.stringify(entity.player.camera.facingDirection) : 'null'}`);
@@ -611,7 +618,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       // Handle passing with E - IMPROVED TARGETING SYSTEM
       if (ml) {
         if (hasBall && !this._holdingQ) {
-          sharedState.setAttachedPlayer(null);
+          entityState.setAttachedPlayer(null);
           
           // Find the best teammate to pass to based on camera direction and positioning
           const bestTarget = this._findBestPassTarget(entity, cameraOrientation);
@@ -782,13 +789,10 @@ export default class CustomSoccerPlayer extends BaseEntityController {
           z: impulseZ 
       });
 
-      // Debug logging for physics-related issues
-      if (Math.random() < 0.01) { // Log only occasionally to avoid spam
-        console.log(`Player ${entity.player?.username || 'unknown'} physics: ` +
-          `pos(${entity.position.x.toFixed(2)},${entity.position.y.toFixed(2)},${entity.position.z.toFixed(2)}), ` +
-          `vel(${entity.linearVelocity.x.toFixed(2)},${entity.linearVelocity.y.toFixed(2)},${entity.linearVelocity.z.toFixed(2)}), ` +
-          `impulse(${impulseX.toFixed(2)},0,${impulseZ.toFixed(2)})`);
-      }
+      // Debug logging for physics-related issues (disabled for cleaner console)
+      // if (Math.random() < 0.01) {
+      //   console.log(`Player ${entity.player?.username || 'unknown'} physics: ...`);
+      // }
 
       // Limit maximum velocity to prevent physics instability
       const currentVelSqr = 
@@ -814,7 +818,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         
         // Check for goalkeeper header opportunity
         if (isGoalkeeper && !hasBall) {
-          const ball = sharedState.getSoccerBall();
+          const ball = soccerBall; // Use already-fetched ball from entityState
           if (ball) {
             const ballPosition = ball.position;
             const playerPosition = entity.position;
@@ -1070,7 +1074,9 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       return;
     }
 
-    const soccerBall = sharedState.getSoccerBall();
+    // Get the correct shared state for this entity (room or global)
+    const entityState = (entity as any).getSharedState ? (entity as any).getSharedState() : sharedState;
+    const soccerBall = entityState.getSoccerBall();
     try {
       // Check if both entities exist and are spawned
       if (!entity?.isSpawned || !other?.isSpawned || !entity.world || !other.world) {
@@ -1271,7 +1277,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         } else if (currentTime - CustomSoccerPlayer._ballStuckStartTime > BALL_STUCK_TIME_THRESHOLD) { 
           console.log("Ball stuck detected - resetting position to global spawn.");
           soccerBall.despawn();
-          sharedState.setAttachedPlayer(null); 
+          entityState.setAttachedPlayer(null); 
           soccerBall.spawn(world, GLOBAL_BALL_SPAWN_POSITION); 
           soccerBall.setLinearVelocity({ x: 0, y: 0, z: 0 });
           soccerBall.setAngularVelocity({ x: 0, y: 0, z: 0 });
@@ -1436,26 +1442,27 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       Math.pow(target.position.z - entity.position.z, 2)
     );
 
-    // Calculate leading based on target's movement
-    const leadFactor = Math.min(4.0, 2.0 + (distanceToTarget / 15)); // More lead for longer passes
-    
+    // IMPROVED LEADING: Calculate conservative lead based on target's movement
     // Get target's current velocity for leading calculation
     const targetVelocity = target.linearVelocity || { x: 0, y: 0, z: 0 };
     const velocityMagnitude = Math.sqrt(targetVelocity.x * targetVelocity.x + targetVelocity.z * targetVelocity.z);
-    
-    // Calculate lead position
+
+    // Calculate lead position - only lead if target is moving fast enough
     let leadPosition = { ...target.position };
-    if (velocityMagnitude > 0.5) { // Only lead if target is moving significantly
-      const normalizedVelocity = {
-        x: targetVelocity.x / velocityMagnitude,
-        z: targetVelocity.z / velocityMagnitude
-      };
-      
+    if (velocityMagnitude > 1.5) { // Higher threshold - only lead for clear movement
+      // Calculate estimated travel time based on realistic ball speed
+      const estimatedBallSpeed = 7.0; // units per second
+      const passTravelTime = Math.min(distanceToTarget / estimatedBallSpeed, 1.5); // Cap at 1.5 seconds
+
+      // Apply conservative leading - only 50% of predicted movement
+      const leadMultiplier = 0.5;
       leadPosition = {
-        x: target.position.x + normalizedVelocity.x * leadFactor,
+        x: target.position.x + targetVelocity.x * passTravelTime * leadMultiplier,
         y: target.position.y,
-        z: target.position.z + normalizedVelocity.z * leadFactor
+        z: target.position.z + targetVelocity.z * passTravelTime * leadMultiplier
       };
+
+      console.log(`Human pass leading: vel=${velocityMagnitude.toFixed(1)}, travel=${passTravelTime.toFixed(2)}s`);
     }
 
     // Calculate pass direction
@@ -1476,10 +1483,20 @@ export default class CustomSoccerPlayer extends BaseEntityController {
     };
 
     // Calculate optimal pass power based on distance
-    // Simplified power calculation for more consistent passes
-    const basePower = 5.0; // Use consistent base power
-    const distanceMultiplier = Math.max(0.9, Math.min(1.8, passDistance / 15)); // More conservative scaling
-    const finalPassPower = basePower * distanceMultiplier;
+    // BALANCED POWER: Matches AI pass power range (2.5-4.5)
+    // Short passes (< 10): power ~2.5-3.0
+    // Medium passes (10-20): power ~3.0-3.5
+    // Long passes (> 20): power ~3.5-4.5 (max)
+    let finalPassPower: number;
+    if (passDistance < 10) {
+      finalPassPower = 2.5 + (passDistance / 20); // 2.5 to 3.0
+    } else if (passDistance < 20) {
+      finalPassPower = 3.0 + ((passDistance - 10) / 20); // 3.0 to 3.5
+    } else {
+      finalPassPower = 3.5 + Math.min(1.0, (passDistance - 20) / 20); // 3.5 to 4.5 max
+    }
+
+    console.log(`Human pass: dist=${passDistance.toFixed(1)}, power=${finalPassPower.toFixed(2)}`);
 
     // Clear ball's current velocity for clean pass
     const currentVelocity = ball.linearVelocity;
@@ -1518,6 +1535,14 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         resetCount++;
       }, 40); // Reset every 40ms
 
+      // NOTIFY AI TARGET about the incoming pass so they can move to receive it
+      // Use duck typing to avoid circular dependency with AIPlayerEntity
+      const targetAny = target as any;
+      if (targetAny.notifyIncomingPass && typeof targetAny.notifyIncomingPass === 'function') {
+        targetAny.notifyIncomingPass(leadPosition);
+        console.log(`📨 Human pass: Notified AI ${target.player.username} to receive pass at (${leadPosition.x.toFixed(1)}, ${leadPosition.z.toFixed(1)})`);
+      }
+
       return { success: true, distance: distanceToTarget };
     } catch (error) {
       console.error(`Error in targeted pass: ${error}`);
@@ -1548,8 +1573,8 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       ball.setLinearVelocity({ x: 0, y: 0, z: 0 });
     }
 
-    // Use moderate power for directional pass
-    const directionalPassPower = 5.0; // Match the base power used in targeted passes
+    // Use moderate power for directional pass (conservative)
+    const directionalPassPower = 4.5; // Slightly lower than targeted passes for safety
     
     try {
       ball.applyImpulse({

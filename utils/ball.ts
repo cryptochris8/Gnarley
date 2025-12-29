@@ -10,6 +10,7 @@ import {
   CollisionGroup,
 } from "hytopia";
 import sharedState from "../state/sharedState";
+import { RoomSharedState } from "../state/RoomSharedState";
 import { getDirectionFromRotation } from "./direction";
 import { BALL_CONFIG, BALL_SPAWN_POSITION, FIELD_MIN_Y, GAME_CONFIG } from "../state/gameConfig";
 import { soccerMap } from "../state/map";
@@ -72,15 +73,16 @@ function createGoalSensors(world: World) {
   worldRef = world;
   
   // Red goal sensor (Blue team scores when ball enters)
-  // CRITICAL FIX: Position sensor ON the goal line and extend it into field + goal
-  // This ensures balls crossing the line are detected
+  // FIX: Position sensor BEHIND the goal line (inside the goal) so it only triggers
+  // when the ball actually enters the goal, not when goalkeeper holds ball in front
+  // Red goal is at X=52 (field edge), sensor should be at X=54 (inside goal)
   redGoalSensor = new Collider({
     shape: ColliderShape.BLOCK,
-    halfExtents: { x: 2, y: 2.0, z: 5 }, // 4x4x10 - extends 2 units each direction from goal line
+    halfExtents: { x: 1.5, y: 2.0, z: 5 }, // 3x4x10 - narrower sensor inside goal only
     isSensor: true,
     tag: 'red-goal-sensor',
     relativePosition: {
-      x: GAME_CONFIG.AI_GOAL_LINE_X_RED, // Position ON the goal line (was -38.5, now -37)
+      x: GAME_CONFIG.AI_GOAL_LINE_X_RED + 2.5, // Position BEHIND goal line (X=54.5, inside goal)
       y: 2.0, // Positioned at Y=2.0 so sensor spans Y=0 to Y=4 (full goal height)
       z: GAME_CONFIG.AI_FIELD_CENTER_Z
     },
@@ -93,15 +95,16 @@ function createGoalSensors(world: World) {
   });
 
   // Blue goal sensor (Red team scores when ball enters)
-  // CRITICAL FIX: Position sensor ON the goal line and extend it into field + goal
-  // This ensures balls crossing the line are detected
+  // FIX: Position sensor BEHIND the goal line (inside the goal) so it only triggers
+  // when the ball actually enters the goal, not when goalkeeper holds ball in front
+  // Blue goal is at X=-37 (field edge), sensor should be at X=-39.5 (inside goal)
   blueGoalSensor = new Collider({
     shape: ColliderShape.BLOCK,
-    halfExtents: { x: 2, y: 2.0, z: 5 }, // 4x4x10 - extends 2 units each direction from goal line
+    halfExtents: { x: 1.5, y: 2.0, z: 5 }, // 3x4x10 - narrower sensor inside goal only
     isSensor: true,
     tag: 'blue-goal-sensor',
     relativePosition: {
-      x: GAME_CONFIG.AI_GOAL_LINE_X_BLUE, // Position ON the goal line (was 53.5, now 52)
+      x: GAME_CONFIG.AI_GOAL_LINE_X_BLUE - 2.5, // Position BEHIND goal line (X=-39.5, inside goal)
       y: 2.0, // Positioned at Y=2.0 so sensor spans Y=0 to Y=4 (full goal height)
       z: GAME_CONFIG.AI_FIELD_CENTER_Z
     },
@@ -116,11 +119,11 @@ function createGoalSensors(world: World) {
   // Add sensors to world simulation
   redGoalSensor.addToSimulation(world.simulation);
   blueGoalSensor.addToSimulation(world.simulation);
-  
+
   console.log('⚽ Goal sensors created and added to simulation');
-  console.log(`   Red goal (X=${GAME_CONFIG.AI_GOAL_LINE_X_RED}): Blue scores here | Sensor: X=${GAME_CONFIG.AI_GOAL_LINE_X_RED - 2} to ${GAME_CONFIG.AI_GOAL_LINE_X_RED + 2}`);
-  console.log(`   Blue goal (X=${GAME_CONFIG.AI_GOAL_LINE_X_BLUE}): Red scores here | Sensor: X=${GAME_CONFIG.AI_GOAL_LINE_X_BLUE - 2} to ${GAME_CONFIG.AI_GOAL_LINE_X_BLUE + 2}`);
-  console.log(`   Sensor size: 4x4x10 blocks (Y=0 to Y=4) | Validation: Minimal (trusts sensor)`);
+  console.log(`   Red goal (X=${GAME_CONFIG.AI_GOAL_LINE_X_RED}): Blue scores here | Sensor: X=${GAME_CONFIG.AI_GOAL_LINE_X_RED + 1} to ${GAME_CONFIG.AI_GOAL_LINE_X_RED + 4}`);
+  console.log(`   Blue goal (X=${GAME_CONFIG.AI_GOAL_LINE_X_BLUE}): Red scores here | Sensor: X=${GAME_CONFIG.AI_GOAL_LINE_X_BLUE - 4} to ${GAME_CONFIG.AI_GOAL_LINE_X_BLUE - 1}`);
+  console.log(`   Sensor size: 3x4x10 blocks (Y=0 to Y=4) | Only triggers when ball enters goal`);
 }
 
 /**
@@ -229,7 +232,7 @@ function handleGoalSensorTrigger(scoringTeam: 'red' | 'blue', ballEntity: Entity
  */
 export function setBallResetLockout() {
   ballResetLockout = Date.now();
-  console.log('⚽ Ball reset lockout activated (1.5s)');
+  // console.log('⚽ Ball reset lockout activated (1.5s)');
 }
 
 /**
@@ -264,10 +267,24 @@ const throttledReceptionLog = EventThrottler.throttle(
   500 // Log at most once every 500ms
 );
 
-export default function createSoccerBall(world: World) {
+// Type for shared state that works with both global and room-specific state
+type SharedStateType = typeof sharedState | RoomSharedState;
+
+/**
+ * Creates a soccer ball entity for a game world
+ * @param world - The Hytopia game world
+ * @param roomState - Optional room-specific shared state for multi-room support
+ */
+export default function createSoccerBall(world: World, roomState?: RoomSharedState) {
+  // Helper function to get the correct shared state
+  // Uses room-specific state if provided, otherwise falls back to global singleton
+  const getSharedState = (): SharedStateType => roomState || sharedState;
+  const roomId = roomState?.getRoomId() || 'global';
+
+  console.log(`⚽ Creating soccer ball for room: ${roomId}`);
   console.log("Creating soccer ball with config:", JSON.stringify(BALL_CONFIG));
   console.log("Ball spawn position:", JSON.stringify(BALL_SPAWN_POSITION));
-  
+
   // Create goal sensors for reliable goal detection
   createGoalSensors(world);
   
@@ -296,7 +313,7 @@ export default function createSoccerBall(world: World) {
     },
   });
 
-  sharedState.setSoccerBall(soccerBall);
+  getSharedState().setSoccerBall(soccerBall);
 
   let inGoal = false;
   let isRespawning = false;
@@ -338,7 +355,7 @@ export default function createSoccerBall(world: World) {
     const ballPhysicsStartTime = performance.now();
     
     // Check if ball has moved from spawn
-    if (!sharedState.getBallHasMoved()) {
+    if (!getSharedState().getBallHasMoved()) {
       const currentPos = { ...entity.position }; // Clone position
       const spawnPos = BALL_SPAWN_POSITION;
       const dx = currentPos.x - spawnPos.x;
@@ -347,7 +364,7 @@ export default function createSoccerBall(world: World) {
       // Use a small threshold to account for minor physics jitter
       const distanceMoved = Math.sqrt(dx*dx + dy*dy + dz*dz);
       if (distanceMoved > 0.1) {
-        sharedState.setBallHasMoved();
+        getSharedState().setBallHasMoved();
       }
     }
 
@@ -380,17 +397,17 @@ export default function createSoccerBall(world: World) {
     const currentPos = { ...entity.position };
     throttledStationaryUpdate(currentPos);
     
-    const attachedPlayer = sharedState.getAttachedPlayer();
+    const attachedPlayer = getSharedState().getAttachedPlayer();
 
     // If the ball falls significantly below the field, reset it immediately
     // Allow ball to rest on ground (Y=1) but reset if it goes below Y=0.5
     if (entity.position.y < FIELD_MIN_Y + 0.5 && !isRespawning && !inGoal && !isInitializing) {
       console.log(`Ball unexpectedly below field at Y=${entity.position.y}, resetting to spawn position`);
       isRespawning = true;
-      
+
       // Reset the ball position without playing the whistle (this is a physics issue, not gameplay)
       entity.despawn();
-      sharedState.setAttachedPlayer(null);
+      getSharedState().setAttachedPlayer(null);
       
       // Spawn at the proper ground position (higher Y to ensure it's above ground)
       entity.spawn(world, BALL_SPAWN_POSITION);
@@ -448,8 +465,8 @@ export default function createSoccerBall(world: World) {
             if (isRespawning) { // Make sure we're still handling this out-of-bounds event
               // Reset the ball position
               entity.despawn();
-              sharedState.setAttachedPlayer(null);
-              
+              getSharedState().setAttachedPlayer(null);
+
               // Emit different events based on boundary type
               if (boundaryInfo.boundaryType === 'sideline') {
                 // Ball went out on sideline - throw-in
@@ -457,7 +474,7 @@ export default function createSoccerBall(world: World) {
                 world.emit("ball-out-sideline" as any, {
                   side: boundaryInfo.side,
                   position: boundaryInfo.position,
-                  lastPlayer: sharedState.getLastPlayerWithBall()
+                  lastPlayer: getSharedState().getLastPlayerWithBall()
                 } as any);
               } else if (boundaryInfo.boundaryType === 'goal-line') {
                 // Ball went out over goal line - corner kick or goal kick
@@ -465,7 +482,7 @@ export default function createSoccerBall(world: World) {
                 world.emit("ball-out-goal-line" as any, {
                   side: boundaryInfo.side,
                   position: boundaryInfo.position,
-                  lastPlayer: sharedState.getLastPlayerWithBall()
+                  lastPlayer: getSharedState().getLastPlayerWithBall()
                 } as any);
               } else {
                 // Fallback to old system for other cases
@@ -497,12 +514,14 @@ export default function createSoccerBall(world: World) {
       let PROXIMITY_POSSESSION_DISTANCE = 2.5; // INCREASED from 2.0 to 2.5 for easier ball pickup
       let MAX_BALL_SPEED_FOR_PROXIMITY = 5.0; // INCREASED from 4.0 to 5.0 for better stationary ball pickup
 
+      // MAGNETIC PASS RECEPTION: Much larger radius for players expecting a pass
+      const PASS_TARGET_MAGNETIC_DISTANCE = 4.5; // Magnetic "catch zone" for pass targets
+
       // RECEPTION ASSISTANCE: If ball is moving (likely a pass), increase reception assistance significantly
       if (ballSpeed > 1.0) {
         // Ball is moving - likely a pass, so provide enhanced reception assistance
         PROXIMITY_POSSESSION_DISTANCE = 3.5; // INCREASED from 3.0 to 3.5 for very forgiving pass reception
         MAX_BALL_SPEED_FOR_PROXIMITY = 10.0; // INCREASED from 8.0 to 10.0 to help with all pass speeds
-        console.log(`📥 Pass reception mode active: radius=${PROXIMITY_POSSESSION_DISTANCE}u, max_speed=${MAX_BALL_SPEED_FOR_PROXIMITY}`);
       }
       
       if (ballSpeed < MAX_BALL_SPEED_FOR_PROXIMITY) {
@@ -510,14 +529,34 @@ export default function createSoccerBall(world: World) {
         const allPlayerEntities = world.entityManager.getAllPlayerEntities();
         let closestPlayer: SoccerPlayerEntity | null = null;
         let closestDistance = Infinity;
-        
+        let isPassTargetReception = false; // Track if this is a magnetic pass reception
+
         for (const playerEntity of allPlayerEntities) {
           if (playerEntity instanceof SoccerPlayerEntity && playerEntity.isSpawned && !playerEntity.isStunned) {
             const distance = Math.sqrt(
               Math.pow(playerEntity.position.x - ballPosition.x, 2) +
               Math.pow(playerEntity.position.z - ballPosition.z, 2)
             );
-            
+
+            // MAGNETIC PASS RECEPTION: Check if this player is expecting a pass (AI only)
+            // Use duck typing to check for getIncomingPassTarget method
+            const playerAny = playerEntity as any;
+            const isExpectingPass = playerAny.getIncomingPassTarget &&
+                                    typeof playerAny.getIncomingPassTarget === 'function' &&
+                                    playerAny.getIncomingPassTarget() !== null;
+
+            // If player is expecting a pass, use larger magnetic reception radius
+            if (isExpectingPass && distance < PASS_TARGET_MAGNETIC_DISTANCE) {
+              // This player is the intended pass target - give them priority!
+              if (distance < closestDistance) {
+                closestDistance = distance;
+                closestPlayer = playerEntity;
+                isPassTargetReception = true;
+                console.log(`🧲 MAGNETIC RECEPTION: ${playerEntity.player.username} catching pass (dist: ${distance.toFixed(1)})`);
+              }
+              continue; // Skip normal distance checks for pass targets
+            }
+
             // ENHANCED RECEPTION: Additional assistance for balls moving toward the player
             let effectiveDistance = distance;
             if (ballSpeed > 1.0) {
@@ -547,26 +586,37 @@ export default function createSoccerBall(world: World) {
                 }
               }
             }
-            
-            if (effectiveDistance < PROXIMITY_POSSESSION_DISTANCE && effectiveDistance < closestDistance) {
+
+            // Only update closest if not already found a pass target (pass targets have priority)
+            if (!isPassTargetReception && effectiveDistance < PROXIMITY_POSSESSION_DISTANCE && effectiveDistance < closestDistance) {
               closestDistance = effectiveDistance;
               closestPlayer = playerEntity;
             }
           }
         }
-        
+
         // Automatically attach ball to closest player if within range
         if (closestPlayer) {
-          sharedState.setAttachedPlayer(closestPlayer);
-          
+          getSharedState().setAttachedPlayer(closestPlayer);
+
+          // Clear the incoming pass notification if this was a pass target
+          const closestAny = closestPlayer as any;
+          if (closestAny.clearIncomingPass && typeof closestAny.clearIncomingPass === 'function') {
+            closestAny.clearIncomingPass();
+          }
+
           // Play a subtle sound to indicate automatic ball attachment
           new Audio({
-            uri: "audio/sfx/soccer/kick.mp3", 
-            volume: 0.08,
+            uri: "audio/sfx/soccer/kick.mp3",
+            volume: isPassTargetReception ? 0.12 : 0.08, // Slightly louder for magnetic catches
             loop: false,
           }).play(entity.world as World);
-          
-          console.log(`Ball automatically attached to ${closestPlayer.player.username} (proximity: ${closestDistance.toFixed(2)} units, speed: ${ballSpeed.toFixed(1)})`);
+
+          if (isPassTargetReception) {
+            console.log(`🧲 Ball MAGNETICALLY attached to pass target ${closestPlayer.player.username} (dist: ${closestDistance.toFixed(2)} units)`);
+          } else {
+            console.log(`Ball automatically attached to ${closestPlayer.player.username} (proximity: ${closestDistance.toFixed(2)} units, speed: ${ballSpeed.toFixed(1)})`);
+          }
         }
       }
     }
@@ -634,16 +684,16 @@ export default function createSoccerBall(world: World) {
 
   soccerBall.on(EntityEvent.ENTITY_COLLISION, ({ entity, otherEntity, started }) => {
     if (started && otherEntity instanceof SoccerPlayerEntity) {
-      const currentAttachedPlayer = sharedState.getAttachedPlayer();
-      
+      const currentAttachedPlayer = getSharedState().getAttachedPlayer();
+
       if (currentAttachedPlayer == null && !inGoal) {
         // Ball is loose - attach to any player who touches it
         if (!otherEntity.isStunned) {
-          sharedState.setAttachedPlayer(otherEntity);
-          
+          getSharedState().setAttachedPlayer(otherEntity);
+
           // Play a subtle sound to indicate ball attachment
           new Audio({
-            uri: "audio/sfx/soccer/kick.mp3", 
+            uri: "audio/sfx/soccer/kick.mp3",
             volume: 0.15,
             loop: false,
           }).play(entity.world as World);
@@ -652,7 +702,7 @@ export default function createSoccerBall(world: World) {
         // Ball is currently possessed
         if (otherEntity.isTackling) {
           // Tackling player steals the ball
-          sharedState.setAttachedPlayer(null);
+          getSharedState().setAttachedPlayer(null);
           // Apply a basic impulse to the ball
           const direction = getDirectionFromRotation(otherEntity.rotation);
           entity.applyImpulse({
@@ -662,19 +712,19 @@ export default function createSoccerBall(world: World) {
           });
           // Reset angular velocity to prevent unwanted spinning/backwards movement
           entity.setAngularVelocity({ x: 0, y: 0, z: 0 });
-        } else if (currentAttachedPlayer instanceof SoccerPlayerEntity && 
-                   currentAttachedPlayer.team === otherEntity.team && 
+        } else if (currentAttachedPlayer instanceof SoccerPlayerEntity &&
+                   currentAttachedPlayer.team === otherEntity.team &&
                    currentAttachedPlayer !== otherEntity) {
           // Teammate collision - transfer possession to teammate
-          sharedState.setAttachedPlayer(otherEntity);
-          
+          getSharedState().setAttachedPlayer(otherEntity);
+
           // Play a subtle sound to indicate ball transfer
           new Audio({
-            uri: "audio/sfx/soccer/kick.mp3", 
+            uri: "audio/sfx/soccer/kick.mp3",
             volume: 0.1,
             loop: false,
           }).play(entity.world as World);
-          
+
           console.log(`Ball transferred from ${currentAttachedPlayer.player.username} to teammate ${otherEntity.player.username}`);
         }
       }

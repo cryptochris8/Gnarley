@@ -1,6 +1,7 @@
 import { Audio, Entity, Player, PlayerCameraMode, PlayerEntity, World, EntityEvent, type Vector3Like, CollisionGroup } from "hytopia";
 import CustomSoccerPlayer from "../controllers/SoccerPlayerController";
 import sharedState from "../state/sharedState";
+import { RoomSharedState } from "../state/RoomSharedState";
 import { getDirectionFromRotation } from "../utils/direction";
 import { 
   STUN_DURATION, 
@@ -58,7 +59,10 @@ export default class SoccerPlayerEntity extends PlayerEntity {
   private staminaDrainRate: number = 1.0; // Per second when running
   private lastStaminaUpdate: number = Date.now();
   private hasBallPossession: boolean = false;
-  
+
+  // Room-based state for multi-room support
+  private roomSharedState: RoomSharedState | null = null;
+
   // Enhanced stamina recovery rates based on movement state
   private staminaRegenRates = {
     standing: 2.5,    // Very fast recovery when standing still
@@ -186,6 +190,28 @@ export default class SoccerPlayerEntity extends PlayerEntity {
 
   public get team(): "red" | "blue" {
     return this._team;
+  }
+
+  /**
+   * Get the shared state for this entity (room-specific or global)
+   */
+  public getSharedState(): RoomSharedState | typeof sharedState {
+    return this.roomSharedState || sharedState;
+  }
+
+  /**
+   * Get the room-specific shared state (null if using global)
+   */
+  public getRoomSharedState(): RoomSharedState | null {
+    return this.roomSharedState;
+  }
+
+  /**
+   * Set the room-specific shared state for this entity
+   */
+  public setRoomSharedState(roomState: RoomSharedState): void {
+    this.roomSharedState = roomState;
+    console.log(`🎮 Player ${this.player.username} assigned to room: ${roomState.getRoomId()}`);
   }
 
   public stunPlayerTimeout() {

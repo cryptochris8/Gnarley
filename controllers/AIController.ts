@@ -11,6 +11,9 @@ import {
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
 import sharedState from "../state/sharedState";
 
+// Helper to get correct state from entity (room or global)
+const getState = (entity: any) => entity.getSharedState ? entity.getSharedState() : sharedState;
+
 // Add constants for AI goalkeeper header mechanics
 const AI_GOALKEEPER_HEADER_RANGE = 3.5; // Range for AI goalkeeper headers
 const AI_GOALKEEPER_HEADER_FORCE = 15; // Force applied during AI headers
@@ -161,7 +164,7 @@ export default class AIController extends BaseEntityController {
       return false;
     }
     
-    const ball = sharedState.getSoccerBall();
+    const ball = getState(entity).getSoccerBall();
     if (!ball) {
       return false;
     }
@@ -197,7 +200,7 @@ export default class AIController extends BaseEntityController {
    * @param entity - The AI goalkeeper entity
    */
   private performAIGoalkeeperJump(entity: SoccerPlayerEntity) {
-    const ball = sharedState.getSoccerBall();
+    const ball = getState(entity).getSoccerBall();
     if (!ball) return;
     
     const ballPosition = ball.position;

@@ -79,19 +79,19 @@ export class AIBallHandler {
     let distanceScaledForce = SHOT_FORCE;
     if (distanceHorizontal < 10) {
       distanceScaledForce = SHOT_FORCE * 1.2; // Close range: fast & powerful
-      console.log(`<¯ Close-range shot (${distanceHorizontal.toFixed(1)}m) - Fast & low`);
+      // console.log(`Close-range shot (${distanceHorizontal.toFixed(1)}m) - Fast & low`);
     } else if (distanceHorizontal > 20) {
       distanceScaledForce = SHOT_FORCE * 0.7; // Long range: slower with arc
-      console.log(`=€ Long-range shot (${distanceHorizontal.toFixed(1)}m) - Slow & arc`);
+      // console.log(`Long-range shot (${distanceHorizontal.toFixed(1)}m) - Slow & arc`);
     } else {
-      console.log(`½ Medium-range shot (${distanceHorizontal.toFixed(1)}m) - Balanced`);
+      // console.log(`Medium-range shot (${distanceHorizontal.toFixed(1)}m) - Balanced`);
     }
 
-    // Distance-based arc scaling
-    const arcMultiplier = Math.min(distanceHorizontal / 15, 2.0);
+    // Distance-based arc scaling - Keep shots LOW like driven shots
+    const arcMultiplier = Math.min(distanceHorizontal / 25, 1.2); // Reduced to keep arcs lower
     const baseArc = distanceHorizontal * SHOT_ARC_FACTOR * arcMultiplier;
-    const distanceBonus = Math.min(distanceHorizontal / 25, 1.2) * 1.2;
-    const calculatedY = baseArc + distanceBonus;
+    const distanceBonus = Math.min(distanceHorizontal / 40, 0.5) * 0.5; // Reduced bonus
+    const calculatedY = Math.min(baseArc + distanceBonus, 3.0); // Cap Y at 3.0
 
     const direction = {
       x: dx,
@@ -114,9 +114,9 @@ export class AIBallHandler {
     // Apply power multiplier with safety cap
     const effectiveShotForce = Math.min(distanceScaledForce * powerMultiplier, 10);
 
-    // Control vertical component
+    // Control vertical component - keep shots low
     const verticalComponent = direction.y * effectiveShotForce;
-    const maxVerticalForce = 6.5;
+    const maxVerticalForce = 3.5; // Reduced from 6.5 - keeps shots on target
     const finalVerticalForce = Math.min(verticalComponent, maxVerticalForce);
 
     // Apply impulse

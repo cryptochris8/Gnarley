@@ -15,7 +15,7 @@
 <!-- Player Status HUD -->
 <div id="player-status-hud" class="player-status-hud" style="display: none;">
   <div class="role-indicator">
-    <div class="role-icon" id="role-icon">âš½</div>
+    <div class="role-icon" id="role-icon">*</div>
     <div class="role-info">
       <div class="role-name" id="role-name">Player</div>
       <div class="role-description" id="role-description">Ready to play</div>
@@ -31,7 +31,7 @@
   </div>
   
   <div class="ball-possession-indicator" id="ball-possession" style="display: none;">
-    <div class="possession-icon">âš½</div>
+    <div class="possession-icon">*</div>
     <div class="possession-text">Ball Possession</div>
   </div>
 </div>
@@ -55,8 +55,27 @@
     padding: 0;
     margin: 0;
     box-sizing: border-box;
-    pointer-events: auto; /* Ensure UI can receive pointer events */
+    pointer-events: auto; /* Default: UI receives pointer events for menus */
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+
+  /* CRITICAL: During gameplay on mobile, allow touches to pass through to SDK joystick/camera */
+  body.mobile.gameplay-active {
+    pointer-events: none;
+  }
+
+  /* All child elements also get pointer-events: none by default during gameplay */
+  body.mobile.gameplay-active * {
+    pointer-events: none;
+  }
+
+  /* Re-enable pointer events ONLY on specific interactive UI elements during gameplay */
+  body.mobile.gameplay-active .mobile-action-btn,
+  body.mobile.gameplay-active .mobile-powerup-use-btn,
+  body.mobile.gameplay-active #main-scoreboard,
+  body.mobile.gameplay-active .power-up-slot-container,
+  body.mobile.gameplay-active .power-up-slot {
+    pointer-events: auto;
   }
 
   /* ===== CLEAN BUTTON STYLES (HYTOPIA-COMPLIANT) ===== */
@@ -1378,6 +1397,183 @@
     display: none;
   }
 
+  /* ===== MOBILE ACTION BUTTONS (SDK-COMPLIANT) ===== */
+  /* These buttons work WITH Hytopia's built-in joystick/camera controls */
+  .mobile-action-controls {
+    display: none; /* Hidden by default, shown via JS on mobile */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Allow touch-through to SDK controls */
+    z-index: 1500;
+  }
+
+  /* All action buttons get pointer-events */
+  .mobile-action-btn {
+    pointer-events: auto;
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.4);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: transform 0.1s ease, background 0.1s ease;
+  }
+
+  .mobile-action-btn:active,
+  .mobile-action-btn.pressed {
+    transform: scale(0.9);
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.8);
+  }
+
+  .mobile-action-btn .btn-icon {
+    font-size: 26px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7));
+  }
+
+  .mobile-action-btn .btn-label {
+    font-size: 9px;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.9);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  }
+
+  /* Sprint Button - Left side, positioned above SDK joystick area */
+  .mobile-sprint-btn {
+    left: 30px;
+    bottom: 180px; /* Above the SDK joystick which is ~120px from bottom */
+    background: linear-gradient(135deg, rgba(255, 200, 50, 0.85), rgba(255, 150, 0, 0.85));
+    border-color: rgba(255, 200, 50, 0.8);
+  }
+
+  .mobile-sprint-btn:active,
+  .mobile-sprint-btn.pressed {
+    background: linear-gradient(135deg, rgba(255, 220, 80, 0.95), rgba(255, 180, 30, 0.95));
+  }
+
+  /* Right side actions container */
+  .mobile-right-actions {
+    position: fixed;
+    right: 20px;
+    bottom: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    pointer-events: none;
+  }
+
+  .mobile-right-actions .mobile-action-btn {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    pointer-events: auto;
+  }
+
+  /* Shoot Button - Red/Primary */
+  .mobile-shoot-btn {
+    background: linear-gradient(135deg, rgba(220, 50, 50, 0.85), rgba(180, 30, 30, 0.85));
+    border-color: rgba(220, 50, 50, 0.8);
+    width: 80px;
+    height: 80px;
+  }
+
+  .mobile-shoot-btn .btn-icon {
+    font-size: 32px;
+  }
+
+  .mobile-shoot-btn:active,
+  .mobile-shoot-btn.pressed {
+    background: linear-gradient(135deg, rgba(250, 80, 80, 0.95), rgba(200, 50, 50, 0.95));
+  }
+
+  /* Pass Button - Blue */
+  .mobile-pass-btn {
+    background: linear-gradient(135deg, rgba(50, 150, 255, 0.85), rgba(30, 100, 200, 0.85));
+    border-color: rgba(50, 150, 255, 0.8);
+  }
+
+  .mobile-pass-btn:active,
+  .mobile-pass-btn.pressed {
+    background: linear-gradient(135deg, rgba(80, 180, 255, 0.95), rgba(50, 130, 220, 0.95));
+  }
+
+  /* Tackle Button - Purple */
+  .mobile-tackle-btn {
+    background: linear-gradient(135deg, rgba(150, 80, 255, 0.85), rgba(100, 50, 200, 0.85));
+    border-color: rgba(150, 80, 255, 0.8);
+  }
+
+  .mobile-tackle-btn:active,
+  .mobile-tackle-btn.pressed {
+    background: linear-gradient(135deg, rgba(180, 110, 255, 0.95), rgba(130, 80, 220, 0.95));
+  }
+
+  /* Responsive adjustments for smaller screens */
+  @media (max-height: 500px) {
+    .mobile-action-btn {
+      width: 60px;
+      height: 60px;
+    }
+
+    .mobile-action-btn .btn-icon {
+      font-size: 22px;
+    }
+
+    .mobile-action-btn .btn-label {
+      font-size: 8px;
+    }
+
+    .mobile-shoot-btn {
+      width: 68px;
+      height: 68px;
+    }
+
+    .mobile-shoot-btn .btn-icon {
+      font-size: 26px;
+    }
+
+    .mobile-sprint-btn {
+      bottom: 160px;
+    }
+
+    .mobile-right-actions {
+      bottom: 80px;
+      gap: 10px;
+    }
+  }
+
+  /* Landscape phone adjustments */
+  @media (max-width: 900px) and (orientation: landscape) {
+    .mobile-sprint-btn {
+      left: 25px;
+      bottom: 160px;
+    }
+
+    .mobile-right-actions {
+      right: 15px;
+      bottom: 80px;
+    }
+  }
+
   .goals-display {
     position: fixed;
     bottom: 100px;
@@ -2188,6 +2384,46 @@
   <div class="mobile-powerup-label">TAP TO USE!</div>
 </div>
 
+<!-- =============================================
+     MOBILE ACTION BUTTONS (SDK-COMPLIANT)
+
+     These buttons use hytopia.pressInput() to simulate
+     game inputs. The SDK provides movement joystick and
+     camera controls automatically - we only add action buttons.
+
+     Button Layout (Landscape):
+     - Left side: Sprint button (above SDK joystick area)
+     - Right side: Shoot, Pass, Tackle buttons (stacked)
+     ============================================= -->
+<div id="mobile-action-controls" class="mobile-action-controls" style="display: none;">
+  <!-- Sprint Button - Left side, above joystick -->
+  <button id="mobile-sprint-btn" class="mobile-action-btn mobile-sprint-btn">
+    <span class="btn-icon">[+]</span>
+    <span class="btn-label">SPRINT</span>
+  </button>
+
+  <!-- Right side action buttons -->
+  <div class="mobile-right-actions">
+    <!-- Shoot Button - Primary action -->
+    <button id="mobile-shoot-btn" class="mobile-action-btn mobile-shoot-btn">
+      <span class="btn-icon">KICK</span>
+      <span class="btn-label">SHOOT</span>
+    </button>
+
+    <!-- Pass Button -->
+    <button id="mobile-pass-btn" class="mobile-action-btn mobile-pass-btn">
+      <span class="btn-icon">[>]</span>
+      <span class="btn-label">PASS</span>
+    </button>
+
+    <!-- Tackle Button -->
+    <button id="mobile-tackle-btn" class="mobile-action-btn mobile-tackle-btn">
+      <span class="btn-icon">[S]</span>
+      <span class="btn-label">TACKLE</span>
+    </button>
+  </div>
+</div>
+
 <!-- LEGACY ABILITY ICON (for compatibility) -->
 <img id="ability-icon" src="{{CDN_ASSETS_URL}}/ui/icons/shuriken-icon.png" alt="Ability" style="display: none;" />
 
@@ -2238,12 +2474,12 @@
 
 <!-- ARCADE MODE INDICATOR -->
 <div id="arcade-mode-indicator" class="arcade-mode-indicator">
-  <span>🎮</span> ARCADE MODE - ENHANCED SOCCER!
+  <span>[A]</span> ARCADE MODE - ENHANCED SOCCER!
 </div>
 
 <!-- PICKUP SYSTEM NOTIFICATION -->
 <div id="pickup-info" class="pickup-info" style="position: fixed !important; bottom: 10px !important; right: 10px !important; z-index: 1000 !important; display: none;">
-  <div class="pickup-title">⭐ PHYSICAL PICKUPS ACTIVE</div>
+  <div class="pickup-title">[*] PHYSICAL PICKUPS ACTIVE</div>
   <div class="pickup-description">Run through power-ups to collect them! No more clicking buttons - just Mario/Sonic style pickup gameplay!</div>
 </div>
 
@@ -3602,7 +3838,7 @@
   }
 
   .bracket-match-card .match-player.winner::before {
-    content: '🏆';
+    content: '[T]';
     margin-right: 8px;
   }
 
@@ -5312,7 +5548,7 @@
 <!-- ENHANCED PLAYER ROLE & STATUS DISPLAY -->
 <div id="player-status-hud" class="player-status-hud" style="display: none;">
   <div class="role-indicator" id="role-indicator">
-    <div class="role-icon" id="role-icon">âš½</div>
+    <div class="role-icon" id="role-icon">*</div>
     <div class="role-info">
       <div class="role-name" id="role-name">Player</div>
       <div class="role-description" id="role-description">Ready to play</div>
@@ -5328,7 +5564,7 @@
   </div>
   
   <div class="ball-possession-indicator" id="ball-possession" style="display: none;">
-    <div class="possession-icon">âš½</div>
+    <div class="possession-icon">*</div>
     <div class="possession-text">Ball Possession</div>
   </div>
 </div>
@@ -5341,17 +5577,17 @@
 <!-- PLAYER PERFORMANCE INDICATORS -->
 <div id="performance-indicators" class="performance-indicators" style="display: none;">
   <div class="performance-stat">
-    <div class="stat-icon">âš½</div>
+    <div class="stat-icon">*</div>
     <div class="stat-value" id="shots-stat">0</div>
     <div class="stat-label">Shots</div>
   </div>
   <div class="performance-stat">
-    <div class="stat-icon">🎯</div>
+    <div class="stat-icon">[G]</div>
     <div class="stat-value" id="passes-stat">0</div>
     <div class="stat-label">Passes</div>
   </div>
   <div class="performance-stat">
-    <div class="stat-icon">🛡️</div>
+    <div class="stat-icon">[S]</div>
     <div class="stat-value" id="tackles-stat">0</div>
     <div class="stat-label">Tackles</div>
   </div>
@@ -5382,8 +5618,8 @@
 <div class="control-buttons">
       <button class="control-btn" id="audio-toggle" onclick="toggleAudio()" title="Toggle Audio">🔔</button>
     <button class="control-btn" id="stats-toggle" onclick="toggleStatsPanel()" title="Toggle Statistics">📊</button>
-    <button class="control-btn" id="powerup-toggle" onclick="togglePowerUpPanel()" title="Toggle Power-Ups (Arcade Mode)" style="display: none;">🎮</button>
-    <button class="control-btn" id="pass-button" onclick="forcePassToTeammate()" title="Pass to Teammate (Left Click)">âš½</button>
+    <button class="control-btn" id="powerup-toggle" onclick="togglePowerUpPanel()" title="Toggle Power-Ups (Arcade Mode)" style="display: none;">[A]</button>
+    <button class="control-btn" id="pass-button" onclick="forcePassToTeammate()" title="Pass to Teammate (Left Click)">*</button>
 </div>
 
 <!-- Statistics Panel -->
@@ -5423,7 +5659,7 @@
 <!-- Power-Up Panel (Arcade Mode Only) -->
 <div class="powerup-panel hidden" id="powerup-panel">
   <div class="powerup-header">
-    <div class="powerup-title">🎮 Arcade Power-Ups</div>
+    <div class="powerup-title">[A] Arcade Power-Ups</div>
   </div>
   
   <div class="powerup-active" id="active-powerup" style="display: none;">
@@ -5439,9 +5675,9 @@
     <div style="font-size: 11px; color: #ffcccc; line-height: 1.4;">
       🧊 <strong>Freeze Blast</strong> - Freezes nearby opponents<br>
               âš¡ <strong>Speed Boost</strong> - Doubles movement speed<br>
-        🔥 <strong>Fireball</strong> - Explosive area damage<br>
-      âš½ <strong>Mega Kick</strong> - Triple shot power<br>
-      🛡️ <strong>Shield</strong> - Temporary protection
+        [FIRE] <strong>Fireball</strong> - Explosive area damage<br>
+      * <strong>Mega Kick</strong> - Triple shot power<br>
+      [S] <strong>Shield</strong> - Temporary protection
     </div>
     <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2);">
       Press <span class="powerup-key">F</span> to activate power-up
@@ -5463,7 +5699,7 @@
 
   <!-- ===== ARCADE MODE POWER-UP SYSTEM ===== -->
   <div id="arcade-mode-indicator" class="arcade-mode-indicator">
-    🎮 ARCADE MODE - Enhanced Soccer!
+    [A] ARCADE MODE - Enhanced Soccer!
   </div>
 
   <div id="powerup-container" class="powerup-container" style="display: none;">
@@ -5481,7 +5717,7 @@
 
     
     <div class="powerup-button" id="fireball-btn" onclick="activatePowerUp('fireball')" title="Fireball - Explosive area damage">
-      🔥
+      [FIRE]
       <div class="powerup-cooldown-overlay" id="fireball-cooldown"></div>
     </div>
     
@@ -5497,7 +5733,7 @@
     </div>
 
     <div class="powerup-button" id="shield-btn" onclick="activatePowerUp('shield')" title="Shield - Temporary protection">
-      🛡️
+      [S]
       <div class="powerup-cooldown-overlay" id="shield-cooldown"></div>
     </div>
   </div>
@@ -5516,14 +5752,14 @@
     <button class="how-to-play-btn">
       How to Play
       <div class="how-to-play-tooltip">
-        <p>âš½ Use WASD or Arrow keys to move</p>
-        <p>âš½ Left Click to pass</p>
-        <p>âš½ Type /pass in chat to force a pass when you have the ball</p>
-        <p>âš½ Press F to request pass from teammate</p>
-        <p>âš½ Hold Right Mouse Button to charge a shot / Release to shoot</p>
-        <p>âš½ Space bar to tackle or dodge</p>
-        <p>âš½ Highest score when time expires wins!</p>
-        <p>âš½ Select your game mode and team to get started!</p>
+        <p>* Use WASD or Arrow keys to move</p>
+        <p>* Left Click to pass</p>
+        <p>* Type /pass in chat to force a pass when you have the ball</p>
+        <p>* Press F to request pass from teammate</p>
+        <p>* Hold Right Mouse Button to charge a shot / Release to shoot</p>
+        <p>* Space bar to tackle or dodge</p>
+        <p>* Highest score when time expires wins!</p>
+        <p>* Select your game mode and team to get started!</p>
       </div>
     </button>
   </div>
@@ -5533,17 +5769,17 @@
     <div class="game-mode-title">Choose Game Mode</div>
     <div class="game-mode-buttons">
       <button class="game-mode-btn fifa" id="fifaModeBtn">
-        🏆 FIFA Mode
+        [T] FIFA Mode
         <div class="mode-description">Realistic Soccer Simulation</div>
         <div class="mode-features">• Pure soccer gameplay • 2 x 5-minute halves • No power-ups</div>
       </button>
       <button class="game-mode-btn arcade" id="arcadeModeBtn">
-        🎮 Arcade Mode
+        [A] Arcade Mode
         <div class="mode-description">Enhanced Soccer with Physical Pickups</div>
         <div class="mode-features">• Physical power-up pickups to collect • Mario/Sonic-style gameplay • 2 x 5-minute halves</div>
       </button>
       <button class="game-mode-btn tournament" id="tournamentModeBtn">
-        🏆 Tournament Mode
+        [T] Tournament Mode
         <div class="mode-description">Competitive Bracket Soccer</div>
         <div class="mode-features">• Competitive brackets • Player coordination • Match scheduling</div>
       </button>
@@ -5584,7 +5820,7 @@
   <!-- Tournament Mode Selection and Lobby -->
   <div class="tournament-selection" id="tournamentSelection" style="display: none;">
     <div class="tournament-header">
-      <div class="tournament-title">🏆 Tournament Mode</div>
+      <div class="tournament-title">[T] Tournament Mode</div>
       <div class="tournament-subtitle">Competitive Bracket Soccer</div>
     </div>
     
@@ -5643,7 +5879,7 @@
           </div>
           
           <button class="tournament-create-btn" id="createTournamentBtn">
-            🏆 Create Tournament
+            [T] Create Tournament
           </button>
         </div>
       </div>
@@ -5677,7 +5913,7 @@
         <!-- Tournament Controls -->
         <div class="tournament-controls">
           <button class="tournament-btn join" id="joinTournamentBtn">
-            âœ… Join Tournament
+            [OK] Join Tournament
           </button>
           <button class="tournament-btn leave" id="leaveTournamentBtn" style="display: none;">
             âŒ Leave Tournament
@@ -5713,7 +5949,7 @@
         
         <div class="ready-check-controls">
           <button class="ready-btn confirm" id="confirmReadyBtn">
-            âœ… I'm Ready
+            [OK] I'm Ready
           </button>
           <button class="ready-btn cancel" id="cancelReadyBtn">
             âŒ Not Ready
@@ -6037,10 +6273,10 @@
     //     });
     //     
     //     canvas.addEventListener('webglcontextrestored', () => {
-    //       console.log("âœ… WebGL context restored");
+    //       console.log("[OK] WebGL context restored");
     //     });
     //     
-    //     console.log("🛡️ Client-side GPU memory monitoring enabled");
+    //     console.log("[S] Client-side GPU memory monitoring enabled");
     //   } else {
     //     // If canvas not found, try again after a delay
     //     setTimeout(checkCanvas, 1000);
@@ -6181,7 +6417,7 @@
     const featuresEl = document.getElementById('modeInfoFeatures');
     
     if (mode === 'fifa') {
-      titleEl.textContent = '🏆 FIFA Mode Selected';
+      titleEl.textContent = '[T] FIFA Mode Selected';
       descEl.textContent = 'Experience realistic soccer simulation with authentic gameplay mechanics and timing.';
       featuresEl.innerHTML = `
         • 2 x 5-minute halves with possible overtime<br>
@@ -6191,7 +6427,7 @@
         • Traditional soccer rules and mechanics
       `;
     } else if (mode === 'arcade') {
-      titleEl.textContent = '🎮 Arcade Mode Selected';
+      titleEl.textContent = '[A] Arcade Mode Selected';
       descEl.textContent = 'Fast-paced soccer action with enhanced gameplay features and special effects.';
       featuresEl.innerHTML = `
         • 2 x 5-minute halves for rapid gameplay<br>
@@ -6201,7 +6437,7 @@
         • Style points and arcade-style scoring
       `;
     } else if (mode === 'tournament') {
-      titleEl.textContent = '🏆 Tournament Mode Selected';
+      titleEl.textContent = '[T] Tournament Mode Selected';
       descEl.textContent = 'Compete in organized tournaments with brackets, rankings, and competitive play.';
       featuresEl.innerHTML = `
         • Tournament bracket system with eliminations<br>
@@ -6249,7 +6485,7 @@
             behavior: 'smooth',
             block: 'center'
           });
-          console.log('âœ… Tournament UI displayed successfully');
+          console.log('[OK] Tournament UI displayed successfully');
         } else {
           console.error('âŒ Tournament UI element not found!');
         }
@@ -6277,7 +6513,7 @@
 
   function selectPlayerCount(playerCount, event) {
     // ENHANCED DEBUGGING AND ERROR HANDLING
-    console.log(`🎮 selectPlayerCount called with: ${playerCount}`);
+    console.log(`[A] selectPlayerCount called with: ${playerCount}`);
     
     // Prevent any default behavior that might trigger cursor mode change
     if (event) {
@@ -6298,7 +6534,7 @@
       return;
     }
     
-    console.log(`âœ… Player count selected: ${playerCount}`);
+    console.log(`[OK] Player count selected: ${playerCount}`);
     selectedPlayerCount = playerCount;
     
     // Maintain cursor state throughout function
@@ -6325,7 +6561,7 @@
       
       singleBtn.classList.add('selected');
       singleBtn.style.cursor = 'pointer';
-      console.log('âœ… Single player button selected');
+      console.log('[OK] Single player button selected');
       
       // Hide multiplayer lobby
       const multiplayerLobby = document.getElementById('multiplayerLobby');
@@ -6342,7 +6578,7 @@
         const teamSelection = document.getElementById('teamSelection');
         if (teamSelection) {
           teamSelection.style.display = 'block';
-          console.log('âœ… Team selection shown for single player');
+          console.log('[OK] Team selection shown for single player');
           
           // Smooth scroll to team selection
           teamSelection.scrollIntoView({
@@ -6370,13 +6606,13 @@
       multiBtn.classList.add('selected');
       multiBtn.style.cursor = 'pointer';
       isMultiplayerLobby = true;
-      console.log('âœ… Multiplayer button selected');
+      console.log('[OK] Multiplayer button selected');
       
       // Show multiplayer lobby
       const multiplayerLobby = document.getElementById('multiplayerLobby');
       if (multiplayerLobby) {
         multiplayerLobby.style.display = 'block';
-        console.log('âœ… Multiplayer lobby shown');
+        console.log('[OK] Multiplayer lobby shown');
       } else {
         console.error('âŒ Multiplayer lobby element not found!');
       }
@@ -6386,7 +6622,7 @@
         hytopia.sendData({
           type: "join-multiplayer-lobby"
         });
-        console.log('âœ… Multiplayer lobby message sent to server');
+        console.log('[OK] Multiplayer lobby message sent to server');
       } else {
         console.warn('âš ï¸  Hytopia not available, multiplayer lobby simulation only');
       }
@@ -6411,13 +6647,13 @@
   }
 
   function handleSecondPlayerJoined() {
-    console.log("🎮 Second player joined multiplayer lobby");
+    console.log("[A] Second player joined multiplayer lobby");
     
     // Update player count display with error handling
     const currentPlayersElement = document.querySelector('.current-players');
     if (currentPlayersElement) {
       currentPlayersElement.textContent = '2';
-      console.log('âœ… Player count display updated');
+      console.log('[OK] Player count display updated');
     } else {
       console.error('âŒ Current players element not found');
     }
@@ -6426,7 +6662,7 @@
     const lobbyMessage = document.querySelector('.lobby-message');
     if (lobbyMessage) {
       lobbyMessage.textContent = 'Match ready! Players will be assigned to different teams.';
-      console.log('âœ… Lobby message updated');
+      console.log('[OK] Lobby message updated');
     } else {
       console.error('âŒ Lobby message element not found');
     }
@@ -6438,20 +6674,20 @@
       
       if (multiplayerLobby) {
         multiplayerLobby.style.display = 'none';
-        console.log('âœ… Multiplayer lobby hidden');
+        console.log('[OK] Multiplayer lobby hidden');
       } else {
         console.error('âŒ Multiplayer lobby element not found');
       }
       
       if (teamSelection) {
         teamSelection.style.display = 'block';
-        console.log('âœ… Team selection shown for multiplayer');
+        console.log('[OK] Team selection shown for multiplayer');
         
         // Update team selection title for multiplayer
         const teamTitle = document.querySelector('.team-selection-title');
         if (teamTitle) {
           teamTitle.textContent = 'Teams Auto-Assigned - Choose Your Team Color';
-          console.log('âœ… Team selection title updated for multiplayer');
+          console.log('[OK] Team selection title updated for multiplayer');
         } else {
           console.error('âŒ Team selection title element not found');
         }
@@ -6554,10 +6790,10 @@
     
     if (powerUpPanel.classList.contains("hidden")) {
       powerUpPanel.classList.remove("hidden");
-      toggleBtn.textContent = "🎮";
+      toggleBtn.textContent = "[A]";
     } else {
       powerUpPanel.classList.add("hidden");
-      toggleBtn.textContent = "🎮";
+      toggleBtn.textContent = "[A]";
     }
   }
 
@@ -6600,24 +6836,24 @@
         // Core Power-Ups
         'freeze_blast': { name: '🧊 Freeze Blast', desc: 'Freezes nearby opponents for 3 seconds' },
         'stamina': { name: 'âš¡ Stamina Restore', desc: 'Restores stamina and boosts regeneration' },
-        'fireball': { name: '🔥 Fireball', desc: 'Launches an explosive fireball that stuns and burns' },
-        'mega_kick': { name: 'âš½ Mega Kick', desc: 'Next ball kick has 2x power and speed' },
-        'shield': { name: '🛡️ Shield', desc: 'Blocks one attack for 15 seconds' },
+        'fireball': { name: '[FIRE] Fireball', desc: 'Launches an explosive fireball that stuns and burns' },
+        'mega_kick': { name: '* Mega Kick', desc: 'Next ball kick has 2x power and speed' },
+        'shield': { name: '[S] Shield', desc: 'Blocks one attack for 15 seconds' },
         'speed': { name: 'âš¡ Speed Boost', desc: 'Increased movement speed for 8 seconds' },
         'speed_boost': { name: 'âš¡ Speed Boost', desc: 'Increased movement speed for 8 seconds' }, // Alias for consistency
-        'power': { name: '💪 Power Enhancement', desc: 'Increased shot power for 15 seconds' },
-        'precision': { name: '🎯 Precision Enhancement', desc: 'Improved accuracy for 15 seconds' },
+        'power': { name: '[P] Power Enhancement', desc: 'Increased shot power for 15 seconds' },
+        'precision': { name: '[G] Precision Enhancement', desc: 'Improved accuracy for 15 seconds' },
         'shuriken': { name: '🥷 Shuriken Throw', desc: 'Launches stunning projectile that can be dodged' },
 
         // Enhanced Power-Ups
         'time_slow': { name: 'â° Time Slow', desc: 'Slows down all opponents for 8 seconds' },
-        'ball_magnet': { name: '🧲 Ball Magnet', desc: 'Ball automatically follows you for 10 seconds' },
+        'ball_magnet': { name: '[M] Ball Magnet', desc: 'Ball automatically follows you for 10 seconds' },
         'crystal_barrier': { name: '🔷 Crystal Barrier', desc: 'Creates protective crystal shields for 15 seconds' },
         'elemental_mastery': { name: '🌊 Elemental Mastery', desc: 'Controls field elements and effects for 12 seconds' },
         'tidal_wave': { name: '🌊 Tidal Wave', desc: 'Creates splash zones and waves for 6 seconds' },
         'reality_warp': { name: '🌀 Reality Warp', desc: 'Creates portals and warps space for 15 seconds' },
         'honey_trap': { name: '🍯 Honey Trap', desc: 'Creates sticky slow zones for 10 seconds' },
-        'star_rain': { name: '⭐ Star Rain', desc: 'Rains stars from the sky (coming soon!)' }
+        'star_rain': { name: '[*] Star Rain', desc: 'Rains stars from the sky (coming soon!)' }
       };
       
       const info = powerUpInfo[powerUpData.type] || { name: powerUpData.type, desc: 'Unknown power-up' };
@@ -6792,8 +7028,18 @@
             console.log('📱 Opening UI overlay hidden - game controls now active');
           }
 
-          // Mobile controls are handled entirely by Hytopia SDK
-          // No custom initialization needed
+          // CRITICAL: Add gameplay-active class to body for mobile
+          // This enables pointer-events: none on body so SDK joystick receives touches
+          if (typeof hytopia !== 'undefined' && hytopia.isMobile) {
+            document.body.classList.add('gameplay-active');
+            console.log('📱 Gameplay mode active - SDK joystick enabled');
+          }
+
+          // Initialize and show mobile action buttons (SDK-compliant)
+          // These buttons use hytopia.pressInput() for shoot/pass/sprint/tackle
+          if (typeof showMobileControls === 'function') {
+            showMobileControls();
+          }
         }, 500);
       }
     }, 200);
@@ -6802,7 +7048,7 @@
   // ===== INITIALIZATION =====
   // Initialize score display
   function initializeScoreDisplay() {
-    console.log("🎯 Initializing main scoreboard...");
+    console.log("[G] Initializing main scoreboard...");
     
     // Initialize main scoreboard
     const redScore = document.getElementById("red-score");
@@ -6848,7 +7094,7 @@
         min-height: 35px !important;
       `;
       
-      console.log("âœ… Main scoreboard initialized with scores:", redScore.textContent, blueScore.textContent);
+      console.log("[OK] Main scoreboard initialized with scores:", redScore.textContent, blueScore.textContent);
     } else {
       console.error("âŒ Could not find main score elements!");
     }
@@ -6883,10 +7129,10 @@
         visibility: visible !important;
         opacity: 1 !important;
       `;
-      console.log("âœ… Main scoreboard container forced visible");
+      console.log("[OK] Main scoreboard container forced visible");
     }
     
-    console.log("âœ… Score display initialization complete");
+    console.log("[OK] Score display initialization complete");
   }
 
   // Add click event listeners immediately (DOM is already loaded since script is at bottom)
@@ -6937,7 +7183,7 @@
     if (createTournamentBtn) {
       // HYTOPIA-COMPLIANT: Use onclick instead of addEventListener
       createTournamentBtn.setAttribute('onclick', 'handleTournamentCreation(event); return false;');
-      console.log("âœ… Tournament creation event listener added successfully");
+      console.log("[OK] Tournament creation event listener added successfully");
     } else {
       console.error("âŒ Could not find tournament creation button!");
     }
@@ -6947,7 +7193,7 @@
     if (joinTournamentBtn) {
       // HYTOPIA-COMPLIANT: Use onclick instead of addEventListener
       joinTournamentBtn.setAttribute('onclick', 'handleTournamentJoin(event); return false;');
-      console.log("âœ… Tournament join event listener added successfully");
+      console.log("[OK] Tournament join event listener added successfully");
     } else {
       console.error("âŒ Could not find tournament join button!");
     }
@@ -6957,7 +7203,7 @@
     if (leaveTournamentBtn) {
       // HYTOPIA-COMPLIANT: Use onclick instead of addEventListener
       leaveTournamentBtn.setAttribute('onclick', 'handleTournamentLeave(event); return false;');
-      console.log("âœ… Tournament leave event listener added successfully");
+      console.log("[OK] Tournament leave event listener added successfully");
     } else {
       console.error("âŒ Could not find tournament leave button!");
     }
@@ -6967,7 +7213,7 @@
     if (confirmReadyBtn) {
       // HYTOPIA-COMPLIANT: Use onclick instead of addEventListener
       confirmReadyBtn.setAttribute('onclick', 'handleReadyConfirm(event); return false;');
-      console.log("âœ… Ready confirm event listener added successfully");
+      console.log("[OK] Ready confirm event listener added successfully");
     } else {
       console.error("âŒ Could not find ready confirm button!");
     }
@@ -6977,7 +7223,7 @@
     if (backToLobbyBtn) {
       // HYTOPIA-COMPLIANT: Use onclick instead of addEventListener
       backToLobbyBtn.setAttribute('onclick', 'handleBackToLobby(event); return false;');
-      console.log("âœ… Back to lobby event listener added successfully");
+      console.log("[OK] Back to lobby event listener added successfully");
     } else {
       console.error("âŒ Could not find back to lobby button!");
     }
@@ -7016,7 +7262,7 @@
 
   // Enhanced UI initialization with comprehensive button setup
   function initializeAllButtons() {
-    console.log('🎮 Initializing all button event handlers...');
+    console.log('[A] Initializing all button event handlers...');
     
     // Ensure all buttons have proper cursor and pointer events
     const allButtons = document.querySelectorAll('button, .btn, .team-btn, .game-mode-btn');
@@ -7039,7 +7285,7 @@
       }
     });
     
-    console.log(`âœ… Successfully initialized ${successCount} buttons`);
+    console.log(`[OK] Successfully initialized ${successCount} buttons`);
     
     // Specific validation for critical buttons
     const criticalButtons = [
@@ -7056,7 +7302,7 @@
     criticalButtons.forEach(buttonId => {
       const button = document.getElementById(buttonId);
       if (button) {
-        console.log(`âœ… Found critical button: ${buttonId}`);
+        console.log(`[OK] Found critical button: ${buttonId}`);
         button.style.cursor = 'pointer';
         button.style.pointerEvents = 'auto';
       } else {
@@ -7069,7 +7315,7 @@
   try {
     initializeScoreDisplay();
     initializeAllButtons();
-    console.log('âœ… UI initialization completed successfully');
+    console.log('[OK] UI initialization completed successfully');
   } catch (error) {
     console.error('âŒ UI initialization error:', error);
   }
@@ -7094,7 +7340,7 @@
       console.warn(`🔧 Fixed ${buttonIssues} button cursor/pointer issues`);
     }
     
-    console.log(`âœ… Final button check: ${allButtons.length} buttons verified as clickable`);
+    console.log(`[OK] Final button check: ${allButtons.length} buttons verified as clickable`);
   }, 1000);
   
   // ===== MESSAGE HANDLERS =====
@@ -7102,7 +7348,12 @@
   if (typeof hytopia !== 'undefined' && hytopia.onMessage) {
     hytopia.onMessage((data) => {
       if (data.type === "game-mode-confirmed") {
-        console.log(`Game mode confirmed: ${data.mode}`);
+        console.log(`Game mode confirmed: ${data.mode}${data.wasLocked ? ' (was locked)' : ''}`);
+
+        // CRITICAL: Update the client-side game mode to match server
+        window.currentGameMode = data.mode;
+        console.log(`📱 Client game mode synced to: ${window.currentGameMode}`);
+
         // Update UI to show the confirmed mode
         const selectedModeInfo = document.getElementById('selectedModeInfo');
         if (selectedModeInfo) {
@@ -7111,6 +7362,62 @@
             selectedModeInfo.style.borderColor = 'rgba(255, 215, 0, 0.3)';
           }, 1000);
         }
+
+        // If mode was locked (joining existing game), show notification
+        if (data.wasLocked) {
+          console.log(`📱 Mode was locked - player joining existing ${data.mode} match`);
+        }
+      }
+      else if (data.type === "game-mode-locked") {
+        console.log(`⚠️ Game mode locked to ${data.currentMode} - ${data.message}`);
+
+        // Update client-side mode to match the locked server mode
+        window.currentGameMode = data.currentMode;
+
+        // Show a notification to the player
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+          position: fixed;
+          top: 20%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: linear-gradient(135deg, #f59e0b, #d97706);
+          color: white;
+          padding: 15px 25px;
+          border-radius: 12px;
+          font-weight: bold;
+          z-index: 10001;
+          box-shadow: 0 8px 30px rgba(245, 158, 11, 0.4);
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          text-align: center;
+          animation: slideInDown 0.5s ease-out;
+          max-width: 300px;
+        `;
+
+        notification.innerHTML = `
+          <div style="font-size: 24px; margin-bottom: 8px;">[A]</div>
+          <div style="font-size: 14px; margin-bottom: 5px;">Match in Progress</div>
+          <div style="font-size: 12px; opacity: 0.9;">${data.message}</div>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Auto-remove after 4 seconds
+        setTimeout(() => {
+          notification.style.animation = 'fadeOut 0.5s ease-out';
+          setTimeout(() => notification.remove(), 500);
+        }, 4000);
+      }
+      else if (data.type === "show-team-selection") {
+        // Mobile player joining existing game - show team selection
+        console.log(`📱 Showing team selection for existing ${data.gameMode} match`);
+
+        // Hide mode selection, show team selection
+        const modeSelectScreen = document.getElementById('modeSelectScreen');
+        const teamSelectOverlay = document.getElementById('team-select-overlay');
+
+        if (modeSelectScreen) modeSelectScreen.style.display = 'none';
+        if (teamSelectOverlay) teamSelectOverlay.style.display = 'flex';
       }
       else if (data.type === "multiplayer-waiting") {
         console.log("Received multiplayer waiting message");
@@ -7168,7 +7475,7 @@
       // ===== TOURNAMENT MESSAGE HANDLERS =====
       else if (data.type === "tournament-created") {
         console.log("🔧 DEBUG: tournament-created handler triggered!");
-        console.log("âœ… Tournament created successfully:", data.tournament);
+        console.log("[OK] Tournament created successfully:", data.tournament);
         
         // ROBUST ERROR HANDLING - Work around Hytopia SDK issues
         try {
@@ -7183,7 +7490,7 @@
             showTournamentSuccess(`Tournament "${data.tournament.name}" created successfully!`);
           } catch (e) {
             console.warn("âš ï¸ Success message failed, using fallback:", e);
-            alert(`âœ… Tournament "${data.tournament.name}" created successfully!`);
+            alert(`[OK] Tournament "${data.tournament.name}" created successfully!`);
           }
           
           // Re-enable create button with protection
@@ -7192,7 +7499,7 @@
               const button = document.getElementById("createTournamentBtn");
               if (button) {
                 button.disabled = false;
-                button.textContent = "🏆 Create Tournament";
+                button.textContent = "[T] Create Tournament";
                 button.style.opacity = "1";
                 button.style.pointerEvents = "auto";
                 console.log("🔧 DEBUG: Button re-enabled successfully");
@@ -7216,7 +7523,7 @@
           
           // Store tournament ID for future reference
           window.currentTournamentId = data.tournament.id;
-          console.log("🏆 Stored tournament ID:", window.currentTournamentId);
+          console.log("[T] Stored tournament ID:", window.currentTournamentId);
           
           // Switch to tournament lobby view with enhanced error handling and debugging
           setTimeout(() => {
@@ -7261,12 +7568,12 @@
                   console.warn("âš ï¸ Lobby status update failed:", e);
                 }
                 
-                console.log("âœ… Successfully switched to tournament lobby view");
+                console.log("[OK] Successfully switched to tournament lobby view");
               }
             } catch (e) {
               console.error("âŒ Critical error in lobby view switch:", e);
               // Fallback: at least show a success message
-              alert("âœ… Tournament created! Please refresh the page if the lobby doesn't appear.");
+              alert("[OK] Tournament created! Please refresh the page if the lobby doesn't appear.");
             }
           }, 300);
           
@@ -7277,9 +7584,9 @@
             const button = document.getElementById("createTournamentBtn");
             if (button) {
               button.disabled = false;
-              button.textContent = "🏆 Create Tournament";
+              button.textContent = "[T] Create Tournament";
             }
-            alert("âœ… Tournament created successfully! Please refresh if needed.");
+            alert("[OK] Tournament created successfully! Please refresh if needed.");
           }, 500);
         }
       }
@@ -7298,11 +7605,11 @@
         const button = document.getElementById("createTournamentBtn");
         if (button) {
           button.disabled = false;
-          button.textContent = "🏆 Create Tournament";
+          button.textContent = "[T] Create Tournament";
         }
       }
       else if (data.type === "tournament-joined") {
-        console.log("âœ… Successfully joined tournament");
+        console.log("[OK] Successfully joined tournament");
         showTournamentSuccess("Successfully joined tournament!");
         
         // Store tournament ID
@@ -7316,7 +7623,7 @@
         if (leaveBtn) leaveBtn.style.display = "block";
       }
       else if (data.type === "tournament-left") {
-        console.log("âœ… Successfully left tournament");
+        console.log("[OK] Successfully left tournament");
         showTournamentSuccess("Left tournament");
         
         // Clear tournament ID
@@ -7330,7 +7637,7 @@
         if (leaveBtn) leaveBtn.style.display = "none";
       }
       else if (data.type === "tournament-list-updated") {
-        console.log("🏆 Tournament list updated:", data.tournaments);
+        console.log("[T] Tournament list updated:", data.tournaments);
         
         // Update the active tournaments display
         const activeTournaments = document.getElementById("activeTournaments");
@@ -7383,7 +7690,7 @@
         }
       }
       else if (data.type === "tournament-started") {
-        console.log("🏆 Tournament started!");
+        console.log("[T] Tournament started!");
         showTournamentSuccess("Tournament has started! Get ready for your matches.");
         
         // Update tournament status
@@ -7413,7 +7720,7 @@
         startReadyCheckTimer(data.timeLimit || 300); // 5 minutes default
       }
       else if (data.type === "tournament-match-start") {
-        console.log("🏆 Tournament match starting!");
+        console.log("[T] Tournament match starting!");
         showTournamentSuccess("Your tournament match is starting!");
         
         // Hide ready check UI
@@ -7513,7 +7820,7 @@
   
   // Add global test function for manual testing
   window.forceUpdateScores = function(red = 1, blue = 1) {
-    console.log(`🎯 Forcing score update: Red ${red}, Blue ${blue}`);
+    console.log(`[G] Forcing score update: Red ${red}, Blue ${blue}`);
     
     // Update ONLY the main scoreboard (single system)
     const redScore = document.getElementById("red-score");
@@ -7523,7 +7830,7 @@
     if (redScore && blueScore) {
       redScore.textContent = red;
       blueScore.textContent = blue;
-      console.log("âœ… MAIN SCOREBOARD updated to:", red, "vs", blue);
+      console.log("[OK] MAIN SCOREBOARD updated to:", red, "vs", blue);
     } else {
       console.error("âŒ Could not find main score elements!");
     }
@@ -7533,7 +7840,7 @@
       mainScoreboard.style.display = "flex";
       mainScoreboard.style.visibility = "visible";
       mainScoreboard.style.opacity = "1";
-      console.log("âœ… Main scoreboard container forced visible");
+      console.log("[OK] Main scoreboard container forced visible");
     }
   };
   
@@ -7613,13 +7920,13 @@
     "left-back": {
       name: "Left Back",
       description: "Defend left side",
-      icon: "🛡️",
+      icon: "[S]",
       className: "defender"
     },
     "right-back": {
       name: "Right Back", 
       description: "Defend right side",
-      icon: "🛡️",
+      icon: "[S]",
       className: "defender"
     },
     "central-midfielder-1": {
@@ -7637,14 +7944,14 @@
     striker: {
       name: "Striker",
       description: "Score goals",
-      icon: "âš½",
+      icon: "*",
       className: "striker"
     }
   };
 
   // Initialize enhanced UI systems
   function initializeEnhancedUI() {
-    console.log("🎮 Initializing enhanced UI systems...");
+    console.log("[A] Initializing enhanced UI systems...");
 
     // Show player status HUD (desktop only)
     const isMobile = document.body.classList.contains('mobile') || window.innerWidth <= 768;
@@ -7660,7 +7967,7 @@
     // Initialize stamina
     updateStamina(100);
 
-    console.log("âœ… Enhanced UI systems initialized");
+    console.log("[OK] Enhanced UI systems initialized");
   }
 
   // Update player role display
@@ -7668,7 +7975,7 @@
     const config = roleConfigs[role] || {
       name: "Player",
       description: "Ready to play",
-      icon: "âš½",
+      icon: "*",
       className: "player"
     };
 
@@ -7750,7 +8057,7 @@
     feedback.className = `action-feedback ${type}`;
     
     const icons = {
-      success: "âœ…",
+      success: "[OK]",
       info: "â„¹ï¸", 
       warning: "âš ï¸",
       error: "âŒ"
@@ -7925,7 +8232,7 @@
         setTimeout(() => {
           const btn = document.getElementById('createTournamentBtn');
           if (btn) {
-            btn.textContent = 'âœ… Tournament Created!';
+            btn.textContent = '[OK] Tournament Created!';
             btn.disabled = false;
             btn.style.opacity = '1';
             console.log("🚨 EMERGENCY: Button reset completed");
@@ -8152,7 +8459,7 @@
     }
     
     if (data.type === "game-state") {
-      console.log("🎯 Processing game-state data:", data);
+      console.log("[G] Processing game-state data:", data);
       
       // Update main scoreboard elements
       const redScore = document.getElementById("red-score");
@@ -8167,7 +8474,7 @@
           redScore.textContent = data.score.red;
           blueScore.textContent = data.score.blue;
           console.log(`📊 AFTER UPDATE - Red: ${redScore.textContent}, Blue: ${blueScore.textContent}`);
-          console.log("âœ… MAIN SCOREBOARD UPDATED:", data.score.red, "vs", data.score.blue);
+          console.log("[OK] MAIN SCOREBOARD UPDATED:", data.score.red, "vs", data.score.blue);
       } else {
           console.log("â¸ï¸ SKIPPING score update - in goal-scored status, letting goal-scored event handle it");
         }
@@ -8181,11 +8488,11 @@
           mainScoreboard.style.display = "flex";
           mainScoreboard.style.opacity = "1";
           mainScoreboard.style.visibility = "visible";
-          console.log("âœ… Scoreboard shown - game status:", data.status);
+          console.log("[OK] Scoreboard shown - game status:", data.status);
         } else if (data.status === "waiting") {
           // Keep scoreboard visible but show lobby state
           mainScoreboard.style.display = "flex";
-          console.log("âœ… Scoreboard visible in lobby - game status:", data.status);
+          console.log("[OK] Scoreboard visible in lobby - game status:", data.status);
         }
       }
       
@@ -8201,7 +8508,7 @@
       // Handle enhanced UI features
       handleEnhancedGameState(data);
       
-      console.log("âœ… Game state update complete");
+      console.log("[OK] Game state update complete");
     }
 
     if (data.type === "team-counts") {
@@ -8244,7 +8551,7 @@
     }
 
     if (data.type === "game-over") {
-      console.log("🎯 GAME OVER EVENT RECEIVED:", data);
+      console.log("[G] GAME OVER EVENT RECEIVED:", data);
       showEnhancedGameOver(data);
     }
 
@@ -8268,7 +8575,7 @@
         redScore.textContent = data.score.red;
         blueScore.textContent = data.score.blue;
         console.log(`🥅 AFTER GOAL UPDATE - Red: ${redScore.textContent}, Blue: ${blueScore.textContent}`);
-        console.log("âœ… GOAL EVENT - Main scoreboard updated:", data.score.red, "vs", data.score.blue);
+        console.log("[OK] GOAL EVENT - Main scoreboard updated:", data.score.red, "vs", data.score.blue);
         
         // Add goal celebration animation
         const scoringTeam = data.team === "red" ? redScore : blueScore;
@@ -8603,13 +8910,13 @@
       // Set icon based on ability name
       const iconMap = {
         'Freeze Blast': '🧊',
-        'Fireball': '🔥',
-        'Mega Kick': 'âš½',
-        'Shield': '🛡️',
+        'Fireball': '[FIRE]',
+        'Mega Kick': '*',
+        'Shield': '[S]',
         'Speed Boost': 'âš¡',
         'Stamina': '🗲',
-        'Power Boost': '💪',
-        'Precision': '🎯',
+        'Power Boost': '[P]',
+        'Precision': '[G]',
         'Shuriken': '🌀'
       };
 
@@ -8646,7 +8953,7 @@
 
     // If media query matches or window width is small, log it
     if (window.innerWidth <= 768 || window.matchMedia('(max-width: 768px)').matches) {
-      console.log('âœ… MOBILE LAYOUT SHOULD BE ACTIVE');
+      console.log('[OK] MOBILE LAYOUT SHOULD BE ACTIVE');
     } else {
       console.log('âŒ DESKTOP LAYOUT ACTIVE (width > 768px)');
     }
@@ -8687,7 +8994,7 @@
         powerupIndicator.style.display = "none";
       }, 600);
       
-      console.log("🎯 Powerup activated - indicator dismissed with animation");
+      console.log("[G] Powerup activated - indicator dismissed with animation");
     }
   }
 
@@ -8757,7 +9064,7 @@
       notification.style.background = "linear-gradient(135deg, rgba(0, 200, 0, 0.9), rgba(0, 150, 0, 0.9))";
       notification.style.color = "#ffffff";
       notification.style.borderColor = "#00ff00";
-      notification.textContent = data.message || `🎮 POWERUP ACTIVATED!`;
+      notification.textContent = data.message || `[A] POWERUP ACTIVATED!`;
       
       // Play success sound
       playUISound("button-click");
@@ -8779,7 +9086,7 @@
 
   // ===== ENHANCED GAME OVER FUNCTIONS =====
   function showEnhancedGameOver(data) {
-    console.log("🎯 showEnhancedGameOver called with data:", data);
+    console.log("[G] showEnhancedGameOver called with data:", data);
     
     const panel = document.getElementById("instructionsPanel");
     // Get all game-over-content divs and use the complete one (usually the last one)
@@ -8789,7 +9096,7 @@
     const teamSelection = document.querySelector(".team-selection");
     const gameModeSelection = document.getElementById("gameModeSelection");
     
-    console.log("🎯 Found elements:", {
+    console.log("[G] Found elements:", {
       panel: !!panel,
       gameOverContent: !!gameOverContent,
       gameOverElementsCount: gameOverElements.length,
@@ -8811,14 +9118,14 @@
     }
     
     gameOverContent.style.display = "block";
-    console.log("🎯 Set game-over-content display to block");
+    console.log("[G] Set game-over-content display to block");
     
     // Update header information
     const finalRedScore = document.getElementById("final-red-score");
     const finalBlueScore = document.getElementById("final-blue-score");
     const winnerAnnouncement = document.getElementById("winner-announcement");
     
-    console.log("🎯 Score elements found:", {
+    console.log("[G] Score elements found:", {
       finalRedScore: !!finalRedScore,
       finalBlueScore: !!finalBlueScore,
       winnerAnnouncement: !!winnerAnnouncement
@@ -8827,7 +9134,7 @@
     if (finalRedScore) finalRedScore.textContent = data.redScore;
     if (finalBlueScore) finalBlueScore.textContent = data.blueScore;
     
-    console.log("🎯 Updated scores:", data.redScore, "vs", data.blueScore);
+    console.log("[G] Updated scores:", data.redScore, "vs", data.blueScore);
     
     // Update winner announcement
     if (winnerAnnouncement) {
@@ -8841,7 +9148,7 @@
       winnerAnnouncement.textContent = "Blue Team Wins!";
       winnerAnnouncement.style.color = "#4444ff";
       }
-      console.log("🎯 Winner announcement set:", winnerAnnouncement.textContent);
+      console.log("[G] Winner announcement set:", winnerAnnouncement.textContent);
     }
     
     // Update match info
@@ -8852,16 +9159,16 @@
     matchInfo.textContent = `Match Duration: ${duration}:${seconds.toString().padStart(2, '0')}${overtimeText}`;
     
     // Update team statistics
-    console.log("🎯 Updating team stats:", data.teamStats);
+    console.log("[G] Updating team stats:", data.teamStats);
     updateTeamStats(data.teamStats);
     
     // Update player statistics
-    console.log("🎯 Updating player stats:", data.playerStats);
+    console.log("[G] Updating player stats:", data.playerStats);
     updatePlayerStats(data.playerStats);
     
     if (panel) {
     panel.classList.remove("hidden");
-      console.log("🎯 Removed hidden class from instructions panel");
+      console.log("[G] Removed hidden class from instructions panel");
     } else {
       console.error("âŒ Instructions panel not found!");
     }
@@ -8922,7 +9229,7 @@
   }
 
   function updateTeamStats(teamStats) {
-    console.log("🎯 updateTeamStats called with:", teamStats);
+    console.log("[G] updateTeamStats called with:", teamStats);
     
     // Update red team stats
     const redElements = {
@@ -8934,7 +9241,7 @@
       distance: document.getElementById("red-team-distance")
     };
     
-    console.log("🎯 Red team elements found:", Object.keys(redElements).reduce((acc, key) => {
+    console.log("[G] Red team elements found:", Object.keys(redElements).reduce((acc, key) => {
       acc[key] = !!redElements[key];
       return acc;
     }, {}));
@@ -8956,7 +9263,7 @@
       distance: document.getElementById("blue-team-distance")
     };
     
-    console.log("🎯 Blue team elements found:", Object.keys(blueElements).reduce((acc, key) => {
+    console.log("[G] Blue team elements found:", Object.keys(blueElements).reduce((acc, key) => {
       acc[key] = !!blueElements[key];
       return acc;
     }, {}));
@@ -8968,7 +9275,7 @@
     if (blueElements.saves) blueElements.saves.textContent = teamStats.blue.saves;
     if (blueElements.distance) blueElements.distance.textContent = Math.round(teamStats.blue.distanceTraveled) + "m";
     
-    console.log("🎯 Team stats updated successfully");
+    console.log("[G] Team stats updated successfully");
   }
 
   function updatePlayerStats(playerStats) {
@@ -9380,7 +9687,7 @@
             <div style="font-size: 12px; color: #87CEEB;">${player.role.replace(/-/g, ' ')}</div>
           </div>
           <div style="text-align: right;">
-            <div style="font-size: 14px;">âš½ ${player.goals} | 🦵 ${player.tackles}</div>
+            <div style="font-size: 14px;">* ${player.goals} | [T] ${player.tackles}</div>
             <div style="font-size: 12px; color: #87CEEB;">${Math.round(player.distanceTraveled)}m</div>
           </div>
         </div>
@@ -9399,7 +9706,7 @@
             <div style="font-size: 12px; color: #87CEEB;">${player.role.replace(/-/g, ' ')}</div>
           </div>
           <div style="text-align: right;">
-            <div style="font-size: 14px;">âš½ ${player.goals} | 🦵 ${player.tackles}</div>
+            <div style="font-size: 14px;">* ${player.goals} | [T] ${player.tackles}</div>
             <div style="font-size: 12px; color: #87CEEB;">${Math.round(player.distanceTraveled)}m</div>
           </div>
         </div>
@@ -9485,7 +9792,7 @@
         // Ensure button is always visible and clickable
         ensureHalftimeButtonVisible();
         
-        console.log("âœ… Hytopia-compliant halftime button setup complete");
+        console.log("[OK] Hytopia-compliant halftime button setup complete");
       } else {
         console.error("âŒ Could not find halftime button for setup");
       }
@@ -9512,11 +9819,11 @@
       console.log("🔄 Halftime listener received message:", data.type, "isHalftime:", data.isHalftime, "status:", data.status);
       
       if (data.type === "game-state" && !data.isHalftime && data.status === "playing") {
-        console.log("âœ… Halftime has ended, removing overlay");
+        console.log("[OK] Halftime has ended, removing overlay");
         // Halftime has ended, remove the overlay
         removeHalftimeStatsOverlay();
       } else if (data.type === "game-state" && data.message === "Starting 2nd Half") {
-        console.log("âœ… Starting 2nd Half message received, removing overlay");
+        console.log("[OK] Starting 2nd Half message received, removing overlay");
         // Also remove overlay when we get the specific 2nd half message
         removeHalftimeStatsOverlay();
       }
@@ -9540,7 +9847,7 @@
       button.style.cursor = 'not-allowed';
       button.textContent = 'â³ Starting...';
       button.style.animation = 'none'; // Stop the glow animation
-      console.log("âœ… Button disabled to prevent multiple clicks");
+      console.log("[OK] Button disabled to prevent multiple clicks");
     }
     
     // Send event to server to start second half
@@ -9548,7 +9855,7 @@
       hytopia.sendData({
         type: 'start-second-half'
       });
-      console.log("âœ… Start second half event sent to server");
+      console.log("[OK] Start second half event sent to server");
       
       // Add a failsafe to remove the overlay after a short delay
       // This ensures the UI responds even if the server message is delayed
@@ -9577,7 +9884,7 @@
       button.style.cursor = 'pointer';
       button.style.zIndex = '10002';
       button.style.position = 'relative';
-      console.log("âœ… Halftime button visibility ensured");
+      console.log("[OK] Halftime button visibility ensured");
       return true;
     }
     console.warn("âš ï¸ Halftime button not found for visibility check");
@@ -9589,12 +9896,12 @@
     console.log("🔄 Attempting to remove FIRST HALF COMPLETE! overlay");
     const overlay = document.getElementById('halftime-stats-overlay');
     if (overlay) {
-      console.log("âœ… Halftime overlay found, removing with animation");
+      console.log("[OK] Halftime overlay found, removing with animation");
       overlay.style.animation = 'fadeOut 0.5s ease-out';
       setTimeout(() => {
         if (overlay.parentNode) {
           document.body.removeChild(overlay);
-          console.log("âœ… Halftime overlay successfully removed from DOM");
+          console.log("[OK] Halftime overlay successfully removed from DOM");
         }
       }, 500);
     } else {
@@ -9709,7 +10016,7 @@
     
     notification.innerHTML = `
       <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 18px;">âœ…</span>
+        <span style="font-size: 18px;">[OK]</span>
         <span>${message}</span>
       </div>
     `;
@@ -9824,8 +10131,8 @@
     const powerUpEmojis = {
       'freeze_blast': '🧊 FREEZE!',
       'stamina': '🧪 STAMINA!',
-      'fireball': '🔥 FIREBALL!',
-      'mega_kick': 'âš½ MEGA KICK!',
+      'fireball': '[FIRE] FIREBALL!',
+      'mega_kick': '* MEGA KICK!',
       'random_powerup': '🎲 RANDOM!'
     };
 
@@ -9960,10 +10267,10 @@
     // Show pickup notification for pickup-only mode
     if (pickupInfo) {
       pickupInfo.style.display = 'block';
-      pickupInfo.innerHTML = '⭐ PHYSICAL PICKUPS ACTIVE<br><small>Run through pickups on the field to collect abilities!</small>';
+      pickupInfo.innerHTML = '[*] PHYSICAL PICKUPS ACTIVE<br><small>Run through pickups on the field to collect abilities!</small>';
     }
     
-    console.log('🎮 Arcade Mode UI activated - Pickup-only mode!');
+    console.log('[A] Arcade Mode UI activated - Pickup-only mode!');
   }
 
   // Initialize enhanced power-up system - DISABLED for pickup-only mode
@@ -9991,7 +10298,7 @@
       pickupInfo.style.display = 'none';
     }
     
-    console.log('🏆 FIFA Mode - Arcade UI hidden');
+    console.log('[T] FIFA Mode - Arcade UI hidden');
   }
 
   // DISABLED: Keyboard controls for power-ups (violates Hytopia SDK InputManager)
@@ -10004,7 +10311,7 @@
 
   // Activate specific power-up - DISABLED for pickup-only mode
   function activatePowerUp(powerUpType) {
-    console.log(`🎮 Power-up activation disabled - using pickup-only mode`);
+    console.log(`[A] Power-up activation disabled - using pickup-only mode`);
     return false;
   }
 
@@ -10196,14 +10503,14 @@
   function getPowerupIcon(powerUpType) {
     const iconMap = {
       'freeze_blast': '🧊',
-      'fireball': '🔥',
-      'mega_kick': 'âš½',
+      'fireball': '[FIRE]',
+      'mega_kick': '*',
       'random_powerup': '🎲',
-      'shield': '🛡️',
+      'shield': '[S]',
       'stamina': '🧪',
       'speed': 'âš¡',
       'power': '💥',
-      'precision': '🎯',
+      'precision': '[G]',
       'shuriken': '🥷'
     };
     return iconMap[powerUpType] || 'âš¡';
@@ -10275,7 +10582,7 @@
 
   // Forced pass function
   function forcePassToTeammate() {
-    console.log("🎯 Forced pass button clicked");
+    console.log("[G] Forced pass button clicked");
     
     // Send a left mouse click simulation to trigger the pass
     hytopia.sendData({
@@ -10299,40 +10606,188 @@
   window.showPowerupFeedback = showPowerupFeedback;
   window.forcePassToTeammate = forcePassToTeammate;
 
-  // ===== MOBILE CONTROLS =====
-  // Mobile controls (joystick, camera, sprint) are handled entirely by the Hytopia SDK
-  // No custom implementation needed - Hytopia automatically provides:
+  // ===== MOBILE ACTION CONTROLS (SDK-COMPLIANT) =====
+  // Hytopia SDK automatically provides:
   // - Virtual joystick for movement (bottom-left)
-  // - Touch drag for camera rotation (anywhere on screen)
-  // - Sprint by pulling joystick all the way out
+  // - Touch drag for camera rotation
+  //
+  // We ADD custom action buttons that use hytopia.pressInput() to simulate inputs:
+  // - Shoot (mr = right mouse button)
+  // - Pass (ml = left mouse button)
+  // - Sprint (sh = shift key)
+  // - Tackle (e = E key)
 
-  // Placeholder functions for backwards compatibility (empty implementations)
+  let mobileControlsInitialized = false;
+
+  /**
+   * Initialize mobile action buttons with SDK-compliant touch handlers
+   * Uses hytopia.pressInput() as recommended by the SDK
+   */
   function initializeMobileControls() {
-    // Hytopia SDK handles all mobile controls automatically
-    console.log('📱 Mobile controls handled by Hytopia SDK');
+    // Only initialize once and only on mobile
+    if (mobileControlsInitialized) {
+      console.log('📱 Mobile controls already initialized');
+      return;
+    }
+
+    if (typeof hytopia === 'undefined' || !hytopia.isMobile) {
+      console.log('💻 Desktop detected - skipping mobile controls');
+      return;
+    }
+
+    console.log('📱 Initializing SDK-compliant mobile action controls...');
+
+    const controlsContainer = document.getElementById('mobile-action-controls');
+    if (!controlsContainer) {
+      console.warn('📱 Mobile controls container not found');
+      return;
+    }
+
+    // Show the controls container
+    controlsContainer.style.display = 'block';
+
+    // Button configuration: buttonId -> inputKey
+    // These map to the same inputs used by desktop players
+    const buttonConfig = {
+      'mobile-shoot-btn': 'mr',   // Right mouse = Shoot (charge shot)
+      'mobile-pass-btn': 'ml',    // Left mouse = Pass/Kick
+      'mobile-sprint-btn': 'sh',  // Shift = Sprint
+      'mobile-tackle-btn': 'e'    // E key = Tackle
+    };
+
+    // Setup each button with touch handlers
+    Object.entries(buttonConfig).forEach(([buttonId, inputKey]) => {
+      const button = document.getElementById(buttonId);
+      if (!button) {
+        console.warn(`📱 Button ${buttonId} not found`);
+        return;
+      }
+
+      // Touch start - press the input
+      button.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        button.classList.add('pressed');
+
+        if (typeof hytopia !== 'undefined' && hytopia.pressInput) {
+          hytopia.pressInput(inputKey, true);
+          console.log(`📱 ${buttonId}: pressed (${inputKey})`);
+        }
+      }, { passive: false });
+
+      // Touch end - release the input
+      button.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        button.classList.remove('pressed');
+
+        if (typeof hytopia !== 'undefined' && hytopia.pressInput) {
+          hytopia.pressInput(inputKey, false);
+          console.log(`📱 ${buttonId}: released (${inputKey})`);
+        }
+      }, { passive: false });
+
+      // Touch cancel - also release
+      button.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        button.classList.remove('pressed');
+
+        if (typeof hytopia !== 'undefined' && hytopia.pressInput) {
+          hytopia.pressInput(inputKey, false);
+        }
+      }, { passive: false });
+
+      // Also add mouse events for testing on desktop
+      button.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        button.classList.add('pressed');
+        if (typeof hytopia !== 'undefined' && hytopia.pressInput) {
+          hytopia.pressInput(inputKey, true);
+        }
+      });
+
+      button.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        button.classList.remove('pressed');
+        if (typeof hytopia !== 'undefined' && hytopia.pressInput) {
+          hytopia.pressInput(inputKey, false);
+        }
+      });
+
+      button.addEventListener('mouseleave', () => {
+        button.classList.remove('pressed');
+        if (typeof hytopia !== 'undefined' && hytopia.pressInput) {
+          hytopia.pressInput(inputKey, false);
+        }
+      });
+
+      console.log(`📱 Button ${buttonId} -> ${inputKey} configured`);
+    });
+
+    mobileControlsInitialized = true;
+    console.log('[OK] Mobile action controls initialized successfully');
+    console.log('📱 Button layout: Sprint (left), Shoot/Pass/Tackle (right)');
   }
 
-  function handleMobileAction() { /* Handled by Hytopia SDK */ }
-  function handleMobileQuickAction() { /* Handled by Hytopia SDK */ }
+  /**
+   * Show mobile controls (called when game starts)
+   */
+  function showMobileControls() {
+    if (typeof hytopia === 'undefined' || !hytopia.isMobile) return;
+
+    const controlsContainer = document.getElementById('mobile-action-controls');
+    if (controlsContainer) {
+      controlsContainer.style.display = 'block';
+      console.log('📱 Mobile controls shown');
+    }
+
+    // Initialize if not already done
+    if (!mobileControlsInitialized) {
+      initializeMobileControls();
+    }
+  }
+
+  /**
+   * Hide mobile controls (called during menus)
+   */
+  function hideMobileControls() {
+    const controlsContainer = document.getElementById('mobile-action-controls');
+    if (controlsContainer) {
+      controlsContainer.style.display = 'none';
+      console.log('📱 Mobile controls hidden');
+    }
+  }
+
   function detectMobileDevice() {
     return typeof hytopia !== 'undefined' && hytopia.isMobile === true;
   }
-  function testMobileControls() { console.log('📱 Mobile controls: Use Hytopia SDK'); }
-  function checkMobileControlsStatus() { return { message: 'Using Hytopia SDK mobile controls' }; }
+
+  // Legacy compatibility functions
+  function handleMobileAction() { /* Now handled by button touch events */ }
+  function handleMobileQuickAction() { /* Now handled by button touch events */ }
+  function testMobileControls() { console.log('📱 Mobile controls: SDK-compliant buttons'); }
+  function checkMobileControlsStatus() {
+    return {
+      initialized: mobileControlsInitialized,
+      isMobile: detectMobileDevice(),
+      message: 'Using SDK-compliant hytopia.pressInput()'
+    };
+  }
   function setJoystickSensitivity() { /* Handled by Hytopia SDK */ }
   function setJoystickDeadzone() { /* Handled by Hytopia SDK */ }
   function setCameraSensitivity() { /* Handled by Hytopia SDK */ }
-  function resetMobileControls() { /* Handled by Hytopia SDK */ }
-  function getMobileControlsConfig() { return {}; }
+  function resetMobileControls() {
+    mobileControlsInitialized = false;
+    hideMobileControls();
+  }
+  function getMobileControlsConfig() { return { type: 'sdk-compliant' }; }
   function initializeJoystickEvents() { /* Handled by Hytopia SDK */ }
   function initializeMobileCameraControls() { /* Handled by Hytopia SDK */ }
-  function showMobileControls() {
-    // Show message that Hytopia SDK handles controls
-    console.log('📱 Mobile controls are handled by Hytopia SDK');
-  }
 
-  // Make mobile functions globally accessible for backwards compatibility
+  // Make mobile functions globally accessible
   window.initializeMobileControls = initializeMobileControls;
+  window.showMobileControls = showMobileControls;
+  window.hideMobileControls = hideMobileControls;
   window.handleMobileAction = handleMobileAction;
   window.handleMobileQuickAction = handleMobileQuickAction;
   window.detectMobileDevice = detectMobileDevice;
@@ -10343,13 +10798,12 @@
   window.setCameraSensitivity = setCameraSensitivity;
   window.resetMobileControls = resetMobileControls;
   window.getMobileControlsConfig = getMobileControlsConfig;
-  window.showMobileControls = showMobileControls;
   // ===== TOURNAMENT SYSTEM FUNCTIONS =====
 
   // Tournament Creation Handler
   function handleTournamentCreation(e) {
     try {
-      console.log('🏆 Creating tournament...');
+      console.log('[T] Creating tournament...');
       
       // Get form values
       const tournamentName = document.getElementById("tournamentName").value.trim();
@@ -10391,7 +10845,7 @@
         registrationTime: registrationTime
       };
 
-      console.log('🏆 Sending tournament creation data:', tournamentData);
+      console.log('[T] Sending tournament creation data:', tournamentData);
 
       if (typeof hytopia !== 'undefined' && hytopia.sendData) {
         hytopia.sendData(tournamentData);
@@ -10402,7 +10856,7 @@
         // Re-enable button
         if (button) {
           button.disabled = false;
-          button.textContent = "🏆 Create Tournament";
+          button.textContent = "[T] Create Tournament";
         }
       }
 
@@ -10414,7 +10868,7 @@
       const button = document.getElementById("createTournamentBtn");
       if (button) {
         button.disabled = false;
-        button.textContent = "🏆 Create Tournament";
+        button.textContent = "[T] Create Tournament";
       }
     }
   }
@@ -10422,7 +10876,7 @@
   // Tournament Join Handler
   function handleTournamentJoin(e) {
     try {
-      console.log('🏆 Joining tournament...');
+      console.log('[T] Joining tournament...');
       
       // Check if already joined by looking at button states
       const joinBtn = document.getElementById('joinTournamentBtn');
@@ -10469,7 +10923,7 @@
   // Tournament Leave Handler
   function handleTournamentLeave(e) {
     try {
-      console.log('🏆 Leaving tournament...');
+      console.log('[T] Leaving tournament...');
       
       // Get the current tournament ID
       const currentTournamentId = window.currentTournamentId;
@@ -10499,7 +10953,7 @@
   // Ready Check Confirm Handler
   function handleReadyConfirm(e) {
     try {
-      console.log('🏆 Confirming ready for match...');
+      console.log('[T] Confirming ready for match...');
       
       // Get the current tournament and match info
       const currentTournamentId = window.currentTournamentId;
@@ -10532,7 +10986,7 @@
   // Back to Lobby Handler
   function handleBackToLobby(e) {
     try {
-      console.log('🏆 Returning to lobby...');
+      console.log('[T] Returning to lobby...');
       
       // Hide tournament UI and show main lobby
       const tournamentSelection = document.getElementById("tournamentSelection");
@@ -10548,7 +11002,7 @@
       window.currentTournamentId = null;
       window.currentMatchId = null;
       
-      console.log('âœ… Returned to main lobby');
+      console.log('[OK] Returned to main lobby');
 
     } catch (error) {
       console.error('âŒ Back to lobby error:', error);
@@ -10569,13 +11023,13 @@
       currentTournamentId: window.currentTournamentId || null
     };
     
-    console.log('🏆 Tournament Creation Debug Status:', status);
+    console.log('[T] Tournament Creation Debug Status:', status);
     
     // Force recovery if button is stuck
     if (button && button.disabled && button.textContent === "Creating...") {
       console.log('🔧 Force recovering stuck tournament creation button...');
       button.disabled = false;
-      button.textContent = "🏆 Create Tournament";
+      button.textContent = "[T] Create Tournament";
       
       if (window.tournamentCreationTimeout) {
         clearTimeout(window.tournamentCreationTimeout);
@@ -10746,7 +11200,7 @@
         `;
         
         const statusColor = player.isOnline ? '#10b981' : '#6b7280';
-        const readyIcon = player.isReady ? 'âœ…' : 'â³';
+        const readyIcon = player.isReady ? '[OK]' : 'â³';
         
         playerDiv.innerHTML = `
           <span style="font-weight: bold; color: white;">${player.displayName || player.username}</span>
@@ -10761,7 +11215,7 @@
       playersGrid.style.display = 'block';
       playersGrid.style.visibility = 'visible';
       
-      console.log('âœ… Tournament players list updated with', players.length, 'players');
+      console.log('[OK] Tournament players list updated with', players.length, 'players');
     } catch (e) {
       console.error('âŒ Error updating players list:', e);
     }
@@ -10800,7 +11254,7 @@
         const roundTitle = document.createElement('div');
         roundTitle.className = 'bracket-round-title';
         const roundNames = {
-          [totalRounds]: '🏆 Finals',
+          [totalRounds]: '[T] Finals',
           [totalRounds - 1]: '🥈 Semi-Finals',
           [totalRounds - 2]: '🥉 Quarter-Finals'
         };
@@ -10822,7 +11276,7 @@
           const statusIndicator = document.createElement('div');
           statusIndicator.className = 'match-status-indicator';
           const statusIcons = {
-            'completed': 'âœ…',
+            'completed': '[OK]',
             'in-progress': 'âš¡',
             'scheduled': 'â³'
           };
@@ -10877,7 +11331,7 @@
 
       bracketContainer.appendChild(bracketWrapper);
 
-      console.log('âœ… Visual tournament bracket updated');
+      console.log('[OK] Visual tournament bracket updated');
     } catch (e) {
       console.error('âŒ Error updating bracket:', e);
     }
@@ -10908,7 +11362,7 @@
       };
       
       updateTimer();
-      console.log('âœ… Ready check timer started');
+      console.log('[OK] Ready check timer started');
     } catch (e) {
       console.error('âŒ Error starting timer:', e);
     }
@@ -10963,12 +11417,12 @@
       
       if (tournamentSelection) {
         tournamentSelection.style.display = "none";
-        console.log("âœ… Hidden tournament selection");
+        console.log("[OK] Hidden tournament selection");
       }
       
       if (tournamentLobby) {
         tournamentLobby.style.display = "block";
-        console.log("âœ… Shown tournament lobby");
+        console.log("[OK] Shown tournament lobby");
         
         // Set default values if tournament was created
         const lobbyName = document.getElementById("tournamentLobbyName");
@@ -10979,13 +11433,13 @@
         if (lobbyDetails) lobbyDetails.textContent = "8 Players • Single Elimination • FIFA Mode";
         if (lobbyStatus) lobbyStatus.textContent = "Registration Open";
         
-        console.log("âœ… Updated lobby information");
+        console.log("[OK] Updated lobby information");
         
         // Show success message
         try {
           showTournamentSuccess("Switched to tournament lobby view");
         } catch (e) {
-          alert("âœ… Tournament lobby view activated");
+          alert("[OK] Tournament lobby view activated");
         }
         
         return true;
@@ -11009,19 +11463,19 @@
       const button = document.getElementById("createTournamentBtn");
       if (button) {
         button.disabled = false;
-        button.textContent = "🏆 Create Tournament";
+        button.textContent = "[T] Create Tournament";
         button.style.opacity = "1";
         button.style.pointerEvents = "auto";
         button.style.backgroundColor = "";
         button.classList.remove("disabled");
-        console.log("âœ… Button reset complete");
+        console.log("[OK] Button reset complete");
       }
       
       // Clear all timeouts
       if (window.tournamentCreationTimeout) {
         clearTimeout(window.tournamentCreationTimeout);
         window.tournamentCreationTimeout = null;
-        console.log("âœ… Timeout cleared");
+        console.log("[OK] Timeout cleared");
       }
       
       // Clear form
@@ -11029,32 +11483,32 @@
       if (nameField) {
         nameField.value = "";
         nameField.disabled = false;
-        console.log("âœ… Form cleared");
+        console.log("[OK] Form cleared");
       }
       
       // Reset any stuck UI states
       const tournamentSelection = document.getElementById("tournamentSelection");
       if (tournamentSelection) {
         tournamentSelection.style.display = "block";
-        console.log("âœ… Tournament selection shown");
+        console.log("[OK] Tournament selection shown");
       }
       
       const tournamentLobby = document.getElementById("tournamentLobby");
       if (tournamentLobby && tournamentLobby.style.display === "block") {
         tournamentLobby.style.display = "none";
-        console.log("âœ… Tournament lobby hidden");
+        console.log("[OK] Tournament lobby hidden");
       }
       
       // Clear tournament IDs if no actual tournament exists
       window.selectedTournamentId = null;
-      console.log("âœ… Cleared tournament IDs");
+      console.log("[OK] Cleared tournament IDs");
       
-      console.log("🎯 Enhanced fix complete. Tournament creation should work now.");
+      console.log("[G] Enhanced fix complete. Tournament creation should work now.");
       
       try {
         showTournamentSuccess("Tournament creation reset complete");
       } catch (e) {
-        alert("âœ… Tournament creation reset complete");
+        alert("[OK] Tournament creation reset complete");
       }
       
       return true;
@@ -11067,7 +11521,7 @@
 
   // Tournament Error Display
   function showTournamentError(message) {
-    console.error('🏆 Tournament Error:', message);
+    console.error('[T] Tournament Error:', message);
     
     // Create error notification
     const errorNotification = document.createElement('div');
@@ -11111,7 +11565,7 @@
 
   // Tournament Success Display
   function showTournamentSuccess(message) {
-    console.log('🏆 Tournament Success:', message);
+    console.log('[T] Tournament Success:', message);
     
     // Create success notification
     const successNotification = document.createElement('div');
@@ -11133,7 +11587,7 @@
     
     successNotification.innerHTML = `
       <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 20px;">âœ…</span>
+        <span style="font-size: 20px;">[OK]</span>
         <span>${message}</span>
       </div>
     `;
@@ -11174,7 +11628,7 @@
         
         // Update UI
         const yourStatus = document.getElementById('yourReadyStatus');
-        if (yourStatus) yourStatus.textContent = 'âœ… Ready';
+        if (yourStatus) yourStatus.textContent = '[OK] Ready';
         
         // Hide ready check after confirmation
         setTimeout(() => {
@@ -11253,7 +11707,7 @@
     initializeMobileGameMenu();
     
     enhancedMobileUIInitialized = true;
-    console.log('âœ… Phase 2 Enhanced Mobile UI initialized');
+    console.log('[OK] Phase 2 Enhanced Mobile UI initialized');
   }
   
   // Create enhanced mobile scoreboard
@@ -11555,11 +12009,11 @@
       <button class="mobile-menu-button" onclick="showMobileSettings()">
         âš™ï¸ Settings
       </button>
-      <button class="mobile-menu-button danger" onclick="quitGameMobile()">
-        🚪 Quit Game
+      <button class="mobile-menu-button danger" onclick="leaveRoom()">
+        🚪 Leave Room
       </button>
     `;
-    
+
     document.body.appendChild(mobileGameMenu);
     console.log('📱 Mobile game menu created');
   }
@@ -11619,7 +12073,7 @@
     hideMobileTeamSelection();
     
     // Show confirmation
-    updateMobileGameStatus(`âœ… Joined ${team.toUpperCase()} team!`);
+    updateMobileGameStatus(`[OK] Joined ${team.toUpperCase()} team!`);
   }
   
   function showMobileGameMenu() {
@@ -11638,7 +12092,7 @@
   
   function resumeGameMobile() {
     hideMobileGameMenu();
-    updateMobileGameStatus('🎮 Game resumed');
+    updateMobileGameStatus('[A] Game resumed');
   }
   
   function showMobileSettings() {
@@ -11647,11 +12101,59 @@
   }
   
   function quitGameMobile() {
-    hytopia.sendData({
-      type: "mobile-quit-game"
-    });
-    hideMobileGameMenu();
+    // Legacy function - redirect to leaveRoom for room system compatibility
+    leaveRoom();
   }
+
+  /**
+   * Leave the current room and return to lobby
+   * Works with the multi-room system
+   */
+  function leaveRoom() {
+    console.log("🚪 Player requested to leave room");
+
+    // Send leave-room event to server (handled by RoomManager)
+    hytopia.sendData({
+      type: "leave-room"
+    });
+
+    // Show loading overlay while transitioning
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.id = 'leave-room-loading-overlay';
+    loadingOverlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 10001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-family: "Trebuchet MS", Arial, sans-serif;
+    `;
+
+    loadingOverlay.innerHTML = `
+      <div style="text-align: center; background: rgba(20, 20, 20, 0.95); padding: 40px; border-radius: 20px; border: 3px solid #10b981;">
+        <div style="font-size: 32px; margin-bottom: 20px;">🚪</div>
+        <h2 style="color: #10b981; margin-bottom: 20px; font-size: 24px;">Leaving Room...</h2>
+        <div style="color: #ccc; margin-bottom: 20px;">Returning to lobby</div>
+        <div style="display: inline-block; width: 40px; height: 40px; border: 3px solid #10b981; border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite;"></div>
+      </div>
+    `;
+
+    document.body.appendChild(loadingOverlay);
+
+    // Hide mobile menu if visible
+    hideMobileGameMenu();
+
+    playUISound("button-click");
+  }
+
+  // Make leaveRoom globally accessible
+  window.leaveRoom = leaveRoom;
   
   // DISABLED: DOMContentLoaded mobile UI initialization (violates Hytopia SDK InputManager)
   // NOTE: Mobile UI initialization should be handled through Hytopia SDK lifecycle

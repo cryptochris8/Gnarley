@@ -2,8 +2,11 @@ import type { Ability } from "./Ability";
 import type { ItemAbilityOptions } from "./itemTypes";
 import { type Vector3Like, Entity, Audio, RigidBodyType, ColliderShape, CollisionGroup } from "hytopia";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
-import { isArcadeMode } from "../state/gameModes";
+import { isArcadeModeForPlayer } from "../state/gameModes";
 import sharedState from "../state/sharedState";
+
+// Helper to get correct state from entity (room or global)
+const getState = (entity: SoccerPlayerEntity) => entity.getSharedState();
 
 /**
  * Enhanced Power Ability - Handles multiple enhanced power-ups
@@ -21,10 +24,15 @@ export class EnhancedPowerAbility implements Ability {
     }
 
     use(origin: Vector3Like, direction: Vector3Like, source: Entity): void {
-        if (!isArcadeMode()) {
+        if (!source.world || !(source instanceof SoccerPlayerEntity)) {
+            console.error(`❌ ${this.options.name}: Invalid source entity`);
+            return;
+        }
+
+        if (!isArcadeModeForPlayer(source.player)) {
             console.log(`🎯 ${this.options.name}: Power-up blocked - not in arcade mode`);
             // Send feedback to player
-            if (source instanceof SoccerPlayerEntity && source.player.ui && typeof source.player.ui.sendData === 'function') {
+            if (source.player.ui && typeof source.player.ui.sendData === 'function') {
                 source.player.ui.sendData({
                     type: "action-feedback",
                     feedbackType: "error",
@@ -33,13 +41,12 @@ export class EnhancedPowerAbility implements Ability {
                 });
             }
             // Remove the ability since it can't be used
-            if (source instanceof SoccerPlayerEntity) {
-                source.abilityHolder.removeAbility();
-                source.abilityHolder.hideAbilityUI(source.player);
-            }
+            source.abilityHolder.removeAbility();
+            source.abilityHolder.hideAbilityUI(source.player);
             return;
         }
 
+        // Already validated above
         if (!source.world || !(source instanceof SoccerPlayerEntity)) {
             console.error(`❌ ${this.options.name}: Invalid source entity`);
             return;
@@ -241,8 +248,8 @@ export class EnhancedPowerAbility implements Ability {
             // Create tidal wave effect
             this.createTidalWave(player, direction);
             
-            // Create splash zones
-            this.createSplashZones(player.position);
+            // Create splash zones (pass world for room-awareness)
+            this.createSplashZones(player.position, player.world);
             
             console.log(`🌊 TIDAL WAVE: Created wave effects for ${player.player.username}`);
         } catch (error) {
@@ -297,8 +304,8 @@ export class EnhancedPowerAbility implements Ability {
 
     private applyWaveForces(caster: SoccerPlayerEntity, direction: Vector3Like, force: number): void {
         try {
-            // Push the ball
-            const soccerBall = sharedState.getSoccerBall();
+            // Push the ball (room-aware)
+            const soccerBall = getState(caster).getSoccerBall();
             if (soccerBall?.isSpawned) {
                 soccerBall.applyImpulse({
                     x: direction.x * force,
@@ -370,7 +377,7 @@ export class EnhancedPowerAbility implements Ability {
         animateFrame();
     }
 
-    private createSplashZones(centerPos: Vector3Like): void {
+    private createSplashZones(centerPos: Vector3Like, casterWorld?: any): void {
         const zoneCount = 4;
         const zoneDuration = this.options.damage; // 6000ms
 
@@ -384,11 +391,11 @@ export class EnhancedPowerAbility implements Ability {
                 z: centerPos.z + Math.sin(angle) * distance
             };
 
-            this.createSingleSplashZone(zonePos, zoneDuration);
+            this.createSingleSplashZone(zonePos, zoneDuration, casterWorld);
         }
     }
 
-    private createSingleSplashZone(position: Vector3Like, duration: number): void {
+    private createSingleSplashZone(position: Vector3Like, duration: number, casterWorld?: any): void {
         try {
             const splashZone = new Entity({
                 name: 'splash-zone',
@@ -399,7 +406,7 @@ export class EnhancedPowerAbility implements Ability {
                 }
             });
 
-            splashZone.spawn(sharedState.getSoccerBall()?.world || null, position);
+            splashZone.spawn(casterWorld || null, position);
 
             // Auto-despawn after duration
             setTimeout(() => {
@@ -445,8 +452,8 @@ export class EnhancedPowerAbility implements Ability {
                 z: player.position.z + direction.z * portalRange
             };
 
-            this.createPortal(portalA, player.world, 'entrance', portalDuration);
-            this.createPortal(portalB, player.world, 'exit', portalDuration);
+            this.createPortal(portalA, player.world, 'entrance', portalDuration, player);
+            this.createPortal(portalB, player.world, 'exit', portalDuration, player);
 
             // Send notification
             if (player.player.ui && typeof player.player.ui.sendData === 'function') {
@@ -463,7 +470,7 @@ export class EnhancedPowerAbility implements Ability {
         }
     }
 
-    private createPortal(position: Vector3Like, world: any, type: 'entrance' | 'exit', duration: number): void {
+    private createPortal(position: Vector3Like, world: any, type: 'entrance' | 'exit', duration: number, caster?: SoccerPlayerEntity): void {
         try {
             const portal = new Entity({
                 name: `reality-portal-${type}`,
@@ -487,9 +494,10 @@ export class EnhancedPowerAbility implements Ability {
                 },
                 onCollision: (otherEntity: any, started: boolean) => {
                     if (!started || type !== 'entrance') return;
-                    
-                    // Only teleport players and ball
-                    if (otherEntity instanceof SoccerPlayerEntity || otherEntity === sharedState.getSoccerBall()) {
+
+                    // Only teleport players and ball (room-aware ball check)
+                    const roomBall = caster ? getState(caster).getSoccerBall() : sharedState.getSoccerBall();
+                    if (otherEntity instanceof SoccerPlayerEntity || otherEntity === roomBall) {
                         this.teleportThroughPortal(otherEntity, position, world);
                     }
                 }
@@ -592,8 +600,8 @@ export class EnhancedPowerAbility implements Ability {
         try {
             this.playActivationSound(player, "audio/sfx/dig/dig-grass.mp3");
             
-            // Create honey trap zones
-            this.createHoneyTraps(player.position);
+            // Create honey trap zones (pass caster for room-awareness)
+            this.createHoneyTraps(player.position, player);
             
             // Apply attraction field
             this.applyAttractionField(player);
@@ -604,7 +612,7 @@ export class EnhancedPowerAbility implements Ability {
         }
     }
 
-    private createHoneyTraps(centerPos: Vector3Like): void {
+    private createHoneyTraps(centerPos: Vector3Like, caster?: SoccerPlayerEntity): void {
         const trapCount = 5;
         const trapDuration = this.options.damage; // 10000ms
 
@@ -618,11 +626,11 @@ export class EnhancedPowerAbility implements Ability {
                 z: centerPos.z + Math.sin(angle) * distance
             };
 
-            this.createSingleHoneyTrap(trapPos, trapDuration);
+            this.createSingleHoneyTrap(trapPos, trapDuration, caster);
         }
     }
 
-    private createSingleHoneyTrap(position: Vector3Like, duration: number): void {
+    private createSingleHoneyTrap(position: Vector3Like, duration: number, caster?: SoccerPlayerEntity): void {
         try {
             const honeyTrap = new Entity({
                 name: 'honey-trap',
@@ -633,7 +641,9 @@ export class EnhancedPowerAbility implements Ability {
                 }
             });
 
-            honeyTrap.spawn(sharedState.getSoccerBall()?.world || null, position);
+            // Use caster's world for room-awareness
+            const world = caster?.world || null;
+            honeyTrap.spawn(world, position);
 
             // Add collision detection for sticky effects
             honeyTrap.createAndAddChildCollider({
@@ -646,11 +656,12 @@ export class EnhancedPowerAbility implements Ability {
                 },
                 onCollision: (otherEntity: any, started: boolean) => {
                     if (!started) return;
-                    
-                    // Apply sticky effect to players and ball
+
+                    // Apply sticky effect to players and ball (room-aware)
+                    const roomBall = caster ? getState(caster).getSoccerBall() : sharedState.getSoccerBall();
                     if (otherEntity instanceof SoccerPlayerEntity) {
                         this.applyStickiness(otherEntity, position);
-                    } else if (otherEntity === sharedState.getSoccerBall()) {
+                    } else if (otherEntity === roomBall) {
                         this.applyStickyBallEffect(otherEntity, position);
                     }
                 }

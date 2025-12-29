@@ -3,6 +3,7 @@
 // Arcade Mode: Enhanced gameplay with abilities and power-ups (completely separate)
 
 import { HALF_DURATION, TOTAL_HALVES, HALFTIME_DURATION } from './gameConfig';
+import type { Player } from 'hytopia';
 
 export enum GameMode {
   FIFA = "fifa",
@@ -179,6 +180,9 @@ export const PENALTY_SHOOTOUT_CONFIG = {
 // Current game mode (defaults to FIFA for safety)
 let currentGameMode: GameMode = GameMode.FIFA;
 
+// Track if a match is currently in progress (prevents mode changes mid-game)
+let matchInProgress: boolean = false;
+
 // Safe getter for current mode
 export const getCurrentGameMode = (): GameMode => currentGameMode;
 
@@ -198,17 +202,57 @@ export const getCurrentModeConfig = () => {
   }
 };
 
-// Safe mode switching function
-export const setGameMode = (mode: GameMode): void => {
-  console.log(`Switching from ${currentGameMode} to ${mode} mode`);
+// Safe mode switching function - now with match protection
+export const setGameMode = (mode: GameMode): boolean => {
+  // CRITICAL FIX: Prevent mode changes while a match is in progress
+  if (matchInProgress) {
+    console.warn(`⚠️ Cannot change game mode to ${mode} - match already in progress with ${currentGameMode} mode`);
+    return false;
+  }
+
+  console.log(`🎮 Switching from ${currentGameMode} to ${mode} mode`);
   currentGameMode = mode;
+  return true;
 };
+
+// Lock game mode when match starts (call from gameState.ts when game begins)
+export const lockGameMode = (): void => {
+  matchInProgress = true;
+  console.log(`🔒 Game mode LOCKED to ${currentGameMode} - no changes allowed until match ends`);
+};
+
+// Unlock game mode when match ends (call from gameState.ts when game finishes/resets)
+export const unlockGameMode = (): void => {
+  matchInProgress = false;
+  console.log(`🔓 Game mode UNLOCKED - players can now select a new mode`);
+};
+
+// Check if mode is currently locked
+export const isGameModeLocked = (): boolean => matchInProgress;
 
 // Helper functions for mode checking (used throughout codebase)
 export const isFIFAMode = (): boolean => currentGameMode === GameMode.FIFA;
 export const isArcadeMode = (): boolean => currentGameMode === GameMode.ARCADE;
 export const isTournamentMode = (): boolean => currentGameMode === GameMode.TOURNAMENT;
 export const isPenaltyShootoutMode = (): boolean => currentGameMode === GameMode.PENALTY_SHOOTOUT;
+
+// Room-aware mode checker for abilities
+// Uses room's game mode if player is in a room, falls back to global mode
+export const isArcadeModeForPlayer = (player: Player): boolean => {
+  try {
+    // Dynamic import to avoid circular dependency
+    const { RoomManager } = require('./RoomManager');
+    if (RoomManager.isInitialized()) {
+      const room = RoomManager.getInstance().getRoomForPlayer(player);
+      if (room) {
+        return room.config.gameMode === GameMode.ARCADE;
+      }
+    }
+  } catch (e) {
+    // RoomManager not available, use global
+  }
+  return currentGameMode === GameMode.ARCADE;
+};
 
 // Enhanced ball physics for arcade mode only (FIFA uses existing BALL_CONFIG)
 export const ARCADE_BALL_CONFIG = {

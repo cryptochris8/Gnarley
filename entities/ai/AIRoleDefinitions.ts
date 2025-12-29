@@ -38,6 +38,7 @@ export interface RoleDefinition {
 }
 
 // Define role characteristics for each position to guide AI behavior
+// PRO SOCCER SETTINGS: Players can push forward during attacks while maintaining defensive shape
 export const ROLE_DEFINITIONS: Record<SoccerAIRole, RoleDefinition> = {
   goalkeeper: {
     name: "Goalkeeper",
@@ -46,15 +47,15 @@ export const ROLE_DEFINITIONS: Record<SoccerAIRole, RoleDefinition> = {
     defensiveContribution: 10,
     offensiveContribution: 1,
     preferredArea: {
-      minX: -12,
-      maxX: 12,
+      minX: -10,  // Goal box area
+      maxX: 10,
       minZ: -15,
-      maxZ: 9,
+      maxZ: 8,
     },
-    pursuitTendency: 0.7,
-    positionRecoverySpeed: 1.2,
-    supportDistance: 0.5,
-    interceptDistance: 18,
+    pursuitTendency: 0.3,
+    positionRecoverySpeed: 1.5,
+    supportDistance: 12,
+    interceptDistance: 12,
   },
   "left-back": {
     name: "Left Back",
@@ -67,15 +68,15 @@ export const ROLE_DEFINITIONS: Record<SoccerAIRole, RoleDefinition> = {
     defensiveContribution: 8,
     offensiveContribution: 5,
     preferredArea: {
-      minX: -40, // EXPANDED from -25 to cover full field width
-      maxX: 55, // EXPANDED from 30 to cover full field length
-      minZ: -35, // EXPANDED from -30 to cover outer boundary
-      maxZ: -5, // EXPANDED from -8 to cover more area
+      minX: -20,  // Can drop deep in defense
+      maxX: 35,   // Can overlap into attacking third during attacks
+      minZ: -30,  // Left side of field
+      maxZ: 0,    // Can come inside slightly
     },
-    pursuitTendency: 0.7, // INCREASED from 0.6 for better ball pursuit
-    positionRecoverySpeed: 0.7,
-    supportDistance: 18,
-    interceptDistance: 15,
+    pursuitTendency: 0.4,
+    positionRecoverySpeed: 0.9,
+    supportDistance: 25,
+    interceptDistance: 12,
   },
   "right-back": {
     name: "Right Back",
@@ -88,15 +89,15 @@ export const ROLE_DEFINITIONS: Record<SoccerAIRole, RoleDefinition> = {
     defensiveContribution: 8,
     offensiveContribution: 5,
     preferredArea: {
-      minX: -40, // EXPANDED from -25 to cover full field width
-      maxX: 55, // EXPANDED from 30 to cover full field length
-      minZ: -1, // EXPANDED from 2 to cover more area
-      maxZ: 30, // EXPANDED from 23 to cover outer boundary
+      minX: -20,  // Can drop deep in defense
+      maxX: 35,   // Can overlap into attacking third during attacks
+      minZ: -5,   // Can come inside slightly
+      maxZ: 24,   // Right side of field
     },
-    pursuitTendency: 0.7, // INCREASED from 0.6 for better ball pursuit
-    positionRecoverySpeed: 0.7,
-    supportDistance: 18,
-    interceptDistance: 15,
+    pursuitTendency: 0.4,
+    positionRecoverySpeed: 0.9,
+    supportDistance: 25,
+    interceptDistance: 12,
   },
   "central-midfielder-1": {
     name: "Left Central Midfielder",
@@ -109,15 +110,15 @@ export const ROLE_DEFINITIONS: Record<SoccerAIRole, RoleDefinition> = {
     defensiveContribution: 6,
     offensiveContribution: 7,
     preferredArea: {
-      minX: -40, // EXPANDED from -20 to cover full field width
-      maxX: 55, // EXPANDED from 35 to cover full field length
-      minZ: -25, // EXPANDED from -20 to cover more area
-      maxZ: 8, // EXPANDED from 5 to cover more area
+      minX: -15,  // Can drop back to help defense
+      maxX: 42,   // Can push into penalty area during attacks
+      minZ: -25,  // Left-center of field
+      maxZ: 10,   // Can drift central
     },
-    pursuitTendency: 0.85, // INCREASED from 0.75 for aggressive ball pursuit
-    positionRecoverySpeed: 0.6,
-    supportDistance: 22,
-    interceptDistance: 18,
+    pursuitTendency: 0.5,
+    positionRecoverySpeed: 0.8,
+    supportDistance: 30,
+    interceptDistance: 15,
   },
   "central-midfielder-2": {
     name: "Right Central Midfielder",
@@ -130,15 +131,15 @@ export const ROLE_DEFINITIONS: Record<SoccerAIRole, RoleDefinition> = {
     defensiveContribution: 6,
     offensiveContribution: 7,
     preferredArea: {
-      minX: -40, // EXPANDED from -20 to cover full field width
-      maxX: 55, // EXPANDED from 35 to cover full field length
-      minZ: -14, // EXPANDED from -11 to cover more area
-      maxZ: 25, // EXPANDED from 20 to cover more area
+      minX: -15,  // Can drop back to help defense
+      maxX: 42,   // Can push into penalty area during attacks
+      minZ: -15,  // Can drift central
+      maxZ: 20,   // Right-center of field
     },
-    pursuitTendency: 0.85, // INCREASED from 0.75 for aggressive ball pursuit
-    positionRecoverySpeed: 0.6,
-    supportDistance: 22,
-    interceptDistance: 18,
+    pursuitTendency: 0.5,
+    positionRecoverySpeed: 0.8,
+    supportDistance: 30,
+    interceptDistance: 15,
   },
   striker: {
     name: "Striker",
@@ -152,51 +153,52 @@ export const ROLE_DEFINITIONS: Record<SoccerAIRole, RoleDefinition> = {
     defensiveContribution: 3,
     offensiveContribution: 10,
     preferredArea: {
-      minX: -40, // EXPANDED from -10 to cover full field width
-      maxX: 55, // EXPANDED from 45 to cover full field length
-      minZ: -30, // EXPANDED from -18 to cover more area
-      maxZ: 25, // EXPANDED from 12 to cover more area
+      minX: -5,   // Can drop to midfield to link play
+      maxX: 48,   // Right up to opponent goal
+      minZ: -22,  // Full width in attacking third
+      maxZ: 16,   // Full width in attacking third
     },
-    pursuitTendency: 0.95, // INCREASED from 0.85 for most aggressive ball pursuit
-    positionRecoverySpeed: 0.5,
-    supportDistance: 20,
-    interceptDistance: 15,
+    pursuitTendency: 0.6,
+    positionRecoverySpeed: 0.7,
+    supportDistance: 28,
+    interceptDistance: 12,
   },
 };
 
 // ===================================================================
-// AI BEHAVIOR CONSTANTS
+// AI BEHAVIOR CONSTANTS - PRO SOCCER MODE
 // ===================================================================
 
-// Teammate spacing and interaction
-export const TEAMMATE_REPULSION_DISTANCE = 9.0;
-export const TEAMMATE_REPULSION_STRENGTH = 0.8;
-export const BALL_ANTICIPATION_FACTOR = 1.5;
+// Teammate spacing and interaction - INCREASED for better spacing
+export const TEAMMATE_REPULSION_DISTANCE = 14.0;  // Was 9.0 - more spacing between players
+export const TEAMMATE_REPULSION_STRENGTH = 1.2;   // Was 0.8 - stronger repulsion
+export const BALL_ANTICIPATION_FACTOR = 1.0;      // Was 1.5 - less anticipation = more positional play
 
 // Position discipline - how strongly players stick to their positions
+// INCREASED ALL VALUES for more structured play
 export const POSITION_DISCIPLINE_FACTOR: Record<SoccerAIRole, number> = {
-  goalkeeper: 0.95,
-  "left-back": 0.8,
-  "right-back": 0.8,
-  "central-midfielder-1": 0.6,
-  "central-midfielder-2": 0.6,
-  striker: 0.5,
+  goalkeeper: 0.98,    // Was 0.95 - almost never leaves zone
+  "left-back": 0.90,   // Was 0.8 - stay in defensive position
+  "right-back": 0.90,  // Was 0.8 - stay in defensive position
+  "central-midfielder-1": 0.80,  // Was 0.6 - hold midfield better
+  "central-midfielder-2": 0.80,  // Was 0.6 - hold midfield better
+  striker: 0.70,       // Was 0.5 - stay forward, wait for passes
 };
 
-// Pursuit distances by role
-export const GOALKEEPER_PURSUIT_DISTANCE = 8.0;
-export const DEFENDER_PURSUIT_DISTANCE = 20.0;
-export const MIDFIELDER_PURSUIT_DISTANCE = 25.0;
-export const STRIKER_PURSUIT_DISTANCE = 30.0;
+// Pursuit distances by role - REDUCED to keep players in zones
+export const GOALKEEPER_PURSUIT_DISTANCE = 6.0;    // Was 8.0 - stay in goal
+export const DEFENDER_PURSUIT_DISTANCE = 12.0;     // Was 20.0 - don't chase into midfield
+export const MIDFIELDER_PURSUIT_DISTANCE = 15.0;   // Was 25.0 - hold midfield line
+export const STRIKER_PURSUIT_DISTANCE = 18.0;      // Was 30.0 - don't track back too far
 
-// Pursuit probabilities by role
+// Pursuit probabilities by role - REDUCED to encourage passing over chasing
 export const ROLE_PURSUIT_PROBABILITY: Record<SoccerAIRole, number> = {
-  goalkeeper: 0.15,
-  "left-back": 0.3,
-  "right-back": 0.3,
-  "central-midfielder-1": 0.4,
-  "central-midfielder-2": 0.4,
-  striker: 0.5,
+  goalkeeper: 0.10,    // Was 0.15 - rarely chase
+  "left-back": 0.20,   // Was 0.3 - stay in position
+  "right-back": 0.20,  // Was 0.3 - stay in position
+  "central-midfielder-1": 0.30,  // Was 0.4 - more passing less chasing
+  "central-midfielder-2": 0.30,  // Was 0.4 - more passing less chasing
+  striker: 0.35,       // Was 0.5 - stay forward for outlet passes
 };
 
 // Position recovery speeds
@@ -215,10 +217,10 @@ export const RESTART_FORMATION_DISCIPLINE = 0.9;
 export const CENTER_AVOIDANCE_RADIUS = 12.0;
 
 // Shot and pass physics constants
-export const SHOT_ARC_FACTOR = 0.3;
-export const PASS_ARC_FACTOR = 0.05;
-export const PASS_FORCE = 2.8;
-export const SHOT_FORCE = 2.2;
+export const SHOT_ARC_FACTOR = 0.08;   // Low arc for driven shots (reduced from 0.20 - shots were going over goal)
+export const PASS_ARC_FACTOR = 0.03;   // Flat passes
+export const PASS_FORCE = 3.5;         // Balanced pass power (human range: 2.5-4.5)
+export const SHOT_FORCE = 4.0;         // INCREASED to match human player power (human range: 1.5-5.0)
 
 /**
  * Get pursuit distance for a specific role

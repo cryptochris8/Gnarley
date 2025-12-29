@@ -2,7 +2,7 @@ import type { Ability } from "./Ability";
 import type { ItemAbilityOptions } from "./itemTypes";
 import { type Vector3Like, Entity, Audio } from "hytopia";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
-import { isArcadeMode } from "../state/gameModes";
+import { isArcadeModeForPlayer } from "../state/gameModes";
 
 /**
  * Stamina Power-Up Ability (Arcade Mode Only)
@@ -36,13 +36,19 @@ export class StaminaAbility implements Ability {
      * @param source - The entity using the ability (must be SoccerPlayerEntity)
      */
     use(origin: Vector3Like, direction: Vector3Like, source: Entity): void {
-        // SAFETY CHECK: Only work in arcade mode
-        if (!isArcadeMode()) {
+        // Validate the source entity first
+        if (!source.world || !(source instanceof SoccerPlayerEntity)) {
+            console.error("❌ STAMINA: Invalid source entity for stamina ability");
+            return;
+        }
+
+        // SAFETY CHECK: Only work in arcade mode (room-aware)
+        if (!isArcadeModeForPlayer(source.player)) {
             console.log("🎮 STAMINA: Power-up blocked - not in arcade mode");
             return;
         }
 
-        // Validate the source entity
+        // Already validated above
         if (!source.world || !(source instanceof SoccerPlayerEntity)) {
             console.error("❌ STAMINA: Invalid source entity for stamina ability");
             return;

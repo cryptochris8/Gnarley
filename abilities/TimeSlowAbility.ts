@@ -2,7 +2,7 @@ import type { Ability } from "./Ability";
 import type { ItemAbilityOptions } from "./itemTypes";
 import { type Vector3Like, Entity, Audio } from "hytopia";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
-import { isArcadeMode } from "../state/gameModes";
+import { isArcadeModeForPlayer } from "../state/gameModes";
 
 /**
  * Time Slow Power-Up Ability (Arcade Mode Only)
@@ -29,14 +29,17 @@ export class TimeSlowAbility implements Ability {
      * Activates the time slow power-up effect
      */
     use(origin: Vector3Like, direction: Vector3Like, source: Entity): void {
-        console.log(`🕐 TIME SLOW: use() method called!`);
-        console.log(`🕐 TIME SLOW: origin=${JSON.stringify(origin)}, direction=${JSON.stringify(direction)}, source=${source.constructor.name}`);
-        
-        // SAFETY CHECK: Only work in arcade mode
-        if (!isArcadeMode()) {
+        // Validate the source entity first
+        if (!source.world || !(source instanceof SoccerPlayerEntity)) {
+            console.error("❌ TIME SLOW: Invalid source entity for time slow ability");
+            return;
+        }
+
+        // SAFETY CHECK: Only work in arcade mode (room-aware)
+        if (!isArcadeModeForPlayer(source.player)) {
             console.log("🕐 TIME SLOW: Power-up blocked - not in arcade mode");
             // Send feedback to player
-            if (source instanceof SoccerPlayerEntity && source.player.ui && typeof source.player.ui.sendData === 'function') {
+            if (source.player.ui && typeof source.player.ui.sendData === 'function') {
                 source.player.ui.sendData({
                     type: "action-feedback",
                     feedbackType: "error",
@@ -45,14 +48,12 @@ export class TimeSlowAbility implements Ability {
                 });
             }
             // Remove the ability since it can't be used
-            if (source instanceof SoccerPlayerEntity) {
-                source.abilityHolder.removeAbility();
-                source.abilityHolder.hideAbilityUI(source.player);
-            }
+            source.abilityHolder.removeAbility();
+            source.abilityHolder.hideAbilityUI(source.player);
             return;
         }
 
-        // Validate the source entity
+        // Already validated above
         if (!source.world || !(source instanceof SoccerPlayerEntity)) {
             console.error("❌ TIME SLOW: Invalid source entity for time slow ability");
             console.error(`❌ TIME SLOW: source.world=${!!source.world}, instanceof SoccerPlayerEntity=${source instanceof SoccerPlayerEntity}`);

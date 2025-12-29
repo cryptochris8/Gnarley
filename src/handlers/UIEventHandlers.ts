@@ -27,10 +27,11 @@ import spectatorMode from "../../utils/observerMode";
 import { FIFACrowdManager } from "../../utils/fifaCrowdManager";
 import { PickupGameManager } from "../../state/pickupGameManager";
 import { TournamentManager } from "../../state/tournamentManager";
-import { GameMode, setGameMode, getCurrentModeConfig, isFIFAMode, isArcadeMode } from "../../state/gameModes";
+import { GameMode, setGameMode, getCurrentModeConfig, isFIFAMode, isArcadeMode, isGameModeLocked, getCurrentGameMode } from "../../state/gameModes";
 import { getStartPosition } from "../../utils/positions";
 import { getDirectionFromRotation } from "../../utils/direction";
 import { setMobilePlayer } from "../../utils/mobileDetection";
+import { RoomManager } from "../../state/RoomManager";
 
 export interface UIEventDependencies {
   world: World;
@@ -58,11 +59,49 @@ export class UIEventHandlers {
    */
   registerPlayerUIHandler(player: Player): void {
     player.ui.on(PlayerUIEvent.DATA, async ({ playerUI, data }) => {
+      // Skip processing if player is in a room world (handled by RoomManager)
+      // Only process events for lobby world players or room-agnostic events
+      if (RoomManager.instance && !RoomManager.isLobbyWorld(player.world)) {
+        // Room players: Only allow room management events through here
+        // Team selection and game events are handled by RoomManager
+        const roomOnlyEvents = [
+          "team-selected", "mobile-team-selection", "select-single-player",
+          "select-game-mode", "mobile-auto-start-fifa", "manual-reset-game",
+          "coin-toss-choice", "force-pass", "request-pass", "kick-ball",
+          "game-mode-request", "start-match", "penalty-kick-direction",
+          "start-second-half"
+        ];
+        if (roomOnlyEvents.includes(data.type)) {
+          logger.debug(`[UIEventHandlers] Skipping ${data.type} for room player ${player.username}`);
+          return;
+        }
+      }
+
       // Debug: Log all incoming data
       logger.debug(`= Server received data from ${player.username}:`, JSON.stringify(data, null, 2));
 
       // Route to appropriate handler based on data.type
       switch (data.type) {
+        // ===== ROOM MANAGEMENT =====
+        case "quick-play":
+          this.handleQuickPlay(player, data);
+          break;
+        case "create-room":
+          this.handleCreateRoom(player, data);
+          break;
+        case "join-room":
+          this.handleJoinRoom(player, data);
+          break;
+        case "join-room-spectate":
+          this.handleJoinRoomSpectate(player, data);
+          break;
+        case "leave-room":
+          this.handleLeaveRoom(player, data);
+          break;
+        case "refresh-room-list":
+          this.handleRefreshRoomList(player, data);
+          break;
+
         // ===== MOBILE AUTO-START =====
         case "mobile-auto-start-fifa":
           this.handleMobileAutoStartFIFA(player, data);
@@ -173,25 +212,61 @@ export class UIEventHandlers {
   // ============================================================================
 
   private async handleMobileAutoStartFIFA(player: Player, data: any): Promise<void> {
-    logger.info(`Mobile auto-start FIFA requested by: ${player.username}`);
+    logger.info(`📱 Mobile auto-start requested by: ${player.username}`);
 
     // Mark player as mobile
     setMobilePlayer(player, true);
 
-    // Set game mode to FIFA
-    setGameMode(GameMode.FIFA);
-    logger.info("Game mode set to FIFA Mode (mobile auto-start)");
+    // CRITICAL FIX: Check if a game is already in progress
+    // If so, join the existing game with its current mode instead of forcing FIFA
+    if (isGameModeLocked() || this.deps.game?.inProgress()) {
+      const currentMode = getCurrentGameMode();
+      logger.info(`📱 Game already in progress with ${currentMode} mode - mobile player will join existing match`);
+
+      // Notify player they're joining an existing game
+      player.ui.sendData({
+        type: "game-mode-locked",
+        currentMode: currentMode,
+        requestedMode: "fifa",
+        message: `Joining match in progress (${currentMode.toUpperCase()} mode)`,
+      });
+
+      // Send confirmation with actual current mode
+      player.ui.sendData({
+        type: "game-mode-confirmed",
+        mode: currentMode,
+        config: getCurrentModeConfig(),
+        wasLocked: true,
+      });
+
+      // Still allow them to select a team for the existing game
+      player.ui.sendData({
+        type: "show-team-selection",
+        message: "Select your team to join the match",
+        gameMode: currentMode,
+      });
+
+      return;
+    }
+
+    // No game in progress - set to FIFA mode (default for mobile quick-start)
+    const modeSet = setGameMode(GameMode.FIFA);
+    if (modeSet) {
+      logger.info("🎮 Game mode set to FIFA Mode (mobile auto-start)");
+    } else {
+      logger.warn("⚠️ Could not set FIFA mode - using current mode");
+    }
 
     // Check if player already on a team
     if (this.deps.game && this.deps.game.getTeamOfPlayer(player.username) !== null) {
-      logger.warn("Mobile player already on a team");
+      logger.warn("📱 Mobile player already on a team");
       return;
     }
 
     // Clean up any existing entities
     const existingEntities = this.deps.world.entityManager.getPlayerEntitiesByPlayer(player);
     if (existingEntities.length > 0) {
-      logger.warn(`Mobile player ${player.username} has existing entities - cleaning up...`);
+      logger.warn(`📱 Mobile player ${player.username} has existing entities - cleaning up...`);
       existingEntities.forEach((entity) => {
         if (entity.isSpawned) {
           entity.despawn();
@@ -204,70 +279,73 @@ export class UIEventHandlers {
     if (this.deps.game) {
       this.deps.game.joinGame(player.username, player.username);
       this.deps.game.joinTeam(player.username, autoTeam);
-      logger.info(`Mobile player auto-joined team: ${autoTeam}`);
+      logger.info(`📱 Mobile player auto-joined team: ${autoTeam}`);
     }
 
     // Create player entity
     const humanPlayerRole = "central-midfielder-1";
     const playerEntity = new SoccerPlayerEntity(player, autoTeam, humanPlayerRole);
-    logger.info(`Creating mobile player entity for team ${autoTeam} as ${humanPlayerRole}`);
+    logger.info(`📱 Creating mobile player entity for team ${autoTeam} as ${humanPlayerRole}`);
 
     // Add spawn event listener
     playerEntity.on(EntityEvent.SPAWN, () => {
-      logger.info(`Mobile player entity ${playerEntity.id} successfully spawned`);
+      logger.info(`📱 Mobile player entity ${playerEntity.id} successfully spawned`);
     });
 
     // Get spawn position
     const spawnPosition = getStartPosition(autoTeam, humanPlayerRole);
-    logger.info(`Mobile spawn position: X=${spawnPosition.x.toFixed(2)}, Y=${spawnPosition.y.toFixed(2)}, Z=${spawnPosition.z.toFixed(2)}`);
+    logger.info(`📱 Mobile spawn position: X=${spawnPosition.x.toFixed(2)}, Y=${spawnPosition.y.toFixed(2)}, Z=${spawnPosition.z.toFixed(2)}`);
 
     // Spawn player entity
     playerEntity.spawn(this.deps.world, spawnPosition);
-    logger.info(`Mobile player entity spawned as ${humanPlayerRole}`);
+    logger.info(`📱 Mobile player entity spawned as ${humanPlayerRole}`);
 
     // Freeze player initially
     playerEntity.freeze();
 
-    // Start FIFA crowd atmosphere
-    this.deps.fifaCrowdManager.start();
-    this.deps.fifaCrowdManager.playGameStart();
+    // Start crowd atmosphere based on ACTUAL current mode (not assumed FIFA)
+    const actualMode = getCurrentGameMode();
+    if (actualMode === GameMode.FIFA) {
+      this.deps.fifaCrowdManager.start();
+      this.deps.fifaCrowdManager.playGameStart();
+    }
 
-    // Start gameplay music (FIFA mode)
-    const gameMode = getCurrentModeConfig();
-    this.deps.audioManager.playGameplayMusic(gameMode.mode);
-    logger.info(`Music started for FIFA mode (mobile)`);
+    // Start gameplay music based on actual mode
+    const gameMode = getCurrentGameMode();
+    this.deps.audioManager.playGameplayMusic(gameMode);
+    logger.info(`🎵 Music started for ${actualMode} mode (mobile)`);
 
     // Spawn AI players
-    logger.info("Spawning AI players for mobile single-player mode...");
+    logger.info("📱 Spawning AI players for mobile single-player mode...");
     await this.deps.spawnAIPlayers(autoTeam);
 
     // Start the game
-    logger.info("Starting game with AI for mobile player...");
+    logger.info("📱 Starting game with AI for mobile player...");
     const gameStarted = this.deps.game && this.deps.game.startGame();
 
     if (gameStarted) {
-      logger.info("Mobile FIFA game started successfully!");
+      logger.info(`📱 Mobile ${actualMode} game started successfully!`);
 
       // Send chat message to player
       this.deps.world.chatManager.sendPlayerMessage(
         player,
-        "FIFA mode started! Good luck!"
+        `${actualMode.toUpperCase()} mode started! Good luck!`
       );
 
       // Unfreeze player after short delay
       setTimeout(() => {
         if (playerEntity && typeof playerEntity.unfreeze === "function") {
           playerEntity.unfreeze();
-          logger.info("Mobile player unfrozen - game active!");
+          logger.info("📱 Mobile player unfrozen - game active!");
         }
 
         // Lock pointer for gameplay
         player.ui.lockPointer(true);
-        logger.info(`Pointer locked for mobile player ${player.username} - Game controls enabled`);
+        logger.info(`📱 Pointer locked for mobile player ${player.username} - Game controls enabled`);
       }, 500);
 
     } else {
-      logger.error("Failed to start mobile FIFA game");
+      logger.error("📱 Failed to start mobile game");
       this.deps.world.chatManager.sendPlayerMessage(
         player,
         "Failed to start game. Please reconnect."
@@ -282,30 +360,60 @@ export class UIEventHandlers {
   private handleGameModeSelection(player: Player, data: any): void {
     logger.info(`Player ${player.username} selected game mode: ${data.mode}`);
 
+    // CRITICAL FIX: Check if game mode is locked (match in progress)
+    if (isGameModeLocked()) {
+      const currentMode = getCurrentGameMode();
+      logger.warn(`⚠️ Player ${player.username} tried to select ${data.mode} but mode is locked to ${currentMode}`);
+
+      // Inform the player that a match is in progress with a specific mode
+      player.ui.sendData({
+        type: "game-mode-locked",
+        currentMode: currentMode,
+        requestedMode: data.mode,
+        message: `A match is currently in progress in ${currentMode.toUpperCase()} mode. You will join the current game.`,
+      });
+
+      // Still confirm with the CURRENT mode (not their requested mode)
+      player.ui.sendData({
+        type: "game-mode-confirmed",
+        mode: currentMode,
+        config: getCurrentModeConfig(),
+        wasLocked: true,
+      });
+
+      logger.info(`📱 Player ${player.username} will join existing ${currentMode} match`);
+      return;
+    }
+
     // Start opening music on first user interaction (game mode selection)
     // This is after a user gesture, so browser will allow audio playback
     if (!this.deps.game?.inProgress()) {
       this.deps.audioManager.playOpeningMusic();
-      logger.info("<� Opening music started after user interaction");
+      logger.info("🎵 Opening music started after user interaction");
     }
 
     // Set the game mode using the imported functions
+    let modeSet = false;
     if (data.mode === "fifa") {
-      setGameMode(GameMode.FIFA);
-      logger.info("Game mode set to FIFA Mode");
+      modeSet = setGameMode(GameMode.FIFA);
+      if (modeSet) logger.info("🎮 Game mode set to FIFA Mode");
     } else if (data.mode === "arcade") {
-      setGameMode(GameMode.ARCADE);
-      logger.info("Game mode set to Arcade Mode");
+      modeSet = setGameMode(GameMode.ARCADE);
+      if (modeSet) logger.info("🎮 Game mode set to Arcade Mode");
+    }
+
+    if (!modeSet) {
+      logger.warn(`⚠️ Failed to set game mode to ${data.mode} - mode may be locked`);
     }
 
     // Send confirmation back to UI
     player.ui.sendData({
       type: "game-mode-confirmed",
-      mode: data.mode,
+      mode: getCurrentGameMode(), // Always send the actual current mode
       config: getCurrentModeConfig(),
     });
 
-    logger.info("<� Game mode selected - ready for team selection");
+    logger.info("🎮 Game mode selected - ready for team selection");
   }
 
   private handleSinglePlayerSelection(player: Player, data: any): void {
@@ -403,9 +511,9 @@ export class UIEventHandlers {
     // Opening music plays during: opening screen, game mode selection, team selection
     // Gameplay music plays during: actual game (FIFA/Arcade)
     if (this.deps.game) {
-      const gameMode = getCurrentModeConfig();
-      this.deps.audioManager.playGameplayMusic(gameMode.mode);
-      logger.info(`<� Music transitioned to gameplay (${gameMode.mode} mode)`);
+      const currentMode = getCurrentGameMode();
+      this.deps.audioManager.playGameplayMusic(currentMode);
+      logger.info(`🎵 Music transitioned to gameplay (${currentMode} mode)`);
     }
 
     // Start FIFA crowd atmosphere if in FIFA mode
@@ -441,6 +549,11 @@ export class UIEventHandlers {
       const gameStarted = this.deps.game && this.deps.game.startGame();
       if (gameStarted) {
         logger.info(" Game started successfully with AI!");
+
+        // DEBUG: Log current game mode at game start
+        const currentModeCheck = getCurrentGameMode();
+        logger.info(`🎮 GAME START DEBUG: Current game mode is: ${currentModeCheck}`);
+        logger.info(`🎮 GAME START DEBUG: isArcadeMode() returns: ${isArcadeMode()}`);
 
         // Activate pickup system if in arcade mode
         if (isArcadeMode()) {
@@ -1540,5 +1653,149 @@ export class UIEventHandlers {
         success: true,
       });
     }
+  }
+
+  // ===== ROOM MANAGEMENT HANDLERS =====
+
+  /**
+   * Handle quick play - find available room or create one
+   */
+  private async handleQuickPlay(player: Player, data: any): Promise<void> {
+    // Get preferred game mode from client data, default to current global mode or FIFA
+    const preferredMode = data.gameMode === 'arcade' ? GameMode.ARCADE :
+                          data.gameMode === 'tournament' ? GameMode.TOURNAMENT :
+                          getCurrentGameMode() || GameMode.FIFA;
+
+    logger.info(`⚡ Quick Play requested by ${player.username} (preferred mode: ${preferredMode})`);
+
+    if (!RoomManager.isInitialized()) {
+      logger.warn("RoomManager not initialized - falling back to lobby game");
+      // Fall back to existing game behavior if rooms not ready
+      return;
+    }
+
+    const roomManager = RoomManager.getInstance();
+
+    // Try to find an available public room with the preferred mode
+    const availableRoom = roomManager.findAvailableRoom(preferredMode);
+
+    if (availableRoom) {
+      // Join existing room
+      logger.info(`Quick Play: Joining existing ${availableRoom.config.gameMode} room ${availableRoom.config.id}`);
+      await roomManager.joinRoom(availableRoom.config.id, player);
+    } else {
+      // Create new room with preferred mode
+      logger.info(`Quick Play: Creating new ${preferredMode} room for ${player.username}`);
+      await roomManager.createRoom({
+        name: `${player.username}'s Match`,
+        gameMode: preferredMode,
+        isPublic: true,
+      }, player);
+    }
+  }
+
+  /**
+   * Handle create room request
+   */
+  private async handleCreateRoom(player: Player, data: any): Promise<void> {
+    logger.info(`🏠 Create room requested by ${player.username}: ${data.name}`);
+
+    if (!RoomManager.isInitialized()) {
+      player.ui.sendData({
+        type: "room-error",
+        message: "Room system not available. Please try again.",
+      });
+      return;
+    }
+
+    const roomManager = RoomManager.getInstance();
+
+    // Map game mode string to enum
+    let gameMode = GameMode.FIFA;
+    if (data.gameMode === 'arcade') {
+      gameMode = GameMode.ARCADE;
+    }
+
+    await roomManager.createRoom({
+      name: data.name || `${player.username}'s Room`,
+      gameMode: gameMode,
+      isPublic: data.isPublic !== false,
+    }, player);
+  }
+
+  /**
+   * Handle join room request
+   */
+  private async handleJoinRoom(player: Player, data: any): Promise<void> {
+    logger.info(`🚪 Join room requested by ${player.username}: ${data.roomId}`);
+
+    if (!RoomManager.isInitialized()) {
+      player.ui.sendData({
+        type: "room-error",
+        message: "Room system not available.",
+      });
+      return;
+    }
+
+    const roomManager = RoomManager.getInstance();
+    await roomManager.joinRoom(data.roomId, player);
+  }
+
+  /**
+   * Handle join room as spectator request
+   */
+  private async handleJoinRoomSpectate(player: Player, data: any): Promise<void> {
+    logger.info(`👁️ Spectate room requested by ${player.username}: ${data.roomId}`);
+
+    if (!RoomManager.isInitialized()) {
+      player.ui.sendData({
+        type: "room-error",
+        message: "Room system not available.",
+      });
+      return;
+    }
+
+    const roomManager = RoomManager.getInstance();
+    await roomManager.joinAsSpectator(data.roomId, player);
+  }
+
+  /**
+   * Handle leave room request
+   */
+  private handleLeaveRoom(player: Player, data: any): void {
+    logger.info(`🚶 Leave room requested by ${player.username}`);
+
+    if (!RoomManager.isInitialized()) {
+      return;
+    }
+
+    const roomManager = RoomManager.getInstance();
+    roomManager.leaveRoom(player);
+  }
+
+  /**
+   * Handle refresh room list request
+   */
+  private handleRefreshRoomList(player: Player, data: any): void {
+    logger.debug(`🔄 Room list refresh requested by ${player.username}`);
+
+    if (!RoomManager.isInitialized()) {
+      player.ui.sendData({
+        type: "room-list",
+        rooms: [],
+        stats: { rooms: 0, players: 0, spectators: 0 },
+      });
+      return;
+    }
+
+    const roomManager = RoomManager.getInstance();
+    const rooms = roomManager.getPublicRoomList();
+    const stats = roomManager.getStats();
+
+    player.ui.sendData({
+      type: "room-list",
+      rooms: rooms,
+      stats: stats,
+    });
   }
 }

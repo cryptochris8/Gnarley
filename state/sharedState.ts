@@ -149,7 +149,7 @@ class SharedState {
     // --- Ball Movement Tracking ---
     public setBallHasMoved() {
         if (!this.ballHasMovedFromSpawn) {
-            console.log("Ball has moved from spawn for the first time.");
+            // console.log("Ball has moved from spawn for the first time.");
             this.ballHasMovedFromSpawn = true;
         }
     }
@@ -159,7 +159,7 @@ class SharedState {
     }
 
     public resetBallMovementFlag() {
-        console.log("Resetting ball movement flag.");
+        // console.log("Resetting ball movement flag.");
         this.ballHasMovedFromSpawn = false;
     }
     // --- End Ball Movement Tracking ---

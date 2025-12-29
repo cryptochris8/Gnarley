@@ -2,6 +2,9 @@ import AIPlayerEntity from "./AIPlayerEntity";
 import SoccerPlayerEntity from "./SoccerPlayerEntity";
 import sharedState from "../state/sharedState";
 import { type Vector3Like, PlayerEntity } from "hytopia";
+
+// Helper to get correct state from agent (room or global)
+const getState = (agent: AIPlayerEntity) => agent.getSharedState();
 import { 
   AI_FIELD_CENTER_Z,
   AI_GOAL_LINE_X_RED,
@@ -90,7 +93,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
     new Sequence([
       new Condition((agent: AIPlayerEntity) => {
         // Has Ball check
-        const attachedPlayer = sharedState.getAttachedPlayer();
+        const attachedPlayer = getState(agent).getAttachedPlayer();
         return attachedPlayer === agent;
       }),
       new Selector([
@@ -98,14 +101,14 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
         new Sequence([
           new Condition((agent: AIPlayerEntity) => {
             // Teammate Better Positioned check - More conservative strategic passing
-            const teammates = sharedState.getAITeammates(agent).filter(t => t.isSpawned && t !== agent);
+            const teammates = getState(agent).getAITeammates(agent).filter(t => t.isSpawned && t !== agent);
             if (teammates.length === 0) return false;
 
             const opponentGoalLineX = agent.team === 'red' ? AI_GOAL_LINE_X_BLUE : AI_GOAL_LINE_X_RED;
             const goalPosition = { x: opponentGoalLineX, y: 1, z: AI_FIELD_CENTER_Z };
 
             // Get opponents for pass safety checking
-            const opponents = agent.team === 'red' ? sharedState.getBlueAITeam() : sharedState.getRedAITeam();
+            const opponents = agent.team === 'red' ? getState(agent).getBlueAITeam() : getState(agent).getRedAITeam();
 
             for (const teammate of teammates) {
               const distanceToTeammate = agent.distanceBetween(agent.position, teammate.position);
@@ -148,7 +151,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
           }),
           new Action((agent: AIPlayerEntity) => {
             // Pass Ball action - Enhanced for strategic passing
-            const aiTeammates = sharedState.getAITeammates(agent).filter(t => t.isSpawned && t !== agent);
+            const aiTeammates = getState(agent).getAITeammates(agent).filter(t => t.isSpawned && t !== agent);
             let allTeammates: SoccerPlayerEntity[] = [...aiTeammates];
 
             // Add human players to teammates list
@@ -335,7 +338,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
     new Sequence([
       new Condition((agent: AIPlayerEntity) => {
         // Opponent Has Ball check
-        const attachedPlayer = sharedState.getAttachedPlayer();
+        const attachedPlayer = getState(agent).getAttachedPlayer();
         return attachedPlayer instanceof SoccerPlayerEntity && attachedPlayer.team !== agent.team;
       }),
       new Selector([
@@ -344,13 +347,13 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
           new Condition((agent: AIPlayerEntity) => {
             // Closest to Ball check
             return agent.isClosestTeammateToPosition(
-              sharedState.getSoccerBall()?.position || { x: 0, y: 0, z: 0 }
+              getState(agent).getSoccerBall()?.position || { x: 0, y: 0, z: 0 }
             );
           }),
           new Action((agent: AIPlayerEntity) => {
             // Mark Opponent action
             // Find opponent with ball
-            const attachedPlayer = sharedState.getAttachedPlayer();
+            const attachedPlayer = getState(agent).getAttachedPlayer();
             if (attachedPlayer instanceof SoccerPlayerEntity && attachedPlayer.team !== agent.team) {
               // Move to position slightly goal-side of opponent with ball
               const goalSideOffset = agent.team === 'red' ? -2 : 2;
@@ -373,7 +376,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
         new Sequence([
           new Condition((agent: AIPlayerEntity) => {
             // Check if ball is stuck in corner/boundary area
-            const ball = sharedState.getSoccerBall();
+            const ball = getState(agent).getSoccerBall();
             if (!ball) return false;
             
             const ballPosition = ball.position;
@@ -394,7 +397,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
             const isStuck = ballSpeed < 2.0; // Increased from 0.5 - catch slow-moving balls earlier
             
             // Check if no one has the ball (it's loose)
-            const ballIsLoose = !sharedState.getAttachedPlayer();
+            const ballIsLoose = !getState(agent).getAttachedPlayer();
             
             // Special condition: Ball is stuck near boundary and no one has it
             if (isNearBoundary && isStuck && ballIsLoose) {
@@ -432,7 +435,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
           }),
           new Action((agent: AIPlayerEntity) => {
             // Retrieve Stuck Ball action
-            const ball = sharedState.getSoccerBall();
+            const ball = getState(agent).getSoccerBall();
             if (!ball) return false;
             
             // Go directly to the ball position with no anticipation since it's stuck
@@ -450,7 +453,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
         new Sequence([
           new Condition((agent: AIPlayerEntity) => {
             // Ball In Reach check - Enhanced for better pass reception
-            const ball = sharedState.getSoccerBall();
+            const ball = getState(agent).getSoccerBall();
             if (!ball) return false;
 
             const distanceToBall = agent.distanceBetween(agent.position, ball.position);
@@ -512,7 +515,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
           }),
           new Action((agent: AIPlayerEntity) => {
             // Intercept Ball action
-            const ball = sharedState.getSoccerBall();
+            const ball = getState(agent).getSoccerBall();
             if (!ball) return false;
             
             // Improved ball velocity anticipation with role-specific factors
@@ -632,8 +635,8 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
             // Consider nearby opponents when intercepting
             const opponentTeamName = agent.team === 'red' ? 'blue' : 'red';
             const opponents = opponentTeamName === 'red' ? 
-                               sharedState.getRedAITeam() : 
-                               sharedState.getBlueAITeam();
+                               getState(agent).getRedAITeam() : 
+                               getState(agent).getBlueAITeam();
             
             // Check for close opponents - adjust intercept point if needed
             let nearestOpponentDistance = Infinity;
@@ -684,7 +687,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
       new Sequence([
         new Condition((agent: AIPlayerEntity) => {
           // In Attacking Phase check
-          const ball = sharedState.getSoccerBall();
+          const ball = getState(agent).getSoccerBall();
           if (!ball) return false;
           
           const fieldCenterX = (AI_GOAL_LINE_X_RED + AI_GOAL_LINE_X_BLUE) / 2;
@@ -698,7 +701,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
         new Action((agent: AIPlayerEntity) => {
           // Move to Open Space action
           const opponentGoalLineX = agent.team === 'red' ? AI_GOAL_LINE_X_BLUE : AI_GOAL_LINE_X_RED;
-          const ball = sharedState.getSoccerBall();
+          const ball = getState(agent).getSoccerBall();
           if (!ball) return false;
           
           // Find positioning based on role
@@ -709,7 +712,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
           const ballDistance = agent.distanceBetween(agent.position, ball.position);
           
           // Get all teammates for spacing calculations
-          const teammates = sharedState.getAITeammates(agent);
+          const teammates = getState(agent).getAITeammates(agent);
           
           // Base position from role
           const basePos = agent.getRoleBasedPosition();
@@ -837,7 +840,7 @@ export function createBehaviorTree(agent: AIPlayerEntity): BehaviorNode {
           
           agent.targetPosition = targetPos;
           
-          console.log(`${agent.player.username} moving to open space at [${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)}]`);
+          // console.log(`${agent.player.username} moving to open space at [${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)}]`);
           return true;
         })
       ]),

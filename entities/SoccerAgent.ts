@@ -28,19 +28,27 @@ export class SoccerAgent {
   constructor(entity: AIPlayerEntity) {
     this.entity = entity;
   }
+
+  /**
+   * Get the correct shared state for this agent (room or global)
+   * This enables multi-room support where each room has isolated game state
+   */
+  private getState() {
+    return this.entity.getSharedState();
+  }
   
   /**
    * Check if this agent has the ball.
    * Updates possession state for counter-attack logic.
    */
   public hasBall(): boolean {
-    const attachedPlayer = sharedState.getAttachedPlayer();
+    const attachedPlayer = this.getState().getAttachedPlayer();
     const iHaveBall = attachedPlayer === this.entity;
     
     if (iHaveBall && this.opponentHadBallLastTick) { 
         // Opponent just lost possession to me (or a teammate, and now I have it).
         // This resets the "opponent lost possession recently" state for calculating *my* counter-attack eligibility.
-        console.log(`[POSSESSION_CHANGE] ${this.entity.player.username} now has the ball. Opponent lost possession.`);
+        // console.log(`[POSSESSION_CHANGE] ${this.entity.player.username} now has the ball. Opponent lost possession.`);
         // this.lastPossessionChangeTime = 0; // Resetting this might be too aggressive if teammates are countering
     }
     
@@ -55,7 +63,7 @@ export class SoccerAgent {
    * Updates possession state for counter-attack logic.
    */
   public opponentHasBall(): boolean {
-    const attachedPlayer = sharedState.getAttachedPlayer();
+    const attachedPlayer = this.getState().getAttachedPlayer();
     // Check if a player has the ball and is from the opposite team
     let opponentCurrentlyHasBall = false;
     if (attachedPlayer instanceof SoccerPlayerEntity && attachedPlayer.team !== this.entity.team) {
@@ -68,7 +76,7 @@ export class SoccerAgent {
     if (opponentCurrentlyHasBall && !this.opponentHadBallLastTick) {
         this.lastPossessionChangeTime = Date.now();
         const opponentName = attachedPlayer instanceof PlayerEntity ? attachedPlayer.player.username : 'Unknown Opponent';
-        console.log(`[POSSESSION_CHANGE] Opponent ${opponentName} now has the ball. Counter timer started for ${this.entity.player.username}.`);
+        // console.log(`[POSSESSION_CHANGE] Opponent ${opponentName} now has the ball. Counter timer started for ${this.entity.player.username}.`);
     }
     this.opponentHadBallLastTick = opponentCurrentlyHasBall;
     return opponentCurrentlyHasBall;
@@ -76,31 +84,34 @@ export class SoccerAgent {
   
   /**
    * Check if the agent is within shooting range of the goal.
-   * Enhanced to consider role's offensive contribution and stamina levels.
-   * STRATEGIC UPDATE: Reduced ranges to encourage more passing and build-up play
+   * AGGRESSIVE SHOOTING: Take shots when in good positions near goal
    */
   public withinShootingRange(): boolean {
     const opponentGoalLineX = this.entity.team === 'red' ? AI_GOAL_LINE_X_BLUE : AI_GOAL_LINE_X_RED;
     const goalPosition = { x: opponentGoalLineX, y: 1, z: AI_FIELD_CENTER_Z };
     const roleDef = ROLE_DEFINITIONS[this.entity.aiRole];
 
-    // REDUCED shooting ranges for more strategic play
-    let maxShootingRange = 8; // Reduced from 15 to 8
+    // INCREASED shooting ranges - be aggressive near goal!
+    let maxShootingRange = 18; // Base range for all players
     if (this.entity.aiRole === 'striker') {
-      maxShootingRange = 12; // Reduced from 20 to 12 - strikers still shoot more
+      maxShootingRange = 25; // Strikers can shoot from distance
     } else if (this.entity.aiRole === 'central-midfielder-1' || this.entity.aiRole === 'central-midfielder-2') {
-      maxShootingRange = 10; // Reduced from 18 to 10
+      maxShootingRange = 22; // Midfielders have good range too
+    } else if (this.entity.aiRole.includes('back')) {
+      maxShootingRange = 15; // Defenders only shoot when close
     }
 
-    const offensiveFactor = 1 + (roleDef.offensiveContribution - 5) / 25;
+    const offensiveFactor = 1 + (roleDef.offensiveContribution - 5) / 20;
     maxShootingRange *= offensiveFactor;
 
-    // **STAMINA CONSIDERATION**: Reduce shooting range when stamina is low
+    // Check if we're in a central position (better angle = shoot from further)
+    const centralBonus = Math.abs(this.entity.position.z - AI_FIELD_CENTER_Z) < 10 ? 1.2 : 1.0;
+    maxShootingRange *= centralBonus;
+
+    // **STAMINA CONSIDERATION**: Only reduce range when very low stamina
     const staminaPercentage = this.entity.getStaminaPercentage();
-    if (staminaPercentage < 30) {
-      maxShootingRange *= 0.7; // Reduce range by 30% when stamina is low
-    } else if (staminaPercentage < 50) {
-      maxShootingRange *= 0.85; // Reduce range by 15% when stamina is moderate
+    if (staminaPercentage < 20) {
+      maxShootingRange *= 0.8; // Only reduce by 20% when stamina is very low
     }
 
     const distanceToGoal = this.entity.distanceBetween(this.entity.position, goalPosition);
@@ -109,50 +120,86 @@ export class SoccerAgent {
   
   /**
    * Check if there's a teammate in a better position.
-   * Enhanced to consider passer's supportDistance.
-   * STRATEGIC UPDATE: More lenient criteria to encourage passing and build-up play
+   * SCORING PRIORITY: If we're in a great shooting position, don't look for pass - SHOOT!
    */
   public teammateBetterPositioned(): boolean {
-    const teammates = sharedState.getAITeammates(this.entity).filter(t => t.isSpawned && t !== this.entity);
+    const teammates = this.getState().getAITeammates(this.entity).filter(t => t.isSpawned && t !== this.entity);
     if (teammates.length === 0) return false;
 
     const opponentGoalLineX = this.entity.team === 'red' ? AI_GOAL_LINE_X_BLUE : AI_GOAL_LINE_X_RED;
     const goalPosition = { x: opponentGoalLineX, y: 1, z: AI_FIELD_CENTER_Z };
     const roleDef = ROLE_DEFINITIONS[this.entity.aiRole];
+    const myDistanceToGoal = this.entity.distanceBetween(this.entity.position, goalPosition);
 
-    for (const teammate of teammates) {
-      const distanceToTeammate = this.entity.distanceBetween(this.entity.position, teammate.position);
-      // INCREASED support range from 1.5x to 2.5x to find more passing options
-      if (distanceToTeammate > roleDef.supportDistance * 2.5) {
-          continue;
+    // SCORING PRIORITY: If we're very close to goal and central, DON'T pass - SHOOT!
+    const isCentralPosition = Math.abs(this.entity.position.z - AI_FIELD_CENTER_Z) < 12;
+    if (myDistanceToGoal < 15 && isCentralPosition) {
+      console.log(`${this.entity.player.username} in prime shooting position (${myDistanceToGoal.toFixed(1)} from goal) - NOT looking for pass`);
+      return false; // Don't pass, let the shooting logic handle it
+    }
+
+    // If we're close to goal (15-20 units) and striker/midfielder, bias toward shooting
+    if (myDistanceToGoal < 20 && (this.entity.aiRole === 'striker' || this.entity.aiRole.includes('midfielder'))) {
+      if (Math.random() < 0.6) { // 60% chance to NOT pass and try to shoot instead
+        console.log(`${this.entity.player.username} close to goal - biasing toward shot attempt`);
+        return false;
       }
+    }
 
-      // Minimum passing distance to avoid too-close passes
-      if (distanceToTeammate < 3) continue;
+    // PRO SOCCER: Check if we're under pressure - if so, pass immediately
+    const opponents = this.entity.team === 'red'
+      ? this.getState().getBlueAITeam()
+      : this.getState().getRedAITeam();
+    const closestOpponentDist = Math.min(...opponents
+      .filter(o => o.isSpawned)
+      .map(o => this.entity.distanceBetween(this.entity.position, o.position)));
+    const underPressure = closestOpponentDist < 6;  // Opponent within 6 units (tighter)
 
-      // COORDINATE FIX: Red attacks toward X=-37 (decreasing X), Blue toward X=52 (increasing X)
-      // Forward progress is POSITIVE when teammate is closer to opponent goal
-      const forwardProgress = this.entity.team === 'red' ?
-        this.entity.position.x - teammate.position.x :  // Red: my X - teammate X = positive when teammate forward
-        teammate.position.x - this.entity.position.x;   // Blue: teammate X - my X = positive when teammate forward
+    // Position-based passing tendency - reduced when close to goal
+    let rolePassBias = {
+      'goalkeeper': 0.95,
+      'left-back': 0.75,
+      'right-back': 0.75,
+      'central-midfielder-1': 0.60,
+      'central-midfielder-2': 0.60,
+      'striker': 0.40  // Strikers should shoot more, pass less
+    }[this.entity.aiRole] || 0.55;
 
-      // ALLOW BACKWARDS PASSES: Remove strict forward-only requirement
-      // Allow passes backwards if it helps build-up play (up to 12 units back)
-      if (forwardProgress < -12) continue;
+    // Reduce pass bias when close to goal - we want shots!
+    if (myDistanceToGoal < 25) {
+      rolePassBias *= 0.7;
+    }
 
-      const teammateDistanceToGoal = this.entity.distanceBetween(teammate.position, goalPosition);
-      const myDistanceToGoal = this.entity.distanceBetween(this.entity.position, goalPosition);
+    // If under pressure OR random check passes based on role bias, look for pass
+    if (underPressure || Math.random() < rolePassBias) {
+      for (const teammate of teammates) {
+        const distanceToTeammate = this.entity.distanceBetween(this.entity.position, teammate.position);
 
-      // RELAXED passing criteria: Changed from 0.85 to 0.95
-      // Now passes if teammate is even slightly better positioned OR in good space
-      if (teammateDistanceToGoal < myDistanceToGoal * 0.95) {
-        return true;
-      }
+        // Extended passing range for pro soccer play
+        if (distanceToTeammate > roleDef.supportDistance * 3.0) continue;
+        if (distanceToTeammate < 4) continue;
 
-      // ADDITIONAL: Pass if teammate is in more open space (even if not closer to goal)
-      // This encourages possession-based play
-      if (forwardProgress > 5 && distanceToTeammate < roleDef.supportDistance * 2.0) {
-        return true;
+        // COORDINATE FIX: Red attacks toward X=-37, Blue toward X=52
+        const forwardProgress = this.entity.team === 'red' ?
+          this.entity.position.x - teammate.position.x :
+          teammate.position.x - this.entity.position.x;
+
+        // Allow backward passes up to 20 units (build-up play)
+        if (forwardProgress < -20) continue;
+
+        const teammateDistanceToGoal = this.entity.distanceBetween(teammate.position, goalPosition);
+
+        // ONLY pass if teammate is SIGNIFICANTLY closer to goal (not just slightly)
+        // This encourages shots when we're already in a good position
+        if (teammateDistanceToGoal < myDistanceToGoal * 0.75) {
+          console.log(`${this.entity.player.username} passing to ${teammate.player.username} who is much closer to goal`);
+          return true;
+        }
+
+        // Under pressure: pass to open teammate who is closer to goal
+        if (underPressure && distanceToTeammate > 6 && teammateDistanceToGoal < myDistanceToGoal) {
+          return true;
+        }
       }
     }
     return false;
@@ -162,11 +209,11 @@ export class SoccerAgent {
    * Check if the agent is the closest teammate to the ball
    */
   public isClosestToBall(): boolean {
-    const ball = sharedState.getSoccerBall();
+    const ball = this.getState().getSoccerBall();
     if (!ball) return false; // If no ball, cannot be closest
     
     // Get all active teammates
-    const teammates = sharedState.getAITeammates(this.entity).filter(t => t.isSpawned);
+    const teammates = this.getState().getAITeammates(this.entity).filter(t => t.isSpawned);
     if (teammates.length === 0) return true; // If no other teammates, I'm closest
     
     const myDistanceToBall = this.entity.distanceBetween(this.entity.position, ball.position);
@@ -201,19 +248,19 @@ export class SoccerAgent {
   
   /**
    * Check if the ball is within reach to intercept
-   * Enhanced to consider stamina levels for more conservative pursuit when tired
+   * PRO SOCCER: Reduced pursuit range to keep players in position
    */
   public ballInReach(): boolean {
-    const ball = sharedState.getSoccerBall();
+    const ball = this.getState().getSoccerBall();
     if (!ball) return false;
-    
+
     const distanceToBall = this.entity.distanceBetween(this.entity.position, ball.position);
     const roleDef = ROLE_DEFINITIONS[this.entity.aiRole];
-    
-    // Extend the intercept distance by an additional factor to improve ball pursuit
-    // This makes players more eager to go for balls that are further away
-    let extendedInterceptDistance = roleDef.interceptDistance * 1.5;
-    
+
+    // PRO SOCCER: Use base intercept distance - don't extend it
+    // This keeps players in their zones instead of chasing across the field
+    let extendedInterceptDistance = roleDef.interceptDistance;
+
     // **STAMINA CONSIDERATION**: Reduce intercept distance when stamina is low
     const staminaPercentage = this.entity.getStaminaPercentage();
     if (staminaPercentage < 25) {
@@ -229,7 +276,7 @@ export class SoccerAgent {
    * Check if the game is in attacking phase (ball is in opponent's half)
    */
   public inAttackingPhase(): boolean {
-    const ball = sharedState.getSoccerBall();
+    const ball = this.getState().getSoccerBall();
     if (!ball) return false;
     
     const fieldCenterX = (AI_GOAL_LINE_X_RED + AI_GOAL_LINE_X_BLUE) / 2;
@@ -266,7 +313,7 @@ export class SoccerAgent {
     const success = this.entity.shootBall(goalPosition, shotPowerMultiplier);
     
     if (success) {
-        console.log(`${this.entity.player.username} (${this.entity.aiRole}) attempting shot at (${goalPosition.x.toFixed(1)}, ${goalPosition.z.toFixed(1)})`);
+        // console.log(`${this.entity.player.username} (${this.entity.aiRole}) attempting shot at (${goalPosition.x.toFixed(1)}, ${goalPosition.z.toFixed(1)})`);
     } else {
         console.log(`${this.entity.player.username} (${this.entity.aiRole}) failed to execute shootBall command.`);
     }
@@ -286,7 +333,7 @@ export class SoccerAgent {
     }
 
     // Get AI teammates
-    const aiTeammates = sharedState.getAITeammates(this.entity).filter(t => t.isSpawned && t !== this.entity);
+    const aiTeammates = this.getState().getAITeammates(this.entity).filter(t => t.isSpawned && t !== this.entity);
     let allTeammates: SoccerPlayerEntity[] = [...aiTeammates];
 
     // Add human players to teammates list
@@ -435,7 +482,7 @@ export class SoccerAgent {
    */
   public goalkeeperDistribution(): boolean {
     // Get all teammates
-    const aiTeammates = sharedState.getAITeammates(this.entity).filter(t => t.isSpawned && t !== this.entity);
+    const aiTeammates = this.getState().getAITeammates(this.entity).filter(t => t.isSpawned && t !== this.entity);
     let allTeammates: SoccerPlayerEntity[] = [...aiTeammates];
 
     // Add human players to teammates list
@@ -457,7 +504,7 @@ export class SoccerAgent {
 
     // Get all opponents to check for space
     const opponentTeamName = this.entity.team === 'red' ? 'blue' : 'red';
-    const opponents: AIPlayerEntity[] = opponentTeamName === 'red' ? sharedState.getRedAITeam() : sharedState.getBlueAITeam();
+    const opponents: AIPlayerEntity[] = opponentTeamName === 'red' ? this.getState().getRedAITeam() : this.getState().getBlueAITeam();
 
     let bestTeammate: SoccerPlayerEntity | null = null;
     let bestScore = -Infinity;
@@ -603,7 +650,7 @@ export class SoccerAgent {
       return 8; // Give human players a good base space score
     }
     
-    const opponents = sharedState.getAITeammates(teammate).filter(t => t.team !== teammate.team);
+    const opponents = this.getState().getAITeammates(teammate).filter(t => t.team !== teammate.team);
     let spaceScore = 10; // Base space score
     
     for (const opponent of opponents) {
@@ -620,22 +667,37 @@ export class SoccerAgent {
   
   /**
    * Dribble the ball forward
+   * PRO SOCCER: Limited dribbling distance before looking to pass
    */
   public dribble(): boolean {
     if (!this.hasBall()) return false;
-    
+
     const opponentGoalLineX = this.entity.team === 'red' ? AI_GOAL_LINE_X_BLUE : AI_GOAL_LINE_X_RED;
     const roleDef = ROLE_DEFINITIONS[this.entity.aiRole];
-    
-    const offensiveFactor = roleDef.offensiveContribution / 10; 
-    const randomZOffset = (Math.random() * 8 - 4) * (1.5 - offensiveFactor); 
 
-    const targetX = opponentGoalLineX - ( (opponentGoalLineX - this.entity.position.x) * (0.1 * (1 - offensiveFactor)) ); 
+    // PRO SOCCER: Limit dribble distance based on role
+    // Defenders dribble less, strikers can dribble more
+    const maxDribbleDistance = {
+      'goalkeeper': 5,
+      'left-back': 8,
+      'right-back': 8,
+      'central-midfielder-1': 12,
+      'central-midfielder-2': 12,
+      'striker': 18
+    }[this.entity.aiRole] || 10;
+
+    const offensiveFactor = roleDef.offensiveContribution / 10;
+    const randomZOffset = (Math.random() * 6 - 3) * (1.5 - offensiveFactor);  // REDUCED lateral movement
+
+    // PRO SOCCER: Don't dribble too far forward - take shorter steps then look for pass
+    const forwardDistance = Math.min(maxDribbleDistance, Math.abs(opponentGoalLineX - this.entity.position.x) * 0.15);
+    const direction = this.entity.team === 'red' ? -1 : 1;
+    const targetX = this.entity.position.x + (direction * forwardDistance);
 
     let targetPos = {
       x: targetX,
       y: this.entity.position.y,
-      z: AI_FIELD_CENTER_Z + randomZOffset 
+      z: this.entity.position.z + randomZOffset  // Stay near current Z position
     };
 
     targetPos = this.entity.constrainToPreferredArea(targetPos, this.entity.aiRole);
@@ -669,11 +731,11 @@ export class SoccerAgent {
           w: Math.cos(halfYaw)
         });
         this.entity.hasRotationBeenSetThisTick = true; 
-        console.log(`${this.entity.player.username} dribbling: rotation set to face movement direction, yaw=${targetYaw.toFixed(2)}`);
+        // console.log(`${this.entity.player.username} dribbling: rotation set to face movement direction, yaw=${targetYaw.toFixed(2)}`);
       }
     }
-    
-    console.log(`${this.entity.player.username} dribbling forward towards goal center`);
+
+    // console.log(`${this.entity.player.username} dribbling forward towards goal center`);
     return true;
   }
   
@@ -681,7 +743,7 @@ export class SoccerAgent {
    * Mark the closest opponent player
    */
   public markOpponent(): boolean {
-    const attachedPlayerRaw = sharedState.getAttachedPlayer(); 
+    const attachedPlayerRaw = this.getState().getAttachedPlayer(); 
     const roleDef = ROLE_DEFINITIONS[this.entity.aiRole];
 
     if (attachedPlayerRaw instanceof SoccerPlayerEntity && attachedPlayerRaw.team !== this.entity.team) {
@@ -720,7 +782,7 @@ export class SoccerAgent {
       targetPos = this.entity.adjustPositionForSpacing(targetPos);
 
       this.entity.targetPosition = targetPos;
-      console.log(`${this.entity.player.username} (${this.entity.aiRole}) marking opponent ${opponentPlayer.player.username}. DefCont: ${roleDef.defensiveContribution}`);
+      // console.log(`${this.entity.player.username} (${this.entity.aiRole}) marking opponent ${opponentPlayer.player.username}. DefCont: ${roleDef.defensiveContribution}`);
       return true;
     }
     return false;
@@ -730,7 +792,7 @@ export class SoccerAgent {
    * Move to intercept the ball
    */
   public interceptBall(): boolean {
-    const ball = sharedState.getSoccerBall();
+    const ball = this.getState().getSoccerBall();
     if (!ball) return false;
     
     const roleDef = ROLE_DEFINITIONS[this.entity.aiRole];
@@ -759,7 +821,7 @@ export class SoccerAgent {
 
     this.entity.targetPosition = targetPos; 
     
-    console.log(`${this.entity.player.username} intercepting ball (constrained)`);
+    // console.log(`${this.entity.player.username} intercepting ball (constrained)`);
     return true;
   }
   
@@ -768,7 +830,7 @@ export class SoccerAgent {
    */
   public moveToOpenSpace(): boolean {
     const opponentGoalLineX = this.entity.team === 'red' ? AI_GOAL_LINE_X_BLUE : AI_GOAL_LINE_X_RED;
-    const ball = sharedState.getSoccerBall();
+    const ball = this.getState().getSoccerBall();
     if (!ball) return false;
 
     const roleDef = ROLE_DEFINITIONS[this.entity.aiRole];
@@ -799,7 +861,7 @@ export class SoccerAgent {
         if (isCounterAttackingRun) { // Strikers make very direct runs on counter
             targetPos.x = opponentGoalLineX + (this.entity.team === 'red' ? -15 : 15); // Deep run
             targetPos.z = AI_FIELD_CENTER_Z + (Math.random() * 6 - 3); // Central channel
-            console.log(`${this.entity.player.username} (${this.entity.aiRole}) making FAST counter-attack run!`);
+            // console.log(`${this.entity.player.username} (${this.entity.aiRole}) making FAST counter-attack run!`);
         }
         break;
       case 'central-midfielder-1':
@@ -845,7 +907,7 @@ export class SoccerAgent {
     this.entity.targetPosition = this.entity.constrainToPreferredArea(targetPos, this.entity.aiRole);
     this.entity.targetPosition = this.entity.adjustPositionForSpacing(this.entity.targetPosition);
     
-    console.log(`${this.entity.player.username} moving to open space. Target: ${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)}`);
+    // console.log(`${this.entity.player.username} moving to open space. Target: ${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)}`);
     return true;
   }
   
@@ -855,21 +917,21 @@ export class SoccerAgent {
   public fallBackToDefense(): boolean {
     const ownGoalLineX = this.entity.team === 'red' ? AI_GOAL_LINE_X_RED : AI_GOAL_LINE_X_BLUE;
     const roleDef = ROLE_DEFINITIONS[this.entity.aiRole];
-    const ball = sharedState.getSoccerBall();
+    const ball = this.getState().getSoccerBall();
     let ballPos = ball ? ball.position : this.entity.getRoleBasedPosition();
     
     // Get opposing team players for marking decisions
     const opposingTeam = this.entity.team === 'red' ? 'blue' : 'red';
-    const opponents = opposingTeam === 'red' ? sharedState.getRedAITeam() : sharedState.getBlueAITeam();
+    const opponents = opposingTeam === 'red' ? this.getState().getRedAITeam() : this.getState().getBlueAITeam();
     
     // Get the attached player if any
-    const attachedPlayer = sharedState.getAttachedPlayer();
+    const attachedPlayer = this.getState().getAttachedPlayer();
     const opponentHasBall = attachedPlayer && 
                             (attachedPlayer instanceof SoccerPlayerEntity) && 
                             attachedPlayer.team !== this.entity.team;
     
     // Get all teammates for coordinated defense
-    const teammates = sharedState.getAITeammates(this.entity);
+    const teammates = this.getState().getAITeammates(this.entity);
     
     // Field center for positioning references
     const fieldCenterX = (AI_GOAL_LINE_X_RED + AI_GOAL_LINE_X_BLUE) / 2;
@@ -1130,49 +1192,49 @@ export class SoccerAgent {
     const opponentJustLostPossession = this.opponentHadBallLastTick && !this.opponentHasBall(); 
     if(opponentJustLostPossession) { // If opponent *just* lost it (might be to me, a teammate, or out of bounds)
         this.lastPossessionChangeTime = Date.now(); // Reset timer if opponent *just* lost it
-        console.log(`[COUNTER TRIGGER] Opponent lost possession. Timer reset for ${this.entity.player.username}.`);
+        // console.log(`[COUNTER TRIGGER] Opponent lost possession. Timer reset for ${this.entity.player.username}.`);
     }
     const isEligibleForCounterAttackResponse = (Date.now() - this.lastPossessionChangeTime < this.COUNTER_ATTACK_WINDOW_MS) && !this.hasBall();
 
     // Attack Mode
     if (this.hasBall()) {
-      console.log(`${this.entity.player.username} in Attack Mode`);
+      // console.log(`${this.entity.player.username} in Attack Mode`);
       if (this.withinShootingRange()) {
-        console.log(`${this.entity.player.username} attempting to shoot.`);
+        // console.log(`${this.entity.player.username} attempting to shoot.`);
         return this.shoot();
       }
       if (this.teammateBetterPositioned()) {
-        console.log(`${this.entity.player.username} attempting to pass.`);
+        // console.log(`${this.entity.player.username} attempting to pass.`);
         return this.passBall();
       }
-      console.log(`${this.entity.player.username} attempting to dribble.`);
+      // console.log(`${this.entity.player.username} attempting to dribble.`);
       return this.dribble();
     }
-    
+
     // Defend Mode
     if (this.opponentHasBall()) {
-      console.log(`${this.entity.player.username} in Defend Mode`);
-      if (roleDef.defensiveContribution > 3) { 
-        const opponentEntity = sharedState.getAttachedPlayer();
+      // console.log(`${this.entity.player.username} in Defend Mode`);
+      if (roleDef.defensiveContribution > 3) {
+        const opponentEntity = this.getState().getAttachedPlayer();
         if (opponentEntity instanceof SoccerPlayerEntity && // Ensure it's a soccer player
-            this.isClosestToBall() && 
+            this.isClosestToBall() &&
             this.entity.distanceBetween(this.entity.position, opponentEntity.position) < roleDef.interceptDistance + 2) {
-           console.log(`${this.entity.player.username} attempting to mark opponent ${opponentEntity.player.username}.`);
+          // console.log(`${this.entity.player.username} attempting to mark opponent ${opponentEntity.player.username}.`);
           return this.markOpponent();
         }
-        if (this.ballInReach() && Math.random() < roleDef.pursuitTendency + 0.1) { 
-           console.log(`${this.entity.player.username} attempting to intercept ball.`);
+        if (this.ballInReach() && Math.random() < roleDef.pursuitTendency + 0.1) {
+          // console.log(`${this.entity.player.username} attempting to intercept ball.`);
           return this.interceptBall();
         }
       }
-      console.log(`${this.entity.player.username} falling back to defense.`);
+      // console.log(`${this.entity.player.username} falling back to defense.`);
       return this.fallBackToDefense();
     }
-    
-    // Positioning Mode (Loose Ball)
-    console.log(`${this.entity.player.username} in Positioning Mode (Loose Ball)${isEligibleForCounterAttackResponse ? ' (Counter Eligible)' : ''}`);
 
-    const ball = sharedState.getSoccerBall();
+    // Positioning Mode (Loose Ball)
+    // console.log(`${this.entity.player.username} in Positioning Mode (Loose Ball)${isEligibleForCounterAttackResponse ? ' (Counter Eligible)' : ''}`);
+
+    const ball = this.getState().getSoccerBall();
     if (ball) {
       const distanceToBall = this.entity.distanceBetween(this.entity.position, ball.position);
       
@@ -1181,22 +1243,17 @@ export class SoccerAgent {
       // 2. It's within immediate reach with higher chance of pursuit
       if (this.isClosestToBall()) {
         // As closest player, high chance to pursue ball
-        console.log(`${this.entity.player.username} is closest to ball - pursuing.`);
         return this.interceptBall();
       } else if (this.ballInReach()) {
         // Not closest but ball is within reach - increased pursuit chance
         const pursueChance = roleDef.pursuitTendency + 0.3 + ((5 - roleDef.defensiveContribution) / 40);
         if (Math.random() < pursueChance) {
-          console.log(`${this.entity.player.username} pursuing loose ball in reach (Chance: ${pursueChance.toFixed(2)}).`);
           return this.interceptBall();
-        } else {
-          console.log(`${this.entity.player.username} decided not to pursue loose ball (Chance: ${pursueChance.toFixed(2)}).`);
         }
       } else if (distanceToBall < 30 && roleDef.pursuitTendency > 0.5) {
         // Ball not in immediate reach but close enough - low chance to pursue for offensive players
         const longPursueChance = roleDef.pursuitTendency * 0.4;
         if (Math.random() < longPursueChance) {
-          console.log(`${this.entity.player.username} making long pursuit attempt (Chance: ${longPursueChance.toFixed(2)}).`);
           return this.interceptBall();
         }
       }
@@ -1216,18 +1273,18 @@ export class SoccerAgent {
       if (isEligibleForCounterAttackResponse && 
           (this.entity.aiRole === 'striker' || this.entity.aiRole === 'central-midfielder-1' || this.entity.aiRole === 'central-midfielder-2' || 
           ((this.entity.aiRole === 'left-back' || this.entity.aiRole === 'right-back') && roleDef.offensiveContribution >=5))) {
-          console.log(`${this.entity.player.username} making counter-attack run/support (Role: ${this.entity.aiRole}).`);
+          // console.log(`${this.entity.player.username} making counter-attack run/support (Role: ${this.entity.aiRole}).`);
           return this.moveToOpenSpace(); // moveToOpenSpace has role-specific counter logic
       }
 
       if ((this.inAttackingPhase() || ballInOpponentHalf) && Math.random() < tendencyToAttack + 0.2) {
-        console.log(`${this.entity.player.username} moving to open space (Tendency: ${(tendencyToAttack + 0.2).toFixed(2)}).`);
+        // console.log(`${this.entity.player.username} moving to open space (Tendency: ${(tendencyToAttack + 0.2).toFixed(2)}).`);
         return this.moveToOpenSpace();
       }
     }
     
     // Default: Fall back to defensive positions
-    console.log(`${this.entity.player.username} falling back to defense by default.`);
+    // console.log(`${this.entity.player.username} falling back to defense by default.`);
     return this.fallBackToDefense();
   }
 }

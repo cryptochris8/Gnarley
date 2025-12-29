@@ -2,7 +2,7 @@ import type { Ability } from "./Ability";
 import type { ItemAbilityOptions } from "./itemTypes";
 import { type Vector3Like, Entity, Audio, RigidBodyType } from "hytopia";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
-import { isArcadeMode } from "../state/gameModes";
+import { isArcadeModeForPlayer } from "../state/gameModes";
 
 /**
  * Crystal Barrier Power-Up Ability (Arcade Mode Only)
@@ -23,10 +23,15 @@ export class CrystalBarrierAbility implements Ability {
     }
 
     use(origin: Vector3Like, direction: Vector3Like, source: Entity): void {
-        if (!isArcadeMode()) {
+        if (!source.world || !(source instanceof SoccerPlayerEntity)) {
+            console.error("❌ CRYSTAL BARRIER: Invalid source entity");
+            return;
+        }
+
+        if (!isArcadeModeForPlayer(source.player)) {
             console.log("💎 CRYSTAL BARRIER: Power-up blocked - not in arcade mode");
             // Send feedback to player
-            if (source instanceof SoccerPlayerEntity && source.player.ui && typeof source.player.ui.sendData === 'function') {
+            if (source.player.ui && typeof source.player.ui.sendData === 'function') {
                 source.player.ui.sendData({
                     type: "action-feedback",
                     feedbackType: "error",
@@ -35,13 +40,12 @@ export class CrystalBarrierAbility implements Ability {
                 });
             }
             // Remove the ability since it can't be used
-            if (source instanceof SoccerPlayerEntity) {
-                source.abilityHolder.removeAbility();
-                source.abilityHolder.hideAbilityUI(source.player);
-            }
+            source.abilityHolder.removeAbility();
+            source.abilityHolder.hideAbilityUI(source.player);
             return;
         }
 
+        // Already validated above
         if (!source.world || !(source instanceof SoccerPlayerEntity)) {
             console.error("❌ CRYSTAL BARRIER: Invalid source entity");
             return;

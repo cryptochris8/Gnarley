@@ -2,7 +2,6 @@ import { World, Entity, type Vector3Like } from 'hytopia';
 import { AbilityConsumable } from '../abilities/AbilityConsumable';
 import { ALL_POWERUP_OPTIONS } from '../abilities/itemTypes';
 import { ABILITY_PICKUP_POSITIONS, ABILITY_RESPAWN_TIME } from './gameConfig';
-import { isArcadeMode } from './gameModes';
 
 // Timer type for Node.js compatibility
 type Timer = ReturnType<typeof setTimeout>;
@@ -22,15 +21,10 @@ export class PickupGameManager {
   }
 
   /**
-   * Activate the pickup system (works in Arcade Mode only)
+   * Activate the pickup system
+   * Note: Caller (RoomManager/UIEventHandlers) is responsible for checking game mode
    */
   public activate(): void {
-    // Only support Arcade mode now
-    if (!isArcadeMode()) {
-      console.log("PickupGameManager: Not in Arcade mode, skipping activation");
-      return;
-    }
-
     if (this.isActive) {
       console.log("PickupGameManager: Already active");
       return;
@@ -58,8 +52,8 @@ export class PickupGameManager {
    * Spawn ability pickups at random positions
    */
   private spawnPickups(): void {
-    if (!this.isActive || !isArcadeMode()) {
-      console.log("PickupGameManager: Cannot spawn - not active or not in arcade mode");
+    if (!this.isActive) {
+      console.log("PickupGameManager: Cannot spawn - not active");
       return;
     }
 

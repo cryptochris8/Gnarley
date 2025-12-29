@@ -14,6 +14,9 @@ import type AIPlayerEntity from "../entities/AIPlayerEntity";
 import type { Vector3Like } from "hytopia";
 import sharedState from "../state/sharedState";
 
+// Helper to get correct state from entity (room or global)
+const getState = (entity: AIPlayerEntity) => entity.getSharedState();
+
 export interface AdaptiveIntervalConfig {
   /** Interval when AI has the ball (highest priority) */
   hasBallInterval: number;
@@ -141,7 +144,7 @@ export class AdaptiveAIController {
    * @returns Whether AI has possession
    */
   private hasBall(): boolean {
-    const attachedPlayer = sharedState.getAttachedPlayer();
+    const attachedPlayer = getState(this.entity).getAttachedPlayer();
     return attachedPlayer === this.entity;
   }
 
@@ -150,7 +153,7 @@ export class AdaptiveAIController {
    * @returns Distance in units, or null if ball not found
    */
   private getDistanceToBall(): number | null {
-    const ball = sharedState.getSoccerBall();
+    const ball = getState(this.entity).getSoccerBall();
     if (!ball || !this.entity.isSpawned) {
       return null;
     }

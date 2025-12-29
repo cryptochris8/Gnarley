@@ -20,6 +20,7 @@ import spectatorMode from "../../utils/observerMode";
 import { FIFACrowdManager } from "../../utils/fifaCrowdManager";
 import { PickupGameManager } from "../../state/pickupGameManager";
 import { UIEventHandlers } from "./UIEventHandlers";
+import { RoomManager } from "../../state/RoomManager";
 
 export interface PlayerEventDependencies {
   world: World;
@@ -57,14 +58,25 @@ export class PlayerEventHandlers {
     this.deps.world.on(PlayerEvent.JOINED_WORLD, async ({ player }) => {
       logger.info(`Player ${player.username} joined world`);
 
+      // Check if this is the lobby world or a game room
+      const isLobby = RoomManager.isInitialized() && RoomManager.isLobbyWorld(this.deps.world);
+
       // Welcome message for new players
       this.deps.world.chatManager.sendPlayerMessage(
         player,
-        "<� Welcome to Hytopia Soccer! Use /spectate to watch games when teams are full."
+        isLobby
+          ? "🏠 Welcome to Hytopia Soccer! Create or join a room to play."
+          : "⚽ Welcome to Hytopia Soccer! Use /spectate to watch games when teams are full."
       );
 
-      // Load UI first - it will detect mobile client-side
-      player.ui.load("ui/index.html");
+      // Load appropriate UI based on world type
+      if (isLobby) {
+        player.ui.load("ui/lobby.html");
+        logger.info(`🏠 Loaded lobby UI for ${player.username}`);
+      } else {
+        player.ui.load("ui/index.html");
+        logger.info(`⚽ Loaded game UI for ${player.username}`);
+      }
 
       // CRITICAL: Unlock pointer for UI interactions (Hytopia-compliant approach)
       player.ui.lockPointer(false);

@@ -694,5 +694,28 @@
       "FIFA mode - realistic soccer simulation",
       "Single elimination - one loss eliminates player"
     ]
+  },
+  "tournament_1765521778144": {
+    "id": "tournament_1765521778144",
+    "name": "Campbell",
+    "type": "single-elimination",
+    "gameMode": "arcade",
+    "status": "registration",
+    "createdBy": "player-1",
+    "createdAt": 1765521778144,
+    "maxPlayers": 8,
+    "registrationDeadline": 1765522378144,
+    "players": {},
+    "bracket": [],
+    "currentRound": 1,
+    "rules": [
+      "All matches must be played to completion",
+      "No artificial enhancements or cheating allowed",
+      "Players must be ready within 5 minutes of ready check",
+      "Forfeits will be awarded for no-shows",
+      "Disputes will be handled by tournament administrator",
+      "Arcade mode abilities are enabled",
+      "Single elimination - one loss eliminates player"
+    ]
   }
 }

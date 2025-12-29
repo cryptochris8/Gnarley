@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Gnarley Soccer - Lobby</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: white;
+      overflow-x: hidden;
+    }
+
+    .lobby-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .lobby-header {
+      text-align: center;
+      padding: 20px 0;
+      margin-bottom: 20px;
+    }
+
+    .lobby-logo {
+      width: 120px;
+      height: 120px;
+      margin-bottom: 15px;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+    }
+
+    .lobby-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .lobby-title {
+      font-size: 28px;
+      font-weight: bold;
+      background: linear-gradient(90deg, #00d4ff, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 5px;
+    }
+
+    .lobby-subtitle {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    /* Quick Play Section */
+    .quick-play-section {
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 20px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(124, 58, 237, 0.3);
+    }
+
+    .quick-play-btn {
+      width: 100%;
+      padding: 20px 40px;
+      font-size: 24px;
+      font-weight: bold;
+      color: white;
+      background: linear-gradient(135deg, #10b981, #059669);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    .quick-play-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+    }
+
+    .quick-play-btn:active {
+      transform: translateY(0);
+    }
+
+    .quick-play-hint {
+      margin-top: 10px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Create Room Section */
+    .create-room-section {
+      margin-bottom: 20px;
+    }
+
+    .create-room-btn {
+      width: 100%;
+      padding: 15px;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .create-room-btn:hover {
+      background: linear-gradient(135deg, #818cf8, #6366f1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Room List Section */
+    .room-list-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .refresh-btn {
+      padding: 8px 16px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .refresh-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .room-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .room-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+
+    .room-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .room-info {
+      flex: 1;
+    }
+
+    .room-name {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .room-details {
+      display: flex;
+      gap: 15px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .room-mode {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .room-mode.fifa {
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+    }
+
+    .room-mode.arcade {
+      background: rgba(245, 158, 11, 0.2);
+      color: #f59e0b;
+    }
+
+    .room-status {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .room-status.waiting {
+      background: rgba(34, 197, 94, 0.2);
+      color: #22c55e;
+    }
+
+    .room-status.playing {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+
+    .join-room-btn {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: white;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .join-room-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, #60a5fa, #3b82f6);
+    }
+
+    .join-room-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .join-room-btn.spectate {
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    }
+
+    .no-rooms {
+      text-align: center;
+      padding: 40px 20px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .no-rooms-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+
+    /* Create Room Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 30px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 15px;
+      font-size: 16px;
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus {
+      border-color: #7c3aed;
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .mode-selector {
+      display: flex;
+      gap: 10px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 15px;
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .mode-btn.selected {
+      color: white;
+      border-color: #7c3aed;
+      background: rgba(124, 58, 237, 0.2);
+    }
+
+    .mode-btn:hover:not(.selected) {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 25px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 15px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .modal-btn.primary {
+      color: white;
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
+
+    .modal-btn.primary:hover {
+      background: linear-gradient(135deg, #34d399, #10b981);
+    }
+
+    .modal-btn.secondary {
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-btn.secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Server Stats */
+    .server-stats {
+      text-align: center;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      margin-top: 20px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Mobile Optimizations */
+    @media (max-width: 480px) {
+      .lobby-container {
+        padding: 15px;
+      }
+
+      .lobby-logo {
+        width: 100px;
+        height: 100px;
+      }
+
+      .lobby-title {
+        font-size: 24px;
+      }
+
+      .quick-play-btn {
+        padding: 18px 30px;
+        font-size: 20px;
+      }
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .room-item {
+      animation: fadeIn 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="lobby-container">
+    <!-- Header -->
+    <div class="lobby-header">
+      <div class="lobby-logo">
+        <img src="{{CDN_ASSETS_URL}}/ui/logos/Gnarly-nutmeg.png" alt="Gnarley Nutmeg">
+      </div>
+      <p class="lobby-subtitle">Choose a room or create your own match</p>
+    </div>
+
+    <!-- Quick Play -->
+    <div class="quick-play-section">
+      <p class="quick-play-hint" style="margin-bottom: 10px;">Choose a mode to Quick Play:</p>
+      <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+        <button class="quick-play-btn" id="quickPlayFifaBtn" style="flex: 1; min-width: 140px;">
+          <span>[T]</span>
+          <span>FIFA Mode</span>
+        </button>
+        <button class="quick-play-btn" id="quickPlayArcadeBtn" style="flex: 1; min-width: 140px; background: linear-gradient(145deg, #9b59b6, #8e44ad);">
+          <span>[A]</span>
+          <span>Arcade Mode</span>
+        </button>
+      </div>
+      <p class="quick-play-hint" style="margin-top: 8px;">Jump into an available game or start a new one</p>
+    </div>
+
+    <!-- Create Room -->
+    <div class="create-room-section">
+      <button class="create-room-btn" id="createRoomBtn">
+        ➕ Create New Room
+      </button>
+    </div>
+
+    <!-- Room List -->
+    <div class="room-list-section">
+      <div class="section-header">
+        <h2 class="section-title">Available Rooms</h2>
+        <button class="refresh-btn" id="refreshBtn">🔄 Refresh</button>
+      </div>
+      <div class="room-list" id="roomList">
+        <!-- Rooms will be populated here -->
+        <div class="no-rooms" id="noRooms">
+          <div class="no-rooms-icon">[F]</div>
+          <p>No rooms available</p>
+          <p>Create one or use Quick Play!</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Server Stats -->
+    <div class="server-stats" id="serverStats">
+      Rooms: <span id="roomCount">0</span>/5 | Players: <span id="playerCount">0</span>
+    </div>
+  </div>
+
+  <!-- Create Room Modal -->
+  <div class="modal-overlay" id="createRoomModal">
+    <div class="modal-content">
+      <h2 class="modal-title">Create Room</h2>
+
+      <div class="form-group">
+        <label class="form-label">Room Name</label>
+        <input type="text" class="form-input" id="roomNameInput" placeholder="My Soccer Room" maxlength="30">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Game Mode</label>
+        <div class="mode-selector">
+          <button class="mode-btn selected" data-mode="fifa" id="modeFifa">
+            [T] FIFA
+          </button>
+          <button class="mode-btn" data-mode="arcade" id="modeArcade">
+            [A] Arcade
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="modal-btn secondary" id="cancelCreateBtn">Cancel</button>
+        <button class="modal-btn primary" id="confirmCreateBtn">Create Room</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let rooms = [];
+    let selectedMode = 'fifa';
+    let isMobile = false;
+
+    // Detect mobile
+    if (typeof hytopia !== 'undefined' && hytopia.isMobile) {
+      isMobile = hytopia.isMobile;
+      document.body.classList.add('mobile');
+    }
+
+    // DOM Elements
+    const quickPlayFifaBtn = document.getElementById('quickPlayFifaBtn');
+    const quickPlayArcadeBtn = document.getElementById('quickPlayArcadeBtn');
+    const createRoomBtn = document.getElementById('createRoomBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const roomList = document.getElementById('roomList');
+    const noRooms = document.getElementById('noRooms');
+    const createRoomModal = document.getElementById('createRoomModal');
+    const roomNameInput = document.getElementById('roomNameInput');
+    const modeFifa = document.getElementById('modeFifa');
+    const modeArcade = document.getElementById('modeArcade');
+    const cancelCreateBtn = document.getElementById('cancelCreateBtn');
+    const confirmCreateBtn = document.getElementById('confirmCreateBtn');
+    const roomCount = document.getElementById('roomCount');
+    const playerCount = document.getElementById('playerCount');
+
+    // Quick Play FIFA
+    quickPlayFifaBtn.addEventListener('click', () => {
+      console.log('Quick Play FIFA clicked');
+      if (typeof hytopia !== 'undefined') {
+        hytopia.sendData({ type: 'quick-play', gameMode: 'fifa' });
+      }
+    });
+
+    // Quick Play Arcade
+    quickPlayArcadeBtn.addEventListener('click', () => {
+      console.log('Quick Play Arcade clicked');
+      if (typeof hytopia !== 'undefined') {
+        hytopia.sendData({ type: 'quick-play', gameMode: 'arcade' });
+      }
+    });
+
+    // Create Room Modal
+    createRoomBtn.addEventListener('click', () => {
+      createRoomModal.classList.add('active');
+      roomNameInput.focus();
+    });
+
+    cancelCreateBtn.addEventListener('click', () => {
+      createRoomModal.classList.remove('active');
+    });
+
+    // Mode Selection
+    modeFifa.addEventListener('click', () => {
+      selectedMode = 'fifa';
+      modeFifa.classList.add('selected');
+      modeArcade.classList.remove('selected');
+    });
+
+    modeArcade.addEventListener('click', () => {
+      selectedMode = 'arcade';
+      modeArcade.classList.add('selected');
+      modeFifa.classList.remove('selected');
+    });
+
+    // Confirm Create Room
+    confirmCreateBtn.addEventListener('click', () => {
+      const roomName = roomNameInput.value.trim() || 'My Room';
+      console.log(`Creating room: ${roomName}, mode: ${selectedMode}`);
+
+      if (typeof hytopia !== 'undefined') {
+        hytopia.sendData({
+          type: 'create-room',
+          name: roomName,
+          gameMode: selectedMode,
+          isPublic: true
+        });
+      }
+
+      createRoomModal.classList.remove('active');
+      roomNameInput.value = '';
+    });
+
+    // Refresh Rooms
+    refreshBtn.addEventListener('click', () => {
+      console.log('Refreshing room list');
+      if (typeof hytopia !== 'undefined') {
+        hytopia.sendData({ type: 'refresh-room-list' });
+      }
+    });
+
+    // Join Room
+    function joinRoom(roomId, isSpectate = false) {
+      console.log(`Joining room: ${roomId}, spectate: ${isSpectate}`);
+      if (typeof hytopia !== 'undefined') {
+        hytopia.sendData({
+          type: isSpectate ? 'join-room-spectate' : 'join-room',
+          roomId: roomId
+        });
+      }
+    }
+
+    // Update Room List
+    function updateRoomList(roomData) {
+      rooms = roomData;
+      roomList.innerHTML = '';
+
+      if (rooms.length === 0) {
+        noRooms.style.display = 'block';
+        return;
+      }
+
+      noRooms.style.display = 'none';
+
+      rooms.forEach(room => {
+        const roomItem = document.createElement('div');
+        roomItem.className = 'room-item';
+
+        const isPlaying = room.status === 'playing';
+        const isFull = room.playerCount >= room.maxPlayers;
+
+        roomItem.innerHTML = `
+          <div class="room-info">
+            <div class="room-name">${escapeHtml(room.name)}</div>
+            <div class="room-details">
+              <span class="room-mode ${room.gameMode}">${room.gameMode}</span>
+              <span>${room.playerCount}/${room.maxPlayers} players</span>
+              <span class="room-status ${room.status}">${room.status}</span>
+            </div>
+          </div>
+          <button class="join-room-btn ${isPlaying ? 'spectate' : ''}"
+                  ${isFull && !isPlaying ? 'disabled' : ''}
+                  onclick="joinRoom('${room.id}', ${isPlaying})">
+            ${isPlaying ? 'Spectate' : (isFull ? 'Full' : 'Join')}
+          </button>
+        `;
+
+        roomList.appendChild(roomItem);
+      });
+    }
+
+    // Update Server Stats
+    function updateStats(stats) {
+      roomCount.textContent = stats.rooms;
+      playerCount.textContent = stats.players;
+    }
+
+    // Escape HTML to prevent XSS
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Listen for server messages
+    if (typeof hytopia !== 'undefined' && hytopia.onMessage) {
+      hytopia.onMessage((data) => {
+        console.log('Lobby received:', data.type);
+
+        if (data.type === 'room-list') {
+          updateRoomList(data.rooms || []);
+          if (data.stats) {
+            updateStats(data.stats);
+          }
+        }
+        else if (data.type === 'room-joined') {
+          console.log('Joined room:', data.room);
+          // Server will load game UI
+        }
+        else if (data.type === 'room-error') {
+          alert(data.message);
+        }
+        else if (data.type === 'room-full') {
+          if (confirm(`${data.message}\n\nWould you like to spectate instead?`)) {
+            joinRoom(data.roomId, true);
+          }
+        }
+        else if (data.type === 'server-stats') {
+          updateStats(data);
+        }
+      });
+
+      // Request initial room list
+      setTimeout(() => {
+        hytopia.sendData({ type: 'refresh-room-list' });
+      }, 500);
+    }
+
+    // Close modal on outside click
+    createRoomModal.addEventListener('click', (e) => {
+      if (e.target === createRoomModal) {
+        createRoomModal.classList.remove('active');
+      }
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && createRoomModal.classList.contains('active')) {
+        createRoomModal.classList.remove('active');
+      }
+    });
+  </script>
+</body>
+</html>

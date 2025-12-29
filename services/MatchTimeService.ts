@@ -136,10 +136,10 @@ export class MatchTimeService {
       return;
     }
 
-    // Log time updates
-    if (this.halfTimeManager.shouldLog()) {
-      console.log(this.halfTimeManager.getTimeLogMessage());
-    }
+    // Log time updates (disabled for cleaner console)
+    // if (this.halfTimeManager.shouldLog()) {
+    //   console.log(this.halfTimeManager.getTimeLogMessage());
+    // }
 
     // Play ticking sound when appropriate
     if (this.halfTimeManager.shouldPlayTickingSound()) {

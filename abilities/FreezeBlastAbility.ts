@@ -2,7 +2,7 @@ import type { Ability } from './Ability';
 import type { ItemAbilityOptions } from './itemTypes';
 import { type Vector3Like, type Entity, Audio } from 'hytopia';
 import SoccerPlayerEntity from '../entities/SoccerPlayerEntity';
-import { isArcadeMode } from '../state/gameModes';
+import { isArcadeModeForPlayer } from '../state/gameModes';
 
 /**
  * Freeze Blast Ability
@@ -16,13 +16,13 @@ export class FreezeBlastAbility implements Ability {
     }
 
     use(origin: Vector3Like, direction: Vector3Like, source: Entity): void {
-        // SAFETY CHECK: Only work in arcade mode
-        if (!isArcadeMode()) {
+        if (!source.world || !(source instanceof SoccerPlayerEntity)) return;
+
+        // SAFETY CHECK: Only work in arcade mode (room-aware)
+        if (!isArcadeModeForPlayer(source.player)) {
             console.log("🎮 FREEZE BLAST: Blocked - not in arcade mode");
             return;
         }
-
-        if (!source.world || !(source instanceof SoccerPlayerEntity)) return;
 
         console.log(`🧊 FREEZE BLAST: ${source.player.username} activating freeze blast!`);
 

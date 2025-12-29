@@ -1,0 +1,556 @@
+<!--
+  Gnarly Nutmeg Soccer - In-Game HUD
+  SDK-Compliant: No <html>, <body>, <head> tags
+  Works on both Desktop and Mobile
+-->
+
+<style>
+  /* ===== BASE ===== */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ===== SCOREBOARD ===== */
+  .scoreboard {
+    position: fixed;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.85), rgba(20, 20, 20, 0.9));
+    border-radius: 12px;
+    padding: 12px 25px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+  }
+
+  .team-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 60px;
+  }
+
+  .team-name {
+    font-size: 12px;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .score-value {
+    font-size: 32px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  .team-red .score-value { color: #FF4444; }
+  .team-blue .score-value { color: #4488FF; }
+
+  .score-divider {
+    font-size: 24px;
+    color: #666;
+  }
+
+  .timer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-left: 15px;
+    padding-left: 15px;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .timer-label {
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+  }
+
+  .timer-value {
+    font-size: 20px;
+    color: #FFD700;
+    font-weight: bold;
+    font-family: monospace;
+  }
+
+  .half-indicator {
+    font-size: 10px;
+    color: #888;
+  }
+
+  /* ===== STAMINA BAR ===== */
+  .stamina-container {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 150px;
+    z-index: 1000;
+  }
+
+  .stamina-label {
+    font-size: 11px;
+    color: #aaa;
+    margin-bottom: 4px;
+    font-family: sans-serif;
+  }
+
+  .stamina-bar {
+    height: 12px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .stamina-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00CC00, #88FF88);
+    transition: width 0.2s ease;
+    border-radius: 6px;
+  }
+
+  .stamina-fill.low {
+    background: linear-gradient(90deg, #FFAA00, #FFCC00);
+  }
+
+  .stamina-fill.critical {
+    background: linear-gradient(90deg, #FF4444, #FF6666);
+  }
+
+  /* ===== ABILITY INDICATOR ===== */
+  .ability-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px 15px;
+    border-radius: 10px;
+    border: 2px solid #FFD700;
+    z-index: 1000;
+  }
+
+  .ability-indicator.visible {
+    display: flex;
+  }
+
+  .ability-icon {
+    font-size: 28px;
+  }
+
+  .ability-info {
+    font-family: sans-serif;
+  }
+
+  .ability-name {
+    font-size: 14px;
+    color: white;
+    font-weight: bold;
+  }
+
+  .ability-hint {
+    font-size: 11px;
+    color: #aaa;
+  }
+
+  /* ===== GOAL CELEBRATION ===== */
+  .goal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 5000;
+    pointer-events: none;
+  }
+
+  .goal-overlay.visible {
+    display: flex;
+    animation: goalFadeIn 0.3s ease;
+  }
+
+  .goal-text {
+    font-size: 80px;
+    font-weight: bold;
+    color: #FFD700;
+    text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.5);
+    animation: goalPulse 0.5s ease infinite;
+  }
+
+  @keyframes goalFadeIn {
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes goalPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+  }
+
+  /* ===== SCREEN FLASH ===== */
+  .screen-flash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 4000;
+    opacity: 0;
+  }
+
+  .screen-flash.red {
+    background: radial-gradient(circle, rgba(255, 0, 0, 0.4), transparent);
+    animation: flashPulse 0.5s ease;
+  }
+
+  .screen-flash.blue {
+    background: radial-gradient(circle, rgba(0, 100, 255, 0.4), transparent);
+    animation: flashPulse 0.5s ease;
+  }
+
+  @keyframes flashPulse {
+    0% { opacity: 0; }
+    30% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* ===== MOBILE ACTION BUTTONS =====
+     NOTE: Movement joystick is handled by Hytopia SDK automatically.
+     We only provide action buttons that use hytopia.pressInput(). */
+  .mobile-controls {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    pointer-events: none;
+    z-index: 2000;
+  }
+
+  .mobile-controls.visible {
+    display: block;
+  }
+
+  /* No custom joystick - SDK provides this automatically */
+
+  .action-buttons {
+    position: fixed;
+    right: 20px;
+    bottom: 60px;
+    display: flex;
+    gap: 15px;
+    pointer-events: auto;
+  }
+
+  .action-btn {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .action-btn:active {
+    background: rgba(255, 255, 255, 0.5);
+    transform: scale(0.95);
+  }
+
+  .action-btn.kick { background: rgba(255, 100, 0, 0.4); }
+  .action-btn.tackle { background: rgba(0, 150, 255, 0.4); }
+  .action-btn.ability { background: rgba(255, 215, 0, 0.4); }
+
+  /* ===== GAME MESSAGES ===== */
+  .game-message {
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 10px;
+    font-size: 18px;
+    font-family: sans-serif;
+    z-index: 3000;
+    display: none;
+    text-align: center;
+  }
+
+  .game-message.visible {
+    display: block;
+    animation: slideDown 0.3s ease;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+</style>
+
+<!-- ===== SCOREBOARD ===== -->
+<div class="scoreboard" id="scoreboard">
+  <div class="team-score team-red">
+    <div class="team-name">Red</div>
+    <div class="score-value" id="redScore">0</div>
+  </div>
+  <div class="score-divider">-</div>
+  <div class="team-score team-blue">
+    <div class="team-name">Blue</div>
+    <div class="score-value" id="blueScore">0</div>
+  </div>
+  <div class="timer">
+    <div class="timer-label">Time</div>
+    <div class="timer-value" id="timerValue">5:00</div>
+    <div class="half-indicator" id="halfIndicator">1st Half</div>
+  </div>
+</div>
+
+<!-- ===== STAMINA BAR ===== -->
+<div class="stamina-container" id="staminaContainer">
+  <div class="stamina-label">Stamina</div>
+  <div class="stamina-bar">
+    <div class="stamina-fill" id="staminaFill" style="width: 100%"></div>
+  </div>
+</div>
+
+<!-- ===== ABILITY INDICATOR ===== -->
+<div class="ability-indicator" id="abilityIndicator">
+  <div class="ability-icon" id="abilityIcon">PWR</div>
+  <div class="ability-info">
+    <div class="ability-name" id="abilityName">Speed Boost</div>
+    <div class="ability-hint">Press F to use</div>
+  </div>
+</div>
+
+<!-- ===== GOAL CELEBRATION ===== -->
+<div class="goal-overlay" id="goalOverlay">
+  <div class="goal-text">GOAL!</div>
+</div>
+
+<!-- ===== SCREEN FLASH ===== -->
+<div class="screen-flash" id="screenFlash"></div>
+
+<!-- ===== GAME MESSAGE ===== -->
+<div class="game-message" id="gameMessage"></div>
+
+<!-- ===== MOBILE ACTION BUTTONS =====
+     Movement joystick is provided by Hytopia SDK automatically.
+     We only add action buttons that use hytopia.pressInput(). -->
+<div class="mobile-controls" id="mobileControls">
+  <div class="action-buttons">
+    <div class="action-btn kick" id="btnKick">KICK</div>
+    <div class="action-btn tackle" id="btnTackle">DEF</div>
+    <div class="action-btn ability" id="btnAbility">PWR</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ===== DOM ELEMENTS =====
+  const scoreboard = document.getElementById('scoreboard');
+  const redScore = document.getElementById('redScore');
+  const blueScore = document.getElementById('blueScore');
+  const timerValue = document.getElementById('timerValue');
+  const halfIndicator = document.getElementById('halfIndicator');
+  const staminaFill = document.getElementById('staminaFill');
+  const abilityIndicator = document.getElementById('abilityIndicator');
+  const abilityIcon = document.getElementById('abilityIcon');
+  const abilityName = document.getElementById('abilityName');
+  const goalOverlay = document.getElementById('goalOverlay');
+  const screenFlash = document.getElementById('screenFlash');
+  const gameMessage = document.getElementById('gameMessage');
+  const mobileControls = document.getElementById('mobileControls');
+
+  // ===== STATE =====
+  let isMobile = false;
+
+  // ===== HELPER FUNCTIONS =====
+  function updateScore(red, blue) {
+    redScore.textContent = red;
+    blueScore.textContent = blue;
+  }
+
+  function updateTimer(time, half) {
+    timerValue.textContent = time;
+    if (half) {
+      halfIndicator.textContent = half === 1 ? '1st Half' : '2nd Half';
+    }
+  }
+
+  function updateStamina(percent) {
+    staminaFill.style.width = percent + '%';
+    staminaFill.classList.remove('low', 'critical');
+    if (percent < 20) {
+      staminaFill.classList.add('critical');
+    } else if (percent < 50) {
+      staminaFill.classList.add('low');
+    }
+  }
+
+  function showAbility(icon, name) {
+    abilityIcon.textContent = icon || 'PWR';
+    abilityName.textContent = name || 'Ability';
+    abilityIndicator.classList.add('visible');
+  }
+
+  function hideAbility() {
+    abilityIndicator.classList.remove('visible');
+  }
+
+  function showGoal(team) {
+    screenFlash.className = 'screen-flash ' + team;
+    goalOverlay.classList.add('visible');
+
+    setTimeout(() => {
+      goalOverlay.classList.remove('visible');
+      screenFlash.className = 'screen-flash';
+    }, 2500);
+  }
+
+  function showMessage(text, duration) {
+    gameMessage.textContent = text;
+    gameMessage.classList.add('visible');
+
+    setTimeout(() => {
+      gameMessage.classList.remove('visible');
+    }, duration || 3000);
+  }
+
+  // ===== MOBILE ACTION BUTTONS =====
+  // NOTE: Movement joystick is handled by Hytopia SDK automatically.
+  // We only set up action buttons that use hytopia.pressInput().
+  function setupMobileControls() {
+    if (!isMobile) return;
+
+    console.log('📱 Setting up mobile action buttons (SDK handles joystick)');
+    mobileControls.classList.add('visible');
+
+    // Action button setup using SDK's pressInput
+    function setupActionButton(btnId, inputName) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (window.hytopia && typeof window.hytopia.pressInput === 'function') {
+          window.hytopia.pressInput(inputName, true);
+          console.log(`📱 ${btnId}: pressed (${inputName})`);
+        }
+      }, { passive: false });
+
+      btn.addEventListener('pointerup', (e) => {
+        e.preventDefault();
+        if (window.hytopia && typeof window.hytopia.pressInput === 'function') {
+          window.hytopia.pressInput(inputName, false);
+        }
+      }, { passive: false });
+
+      btn.addEventListener('pointercancel', () => {
+        if (window.hytopia && typeof window.hytopia.pressInput === 'function') {
+          window.hytopia.pressInput(inputName, false);
+        }
+      });
+    }
+
+    // Set up action buttons with correct SDK input keys
+    setupActionButton('btnKick', 'ml');    // Mouse left = kick/shoot
+    setupActionButton('btnTackle', 'sp');  // Space = tackle/jump
+    setupActionButton('btnAbility', 'f');  // F = ability
+  }
+
+  // ===== SERVER DATA HANDLER =====
+  function handleServerData(data) {
+    if (!data || !data.type) return;
+
+    console.log('📥 HUD received:', data.type);
+
+    switch (data.type) {
+      case 'score-update':
+        updateScore(data.red || 0, data.blue || 0);
+        break;
+
+      case 'timer-update':
+        updateTimer(data.time, data.half);
+        break;
+
+      case 'stamina-update':
+        updateStamina(data.percent || 100);
+        break;
+
+      case 'ability-icon':
+        showAbility(data.icon, data.name);
+        break;
+
+      case 'hide-ability-icon':
+      case 'powerup-activated':
+        hideAbility();
+        break;
+
+      case 'goal-scored':
+        showGoal(data.team);
+        break;
+
+      case 'game-message':
+        showMessage(data.message, data.duration);
+        break;
+
+      case 'team-counts':
+        // Ignore menu-related messages in HUD
+        break;
+    }
+  }
+
+  // ===== INITIALIZE =====
+  function init() {
+    console.log('[A] Game HUD Initializing...');
+
+    // Detect mobile
+    isMobile = window.hytopia && window.hytopia.isMobile === true;
+    console.log('📱 Mobile device:', isMobile);
+
+    // Setup mobile controls if on mobile
+    if (isMobile) {
+      setupMobileControls();
+    }
+
+    // Listen for server data
+    if (window.hytopia && typeof window.hytopia.onData === 'function') {
+      window.hytopia.onData(handleServerData);
+    }
+
+    console.log('[OK] HUD initialized!');
+  }
+
+  // Run init
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
