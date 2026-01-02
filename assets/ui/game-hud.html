@@ -229,57 +229,39 @@
     100% { opacity: 0; }
   }
 
-  /* ===== MOBILE ACTION BUTTONS =====
-     NOTE: Movement joystick is handled by Hytopia SDK automatically.
-     We only provide action buttons that use hytopia.pressInput(). */
-  .mobile-controls {
-    display: none;
-    position: fixed;
-    bottom: 0;
-    right: 0;
-    pointer-events: none;
-    z-index: 2000;
+  /* ===== MOBILE CONTROLS =====
+     NOTE: Mobile action buttons are now handled by mobile-controls.html
+     This HUD file only contains non-interactive display elements.
+     The mobile-controls.html provides all touch-optimized action buttons
+     following the HYTOPIA_MOBILE_CONTROLS_GUIDE.md best practices. */
+
+  /* ===== MOBILE HUD ADJUSTMENTS ===== */
+  body.mobile .stamina-container {
+    /* Move stamina bar up on mobile to avoid overlap with sprint button */
+    bottom: 200px;
+    left: 15px;
+    width: 120px;
   }
 
-  .mobile-controls.visible {
-    display: block;
+  body.mobile .ability-indicator {
+    /* Move ability indicator up on mobile to avoid overlap with action buttons */
+    bottom: 200px;
+    right: 15px;
   }
 
-  /* No custom joystick - SDK provides this automatically */
-
-  .action-buttons {
-    position: fixed;
-    right: 20px;
-    bottom: 60px;
-    display: flex;
-    gap: 15px;
-    pointer-events: auto;
+  body.mobile .scoreboard {
+    /* Slightly smaller scoreboard on mobile */
+    padding: 8px 15px;
+    gap: 10px;
   }
 
-  .action-btn {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    font-size: 12px;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
+  body.mobile .score-value {
+    font-size: 24px;
   }
 
-  .action-btn:active {
-    background: rgba(255, 255, 255, 0.5);
-    transform: scale(0.95);
+  body.mobile .timer-value {
+    font-size: 16px;
   }
-
-  .action-btn.kick { background: rgba(255, 100, 0, 0.4); }
-  .action-btn.tackle { background: rgba(0, 150, 255, 0.4); }
-  .action-btn.ability { background: rgba(255, 215, 0, 0.4); }
 
   /* ===== GAME MESSAGES ===== */
   .game-message {
@@ -356,15 +338,10 @@
 <div class="game-message" id="gameMessage"></div>
 
 <!-- ===== MOBILE ACTION BUTTONS =====
-     Movement joystick is provided by Hytopia SDK automatically.
-     We only add action buttons that use hytopia.pressInput(). -->
-<div class="mobile-controls" id="mobileControls">
-  <div class="action-buttons">
-    <div class="action-btn kick" id="btnKick">KICK</div>
-    <div class="action-btn tackle" id="btnTackle">DEF</div>
-    <div class="action-btn ability" id="btnAbility">PWR</div>
-  </div>
-</div>
+     Mobile action buttons are now provided by mobile-controls.html
+     which implements proper SDK-compliant touch handling per
+     HYTOPIA_MOBILE_CONTROLS_GUIDE.md best practices.
+     This HUD file only contains display elements. -->
 
 <script>
 (function() {
@@ -383,10 +360,9 @@
   const goalOverlay = document.getElementById('goalOverlay');
   const screenFlash = document.getElementById('screenFlash');
   const gameMessage = document.getElementById('gameMessage');
-  const mobileControls = document.getElementById('mobileControls');
 
-  // ===== STATE =====
-  let isMobile = false;
+  // NOTE: Mobile action controls are now handled by mobile-controls.html
+  // This HUD file only manages display elements (scoreboard, stamina, etc.)
 
   // ===== HELPER FUNCTIONS =====
   function updateScore(red, blue) {
@@ -441,46 +417,10 @@
   }
 
   // ===== MOBILE ACTION BUTTONS =====
-  // NOTE: Movement joystick is handled by Hytopia SDK automatically.
-  // We only set up action buttons that use hytopia.pressInput().
-  function setupMobileControls() {
-    if (!isMobile) return;
-
-    console.log('📱 Setting up mobile action buttons (SDK handles joystick)');
-    mobileControls.classList.add('visible');
-
-    // Action button setup using SDK's pressInput
-    function setupActionButton(btnId, inputName) {
-      const btn = document.getElementById(btnId);
-      if (!btn) return;
-
-      btn.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        if (window.hytopia && typeof window.hytopia.pressInput === 'function') {
-          window.hytopia.pressInput(inputName, true);
-          console.log(`📱 ${btnId}: pressed (${inputName})`);
-        }
-      }, { passive: false });
-
-      btn.addEventListener('pointerup', (e) => {
-        e.preventDefault();
-        if (window.hytopia && typeof window.hytopia.pressInput === 'function') {
-          window.hytopia.pressInput(inputName, false);
-        }
-      }, { passive: false });
-
-      btn.addEventListener('pointercancel', () => {
-        if (window.hytopia && typeof window.hytopia.pressInput === 'function') {
-          window.hytopia.pressInput(inputName, false);
-        }
-      });
-    }
-
-    // Set up action buttons with correct SDK input keys
-    setupActionButton('btnKick', 'ml');    // Mouse left = kick/shoot
-    setupActionButton('btnTackle', 'sp');  // Space = tackle/jump
-    setupActionButton('btnAbility', 'f');  // F = ability
-  }
+  // NOTE: Mobile action buttons are now handled by mobile-controls.html
+  // which implements proper SDK-compliant touch handling per
+  // HYTOPIA_MOBILE_CONTROLS_GUIDE.md best practices.
+  // This HUD file only manages display elements.
 
   // ===== SERVER DATA HANDLER =====
   function handleServerData(data) {
@@ -526,23 +466,21 @@
 
   // ===== INITIALIZE =====
   function init() {
-    console.log('[A] Game HUD Initializing...');
+    console.log('[HUD] Game HUD Initializing...');
 
-    // Detect mobile
-    isMobile = window.hytopia && window.hytopia.isMobile === true;
-    console.log('📱 Mobile device:', isMobile);
+    // Detect mobile for HUD adjustments
+    const isMobile = window.hytopia && window.hytopia.isMobile === true;
+    console.log('[HUD] Mobile device:', isMobile);
 
-    // Setup mobile controls if on mobile
-    if (isMobile) {
-      setupMobileControls();
-    }
+    // NOTE: Mobile action buttons are now handled by mobile-controls.html
+    // This HUD only manages display elements (scoreboard, stamina, etc.)
 
     // Listen for server data
     if (window.hytopia && typeof window.hytopia.onData === 'function') {
       window.hytopia.onData(handleServerData);
     }
 
-    console.log('[OK] HUD initialized!');
+    console.log('[HUD] HUD initialized successfully!');
   }
 
   // Run init

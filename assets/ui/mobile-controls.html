@@ -1,251 +1,600 @@
 <!-- ========================================
   HYTOPIA SDK-COMPLIANT MOBILE CONTROLS
+  Gnarly Nutmeg Soccer - Optimized for Mobile-First Gaming
 
-  This file contains simple mobile action buttons that work
-  with Hytopia's automatic mobile movement and camera controls.
+  Based on HYTOPIA_MOBILE_CONTROLS_GUIDE.md
 
   Hytopia automatically provides:
   - Movement joystick (left 40% of screen)
   - Camera controls (right 60% of screen)
 
-  We only need to add custom action buttons.
+  This file provides action buttons using hytopia.pressInput()
+
+  IMPORTANT: 90%+ of Hytopia plays are on mobile devices!
 ======================================== -->
 
 <!-- Mobile Action Buttons Container -->
-<div class="mobile-controls">
-  <!-- Shoot Button (Right side) -->
-  <button id="mobile-shoot-btn" class="mobile-button mobile-shoot">
-    <span class="mobile-button-icon">O</span>
-    <span class="mobile-button-label">SHOOT</span>
-  </button>
+<div class="mobile-controls" id="mobile-controls">
 
-  <!-- Pass Button (Right side) -->
-  <button id="mobile-pass-btn" class="mobile-button mobile-pass">
-    <span class="mobile-button-icon">></span>
-    <span class="mobile-button-label">PASS</span>
-  </button>
+  <!-- LEFT SIDE CONTROLS (Near movement joystick area) -->
+  <div class="mobile-left-controls">
+    <!-- Sprint Button - Hold to run faster -->
+    <button id="mobile-sprint-btn" class="mobile-btn sprint-btn" aria-label="Sprint">
+      <span class="btn-icon">&#x1F3C3;</span>
+      <span class="btn-label">SPRINT</span>
+    </button>
+  </div>
 
-  <!-- Sprint Button (Left side) -->
-  <button id="mobile-sprint-btn" class="mobile-button mobile-sprint">
-    <span class="mobile-button-icon">!</span>
-    <span class="mobile-button-label">SPRINT</span>
-  </button>
+  <!-- RIGHT SIDE CONTROLS (Primary action buttons) -->
+  <div class="mobile-right-controls">
 
-  <!-- Tackle Button (Right side) -->
-  <button id="mobile-tackle-btn" class="mobile-button mobile-tackle">
-    <span class="mobile-button-icon">#</span>
-    <span class="mobile-button-label">TACKLE</span>
-  </button>
+    <!-- Top Row: Secondary Actions -->
+    <div class="mobile-btn-row top-row">
+      <!-- Ability/Power-up Button -->
+      <button id="mobile-ability-btn" class="mobile-btn ability-btn" aria-label="Use Ability">
+        <span class="btn-icon">&#x26A1;</span>
+        <span class="btn-label">POWER</span>
+      </button>
+
+      <!-- Tackle/Defend Button -->
+      <button id="mobile-tackle-btn" class="mobile-btn tackle-btn" aria-label="Tackle">
+        <span class="btn-icon">&#x1F6E1;</span>
+        <span class="btn-label">TACKLE</span>
+      </button>
+    </div>
+
+    <!-- Bottom Row: Primary Actions -->
+    <div class="mobile-btn-row bottom-row">
+      <!-- Pass Button (Left Mouse) -->
+      <button id="mobile-pass-btn" class="mobile-btn pass-btn" aria-label="Pass">
+        <span class="btn-icon">&#x27A1;</span>
+        <span class="btn-label">PASS</span>
+      </button>
+
+      <!-- Shoot Button (Right Mouse) - Larger, primary action -->
+      <button id="mobile-shoot-btn" class="mobile-btn shoot-btn primary-action" aria-label="Shoot">
+        <span class="btn-icon">&#x26BD;</span>
+        <span class="btn-label">SHOOT</span>
+      </button>
+    </div>
+
+    <!-- Jump/Header Button - Positioned separately for easy access -->
+    <button id="mobile-jump-btn" class="mobile-btn jump-btn" aria-label="Jump/Header">
+      <span class="btn-icon">&#x2B06;</span>
+      <span class="btn-label">JUMP</span>
+    </button>
+  </div>
+
+</div>
+
+<!-- Mobile Tutorial Overlay (shows briefly on first load) -->
+<div class="mobile-tutorial" id="mobile-tutorial">
+  <div class="tutorial-content">
+    <div class="tutorial-title">Mobile Controls</div>
+    <div class="tutorial-tips">
+      <p>&#x1F579; Left side: Move with joystick</p>
+      <p>&#x1F3AF; Right side: Look around by dragging</p>
+      <p>&#x26BD; Tap SHOOT to score goals</p>
+      <p>&#x27A1; Tap PASS to pass to teammates</p>
+    </div>
+    <button id="tutorial-dismiss-btn" class="tutorial-dismiss">Got it!</button>
+  </div>
 </div>
 
 <style>
   /* ========================================
      MOBILE CONTROLS - SDK COMPLIANT
+     Following HYTOPIA_MOBILE_CONTROLS_GUIDE.md
      ======================================== */
 
-  /* Hide mobile controls by default */
-  .mobile-controls {
+  /* ===== HIDE BY DEFAULT ===== */
+  .mobile-controls,
+  .mobile-tutorial {
     display: none;
   }
 
-  /* Show mobile controls only when Hytopia detects mobile device */
-  body.mobile .mobile-controls {
-    display: block !important;
+  /* ===== SHOW ON MOBILE DURING GAMEPLAY =====
+     Controls only show when:
+     1. Device is mobile (body.mobile class from Hytopia)
+     2. Game is in gameplay mode (body.gameplay-active class)
+     This prevents controls from showing during opening/team selection screens. */
+  body.mobile.gameplay-active .mobile-controls {
+    display: block;
     position: fixed;
-    bottom: 0;
+    top: 0;
     left: 0;
-    right: 0;
     width: 100%;
-    height: auto;
-    pointer-events: none; /* Allow touch-through to Hytopia's controls */
-    z-index: 1000;
+    height: 100%;
+    pointer-events: none; /* Allow touch pass-through to Hytopia joystick/camera */
+    z-index: 2000;
   }
 
-  /* Mobile Button Base Styles */
-  body.mobile .mobile-button {
-    position: fixed;
+  /* Tutorial shows when gameplay starts on mobile */
+  body.mobile.gameplay-active .mobile-tutorial {
+    display: flex;
+    pointer-events: auto; /* Allow touch on tutorial */
+  }
+
+  .mobile-tutorial.hidden {
+    display: none !important;
+  }
+
+  /* Tutorial dismiss button needs pointer events */
+  body.mobile.gameplay-active .tutorial-dismiss {
+    pointer-events: auto;
+  }
+
+  /* ===== BASE BUTTON STYLES ===== */
+  body.mobile .mobile-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 70px;
-    height: 70px;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.7);
-    border: 3px solid rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    transition: all 0.15s ease;
-    pointer-events: auto; /* Enable touch for buttons */
-    cursor: pointer;
-    user-select: none;
+    background: rgba(0, 0, 0, 0.65);
+    border: 3px solid rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    color: white;
+
+    /* CRITICAL: Touch optimizations per SDK guide */
+    pointer-events: auto;
+    touch-action: none;
+    -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    outline: none;
+    cursor: pointer;
+
+    /* Smooth transitions for feedback */
+    transition: transform 0.1s ease, background-color 0.1s ease, box-shadow 0.1s ease;
   }
 
-  /* Button pressed state */
-  body.mobile .mobile-button:active,
-  body.mobile .mobile-button.active {
-    transform: scale(0.9);
-    background: rgba(0, 0, 0, 0.9);
-    border-color: rgba(255, 255, 255, 0.6);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  /* ===== BUTTON PRESSED STATE ===== */
+  body.mobile .mobile-btn:active,
+  body.mobile .mobile-btn.active {
+    transform: scale(0.88);
+    background: rgba(0, 0, 0, 0.85);
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 255, 255, 0.2);
   }
 
-  /* Button Icon */
-  body.mobile .mobile-button-icon {
-    font-size: 28px;
+  /* ===== BUTTON CONTENT ===== */
+  body.mobile .btn-icon {
+    font-size: 24px;
+    line-height: 1;
     margin-bottom: 2px;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.8));
   }
 
-  /* Button Label */
-  body.mobile .mobile-button-label {
+  body.mobile .btn-label {
     font-size: 9px;
-    font-weight: bold;
-    color: rgba(255, 255, 255, 0.9);
-    text-transform: uppercase;
+    font-weight: 700;
     letter-spacing: 0.5px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    text-transform: uppercase;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    opacity: 0.95;
   }
 
-  /* ========================================
-     BUTTON POSITIONING (Landscape Mode)
-     ======================================== */
-
-  /* Shoot Button - Bottom right */
-  body.mobile .mobile-shoot {
-    bottom: 80px;
-    right: 30px;
-    background: linear-gradient(135deg, rgba(220, 50, 50, 0.8), rgba(180, 30, 30, 0.8));
+  /* ===== LEFT SIDE CONTROLS ===== */
+  body.mobile .mobile-left-controls {
+    position: fixed;
+    left: 25px;
+    bottom: 140px; /* Above the joystick area */
   }
 
-  body.mobile .mobile-shoot:active {
-    background: linear-gradient(135deg, rgba(250, 70, 70, 0.9), rgba(200, 40, 40, 0.9));
+  /* ===== RIGHT SIDE CONTROLS ===== */
+  body.mobile .mobile-right-controls {
+    position: fixed;
+    right: 20px;
+    bottom: 40px;
   }
 
-  /* Pass Button - Bottom right, above shoot */
-  body.mobile .mobile-pass {
+  body.mobile .mobile-btn-row {
+    display: flex;
+    gap: 15px;
+    justify-content: flex-end;
+  }
+
+  body.mobile .mobile-btn-row.top-row {
+    margin-bottom: 15px;
+  }
+
+  body.mobile .mobile-btn-row.bottom-row {
+    margin-bottom: 15px;
+  }
+
+  /* ===== JUMP BUTTON (Separate positioning) ===== */
+  body.mobile .jump-btn {
+    position: absolute;
+    right: 100px;
     bottom: 170px;
-    right: 30px;
-    background: linear-gradient(135deg, rgba(50, 150, 255, 0.8), rgba(30, 120, 200, 0.8));
   }
 
-  body.mobile .mobile-pass:active {
-    background: linear-gradient(135deg, rgba(70, 170, 255, 0.9), rgba(40, 140, 220, 0.9));
+  /* ===== PRIMARY ACTION (Shoot) - Larger ===== */
+  body.mobile .mobile-btn.primary-action {
+    width: 85px;
+    height: 85px;
   }
 
-  /* Sprint Button - Bottom left */
-  body.mobile .mobile-sprint {
-    bottom: 80px;
-    left: 30px;
-    background: linear-gradient(135deg, rgba(255, 200, 50, 0.8), rgba(220, 160, 30, 0.8));
+  body.mobile .primary-action .btn-icon {
+    font-size: 30px;
   }
 
-  body.mobile .mobile-sprint:active {
-    background: linear-gradient(135deg, rgba(255, 220, 70, 0.9), rgba(240, 180, 40, 0.9));
-  }
-
-  /* Tackle Button - Mid right */
-  body.mobile .mobile-tackle {
-    bottom: 260px;
-    right: 30px;
-    background: linear-gradient(135deg, rgba(150, 80, 255, 0.8), rgba(120, 60, 200, 0.8));
-  }
-
-  body.mobile .mobile-tackle:active {
-    background: linear-gradient(135deg, rgba(170, 100, 255, 0.9), rgba(140, 80, 220, 0.9));
+  body.mobile .primary-action .btn-label {
+    font-size: 11px;
   }
 
   /* ========================================
-     SMALLER SCREENS (Tablets/Small Phones)
+     BUTTON COLOR SCHEMES
      ======================================== */
 
-  @media (max-height: 600px) {
-    body.mobile .mobile-button {
+  /* SHOOT - Red/Orange (Primary Action) */
+  body.mobile .shoot-btn {
+    background: linear-gradient(145deg, rgba(220, 60, 60, 0.85), rgba(180, 40, 40, 0.9));
+    border-color: rgba(255, 100, 100, 0.6);
+  }
+  body.mobile .shoot-btn.active {
+    background: linear-gradient(145deg, rgba(255, 80, 80, 0.95), rgba(220, 50, 50, 0.95));
+    box-shadow: 0 0 25px rgba(255, 80, 80, 0.5);
+  }
+
+  /* PASS - Blue */
+  body.mobile .pass-btn {
+    background: linear-gradient(145deg, rgba(50, 130, 220, 0.85), rgba(30, 100, 180, 0.9));
+    border-color: rgba(100, 170, 255, 0.6);
+  }
+  body.mobile .pass-btn.active {
+    background: linear-gradient(145deg, rgba(70, 150, 255, 0.95), rgba(50, 120, 220, 0.95));
+    box-shadow: 0 0 25px rgba(70, 150, 255, 0.5);
+  }
+
+  /* SPRINT - Yellow/Gold */
+  body.mobile .sprint-btn {
+    background: linear-gradient(145deg, rgba(230, 180, 50, 0.85), rgba(200, 150, 30, 0.9));
+    border-color: rgba(255, 220, 100, 0.6);
+  }
+  body.mobile .sprint-btn.active {
+    background: linear-gradient(145deg, rgba(255, 210, 70, 0.95), rgba(230, 180, 50, 0.95));
+    box-shadow: 0 0 25px rgba(255, 210, 70, 0.5);
+  }
+
+  /* TACKLE - Purple */
+  body.mobile .tackle-btn {
+    background: linear-gradient(145deg, rgba(140, 80, 200, 0.85), rgba(110, 60, 170, 0.9));
+    border-color: rgba(180, 120, 255, 0.6);
+  }
+  body.mobile .tackle-btn.active {
+    background: linear-gradient(145deg, rgba(170, 100, 255, 0.95), rgba(140, 80, 200, 0.95));
+    box-shadow: 0 0 25px rgba(170, 100, 255, 0.5);
+  }
+
+  /* JUMP - Green */
+  body.mobile .jump-btn {
+    background: linear-gradient(145deg, rgba(50, 180, 100, 0.85), rgba(30, 150, 80, 0.9));
+    border-color: rgba(100, 220, 150, 0.6);
+  }
+  body.mobile .jump-btn.active {
+    background: linear-gradient(145deg, rgba(70, 210, 120, 0.95), rgba(50, 180, 100, 0.95));
+    box-shadow: 0 0 25px rgba(70, 210, 120, 0.5);
+  }
+
+  /* ABILITY - Gold/Orange */
+  body.mobile .ability-btn {
+    background: linear-gradient(145deg, rgba(255, 170, 50, 0.85), rgba(230, 140, 30, 0.9));
+    border-color: rgba(255, 200, 100, 0.6);
+  }
+  body.mobile .ability-btn.active {
+    background: linear-gradient(145deg, rgba(255, 200, 80, 0.95), rgba(255, 170, 50, 0.95));
+    box-shadow: 0 0 25px rgba(255, 200, 80, 0.5);
+  }
+
+  /* ========================================
+     RESPONSIVE: SMALLER SCREENS
+     ======================================== */
+  @media (max-height: 500px) {
+    body.mobile .mobile-btn {
       width: 60px;
       height: 60px;
     }
-
-    body.mobile .mobile-button-icon {
-      font-size: 24px;
+    body.mobile .mobile-btn.primary-action {
+      width: 72px;
+      height: 72px;
     }
-
-    body.mobile .mobile-button-label {
+    body.mobile .btn-icon {
+      font-size: 20px;
+    }
+    body.mobile .primary-action .btn-icon {
+      font-size: 26px;
+    }
+    body.mobile .btn-label {
       font-size: 8px;
     }
-
-    body.mobile .mobile-shoot {
-      bottom: 60px;
-      right: 20px;
+    body.mobile .mobile-left-controls {
+      left: 15px;
+      bottom: 110px;
     }
-
-    body.mobile .mobile-pass {
-      bottom: 135px;
-      right: 20px;
+    body.mobile .mobile-right-controls {
+      right: 15px;
+      bottom: 30px;
     }
-
-    body.mobile .mobile-sprint {
-      bottom: 60px;
-      left: 20px;
+    body.mobile .mobile-btn-row {
+      gap: 10px;
     }
-
-    body.mobile .mobile-tackle {
-      bottom: 210px;
-      right: 20px;
+    body.mobile .jump-btn {
+      right: 85px;
+      bottom: 140px;
     }
+  }
+
+  /* ========================================
+     MOBILE TUTORIAL OVERLAY
+     ======================================== */
+  body.mobile .mobile-tutorial {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5000;
+    pointer-events: auto;
+  }
+
+  .tutorial-content {
+    background: linear-gradient(135deg, rgba(30, 30, 40, 0.95), rgba(20, 20, 30, 0.98));
+    border-radius: 20px;
+    padding: 30px 40px;
+    max-width: 90vw;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    text-align: center;
+  }
+
+  .tutorial-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #FFD700;
+    margin-bottom: 20px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  }
+
+  .tutorial-tips {
+    color: #fff;
+    font-size: 16px;
+    line-height: 2;
+    margin-bottom: 25px;
+  }
+
+  .tutorial-tips p {
+    margin: 8px 0;
+  }
+
+  .tutorial-dismiss {
+    background: linear-gradient(135deg, #4CAF50, #388E3C);
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 30px;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tutorial-dismiss:active {
+    transform: scale(0.95);
+    background: linear-gradient(135deg, #388E3C, #2E7D32);
   }
 </style>
 
 <script>
+(function() {
+  'use strict';
+
   // ========================================
   // MOBILE CONTROLS JAVASCRIPT
-  // SDK-Compliant using hytopia.pressInput()
+  // SDK-Compliant: Uses hytopia.pressInput()
+  // Following HYTOPIA_MOBILE_CONTROLS_GUIDE.md
   // ========================================
 
-  // Only initialize if we're on mobile (Hytopia adds .mobile class to body)
-  if (document.body.classList.contains('mobile') || hytopia.isMobile) {
-    console.log('📱 Initializing mobile controls (SDK-compliant)');
+  // Check for mobile - Hytopia adds .mobile class to body
+  const isMobile = document.body.classList.contains('mobile') ||
+                   (window.hytopia && window.hytopia.isMobile);
 
-    // Helper function to handle button press/release
-    function setupMobileButton(buttonId, inputKey) {
-      const button = document.getElementById(buttonId);
-      if (!button) {
-        console.warn(`Mobile button ${buttonId} not found`);
-        return;
-      }
+  if (!isMobile) {
+    console.log('[Mobile Controls] Desktop detected, skipping mobile control setup');
+    return;
+  }
 
-      // Touch start - press the input
-      button.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // Prevent mobile browser behaviors
-        button.classList.add('active');
-        hytopia.pressInput(inputKey, true); // SDK method to press input
-        console.log(`📱 Mobile: ${buttonId} pressed (${inputKey})`);
-      });
+  console.log('[Mobile Controls] Initializing SDK-compliant mobile controls...');
 
-      // Touch end - release the input
-      button.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        button.classList.remove('active');
-        hytopia.pressInput(inputKey, false); // SDK method to release input
-        console.log(`📱 Mobile: ${buttonId} released (${inputKey})`);
-      });
+  // ===== BUTTON CONFIGURATION =====
+  // Maps button IDs to Hytopia SDK input names
+  const BUTTON_CONFIG = {
+    'mobile-shoot-btn':  { input: 'mr', behavior: 'hold', name: 'Shoot' },    // Right mouse = shoot
+    'mobile-pass-btn':   { input: 'ml', behavior: 'hold', name: 'Pass' },     // Left mouse = pass
+    'mobile-sprint-btn': { input: 'sh', behavior: 'hold', name: 'Sprint' },   // Shift = sprint
+    'mobile-tackle-btn': { input: 'e',  behavior: 'tap',  name: 'Tackle' },   // E = tackle
+    'mobile-jump-btn':   { input: 'sp', behavior: 'tap',  name: 'Jump' },     // Space = jump
+    'mobile-ability-btn':{ input: 'f',  behavior: 'tap',  name: 'Ability' }   // F = ability
+  };
 
-      // Touch cancel (finger leaves button) - also release
-      button.addEventListener('touchcancel', (e) => {
-        e.preventDefault();
-        button.classList.remove('active');
-        hytopia.pressInput(inputKey, false);
-      });
+  // Track active touches for multi-touch support
+  const activeTouches = new Map();
+
+  // ===== CORE BUTTON HANDLER =====
+  function setupMobileButton(buttonId, config) {
+    const btn = document.getElementById(buttonId);
+    if (!btn) {
+      console.warn(`[Mobile Controls] Button not found: ${buttonId}`);
+      return;
     }
 
-    // Setup all mobile buttons
-    // These map to the same input keys that desktop players use
-    setupMobileButton('mobile-shoot-btn', 'mr');  // Right mouse button = Shoot
-    setupMobileButton('mobile-pass-btn', 'ml');   // Left mouse button = Pass
-    setupMobileButton('mobile-sprint-btn', 'sh'); // Shift key = Sprint
-    setupMobileButton('mobile-tackle-btn', 'e');  // E key = Tackle
+    let isPressed = false;
+    let touchId = null;
 
-    console.log('[OK] Mobile controls initialized successfully');
+    // === PRESS HANDLER ===
+    function handlePress(identifier) {
+      if (isPressed) return;
+
+      isPressed = true;
+      touchId = identifier;
+      btn.classList.add('active');
+
+      // Use Hytopia SDK to send input
+      if (window.hytopia && typeof window.hytopia.pressInput === 'function') {
+        window.hytopia.pressInput(config.input, true);
+        console.log(`[Mobile] ${config.name} PRESSED (${config.input})`);
+      }
+
+      // For 'tap' behavior, auto-release after short delay
+      if (config.behavior === 'tap') {
+        setTimeout(() => {
+          handleRelease(identifier);
+        }, 150);
+      }
+    }
+
+    // === RELEASE HANDLER ===
+    function handleRelease(identifier) {
+      // Only release if this is the touch that pressed it
+      if (!isPressed) return;
+      if (identifier !== undefined && identifier !== touchId) return;
+
+      isPressed = false;
+      touchId = null;
+      btn.classList.remove('active');
+
+      // Use Hytopia SDK to release input
+      if (window.hytopia && typeof window.hytopia.pressInput === 'function') {
+        window.hytopia.pressInput(config.input, false);
+        console.log(`[Mobile] ${config.name} RELEASED (${config.input})`);
+      }
+    }
+
+    // === TOUCH EVENTS (Primary for mobile) ===
+    btn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const touch = e.changedTouches[0];
+      activeTouches.set(touch.identifier, buttonId);
+      handlePress(touch.identifier);
+    }, { passive: false });
+
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === touchId) {
+          handleRelease(touch.identifier);
+          activeTouches.delete(touch.identifier);
+        }
+      }
+    }, { passive: false });
+
+    btn.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      for (const touch of e.changedTouches) {
+        if (touch.identifier === touchId) {
+          handleRelease(touch.identifier);
+          activeTouches.delete(touch.identifier);
+        }
+      }
+    }, { passive: false });
+
+    // === MOUSE EVENTS (For desktop testing) ===
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      handlePress(-1); // Use -1 as mouse identifier
+    });
+
+    btn.addEventListener('mouseup', (e) => {
+      e.preventDefault();
+      handleRelease(-1);
+    });
+
+    btn.addEventListener('mouseleave', (e) => {
+      if (isPressed) {
+        handleRelease(-1);
+      }
+    });
+
+    // Prevent context menu on long press
+    btn.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
+
+    console.log(`[Mobile Controls] Setup complete: ${buttonId} -> ${config.input}`);
   }
+
+  // ===== INITIALIZE ALL BUTTONS =====
+  function initializeControls() {
+    for (const [buttonId, config] of Object.entries(BUTTON_CONFIG)) {
+      setupMobileButton(buttonId, config);
+    }
+    console.log('[Mobile Controls] All buttons initialized successfully');
+  }
+
+  // ===== TUTORIAL HANDLER =====
+  function setupTutorial() {
+    const tutorial = document.getElementById('mobile-tutorial');
+    const dismissBtn = document.getElementById('tutorial-dismiss-btn');
+
+    if (!tutorial || !dismissBtn) return;
+
+    // Check if tutorial was already shown
+    const tutorialShown = localStorage.getItem('gnarly-soccer-tutorial-shown');
+
+    if (tutorialShown) {
+      tutorial.classList.add('hidden');
+      return;
+    }
+
+    // Setup dismiss button
+    dismissBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      tutorial.classList.add('hidden');
+      localStorage.setItem('gnarly-soccer-tutorial-shown', 'true');
+    }, { passive: false });
+
+    dismissBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      tutorial.classList.add('hidden');
+      localStorage.setItem('gnarly-soccer-tutorial-shown', 'true');
+    });
+
+    // Auto-hide after 8 seconds if not dismissed
+    setTimeout(() => {
+      if (!tutorial.classList.contains('hidden')) {
+        tutorial.classList.add('hidden');
+        localStorage.setItem('gnarly-soccer-tutorial-shown', 'true');
+      }
+    }, 8000);
+  }
+
+  // ===== INITIALIZE =====
+  function init() {
+    // Wait a brief moment for Hytopia to be fully ready
+    setTimeout(() => {
+      initializeControls();
+      setupTutorial();
+      console.log('[Mobile Controls] Initialization complete');
+    }, 100);
+  }
+
+  // Run initialization
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
 </script>

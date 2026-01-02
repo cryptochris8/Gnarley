@@ -72,9 +72,11 @@
   /* Re-enable pointer events ONLY on specific interactive UI elements during gameplay */
   body.mobile.gameplay-active .mobile-action-btn,
   body.mobile.gameplay-active .mobile-powerup-use-btn,
+  body.mobile.gameplay-active .mobile-btn,
   body.mobile.gameplay-active #main-scoreboard,
   body.mobile.gameplay-active .power-up-slot-container,
-  body.mobile.gameplay-active .power-up-slot {
+  body.mobile.gameplay-active .power-up-slot,
+  body.mobile.gameplay-active .tutorial-dismiss {
     pointer-events: auto;
   }
 
@@ -12202,4 +12204,19 @@
   to access game actions if needed.
 -->
 
-<!-- No custom CSS needed - Hytopia SDK handles all mobile controls -->
+<!-- Load SDK-compliant mobile controls -->
+<script>
+(function() {
+  // Dynamically load mobile-controls.html for touch-optimized game controls
+  fetch('{{CDN_ASSETS_URL}}/ui/mobile-controls.html')
+    .then(response => response.text())
+    .then(html => {
+      const container = document.createElement('div');
+      container.id = 'mobile-controls-container';
+      container.innerHTML = html;
+      document.body.appendChild(container);
+      console.log('[Mobile Controls] Loaded successfully');
+    })
+    .catch(err => console.error('[Mobile Controls] Failed to load:', err));
+})();
+</script>
