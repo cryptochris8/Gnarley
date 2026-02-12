@@ -8,6 +8,7 @@ import {
   EntityEvent,
   Collider,
   CollisionGroup,
+  ParticleEmitter,
 } from "hytopia";
 import sharedState from "../state/sharedState";
 import { RoomSharedState } from "../state/RoomSharedState";
@@ -33,6 +34,67 @@ let lastAngularVelocity: { x: number; y: number; z: number } = { x: 0, y: 0, z: 
 let lastAngularVelocityUpdateTime = 0;
 const ANGULAR_VELOCITY_UPDATE_THRESHOLD = 0.1; // Only update if change is significant
 const ANGULAR_VELOCITY_UPDATE_INTERVAL = 50; // Throttle to 50ms (20 updates/sec instead of 60)
+
+// Ball speed trail particle system
+let ballTrailEmitter: ParticleEmitter | null = null;
+let ballTrailActive = false;
+const BALL_TRAIL_SPEED_THRESHOLD = 8; // Minimum ball speed to show trail
+
+/**
+ * Manage ball speed trail particles - call from ball tick/update
+ */
+export function updateBallTrail(ball: Entity, world: World): void {
+  if (!ball.isSpawned) return;
+
+  const vel = ball.linearVelocity;
+  const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
+
+  if (speed > BALL_TRAIL_SPEED_THRESHOLD && !ballTrailActive) {
+    // Start trail
+    ballTrailEmitter = new ParticleEmitter({
+      textureUri: 'textures/particles/fire.png',
+      attachedToEntity: ball,
+      offset: { x: 0, y: 0, z: 0 },
+      lockToEmitter: false,
+      maxParticles: 30,
+      rate: 20,
+      lifetime: 0.4,
+      lifetimeVariance: 0.1,
+      sizeStart: 0.15,
+      sizeEnd: 0.02,
+      opacityStart: 0.7,
+      opacityEnd: 0,
+      colorStart: { r: 255, g: 200, b: 50 },
+      colorEnd: { r: 255, g: 100, b: 0 },
+      colorIntensityStart: 2,
+      colorIntensityEnd: 0.5,
+      velocity: { x: 0, y: 0.5, z: 0 },
+      velocityVariance: { x: 0.3, y: 0.3, z: 0.3 },
+      gravity: { x: 0, y: -1, z: 0 },
+      transparent: true,
+    });
+    ballTrailEmitter.spawn(world);
+    ballTrailActive = true;
+  } else if (speed <= BALL_TRAIL_SPEED_THRESHOLD * 0.6 && ballTrailActive) {
+    // Stop trail (with hysteresis to prevent flickering)
+    if (ballTrailEmitter) {
+      ballTrailEmitter.despawn();
+      ballTrailEmitter = null;
+    }
+    ballTrailActive = false;
+  }
+}
+
+/**
+ * Clean up ball trail when ball is despawned/reset
+ */
+export function cleanupBallTrail(): void {
+  if (ballTrailEmitter) {
+    try { ballTrailEmitter.despawn(); } catch (e) { /* ignore */ }
+    ballTrailEmitter = null;
+  }
+  ballTrailActive = false;
+}
 
 /**
  * Optimized angular velocity update - only updates if change is significant or enough time has passed
@@ -210,6 +272,7 @@ function handleGoalSensorTrigger(scoringTeam: 'red' | 'blue', ballEntity: Entity
   }
 
   // Reset ball after short celebration delay
+  cleanupBallTrail();
   setTimeout(() => {
     if (worldRef) {
       ballEntity.despawn();
@@ -405,6 +468,7 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
     if (entity.position.y < FIELD_MIN_Y + 0.5 && !isRespawning && !inGoal && !isInitializing) {
       console.log(`Ball unexpectedly below field at Y=${entity.position.y}, resetting to spawn position`);
       isRespawning = true;
+      cleanupBallTrail();
 
       // Reset the ball position without playing the whistle (this is a physics issue, not gameplay)
       entity.despawn();
@@ -461,7 +525,8 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
           }
           
           isRespawning = true;
-          
+          cleanupBallTrail();
+
           setTimeout(() => {
             if (isRespawning) { // Make sure we're still handling this out-of-bounds event
               // Reset the ball position
@@ -670,10 +735,13 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
       }
     }
     
+    // Ball speed trail - update particle trail based on ball speed
+    updateBallTrail(entity, world);
+
     // Performance profiling: Record ball physics timing
     const ballPhysicsEndTime = performance.now();
     const ballPhysicsDuration = ballPhysicsEndTime - ballPhysicsStartTime;
-    
+
     // Get performance profiler from world if available
     const profiler = (world as any)._performanceProfiler;
     if (profiler) {

@@ -9,7 +9,7 @@
  * Works in conjunction with UIEventHandlers for UI interactions.
  */
 
-import { World, PlayerEvent, Player } from "hytopia";
+import { World, PlayerEvent, Player, PersistenceManager } from "hytopia";
 import { SoccerGame } from "../../state/gameState";
 import AIPlayerEntity from "../../entities/AIPlayerEntity";
 import SoccerPlayerEntity from "../../entities/SoccerPlayerEntity";
@@ -80,6 +80,32 @@ export class PlayerEventHandlers {
       player.ui.load("ui/index.html");
       logger.info(`⚽ Loaded game UI for ${player.username}`);
 
+      // Load persistent career stats for the player
+      try {
+        const persistedData = player.getPersistedData() as Record<string, any> | undefined;
+        const careerStats = persistedData?.careerStats || {
+          totalGoals: 0,
+          totalAssists: 0,
+          totalWins: 0,
+          totalLosses: 0,
+          totalMatches: 0,
+          totalMVPs: 0,
+          penaltyGoals: 0,
+          penaltySaves: 0,
+        };
+
+        // Send career stats to UI
+        player.ui.sendData({
+          type: "career-stats-loaded",
+          stats: careerStats,
+          username: player.username,
+        });
+
+        logger.info(`📊 Loaded career stats for ${player.username}: ${careerStats.totalGoals} goals, ${careerStats.totalWins} wins`);
+      } catch (e) {
+        logger.warn(`Failed to load career stats for ${player.username}: ${e}`);
+      }
+
       // CRITICAL: Unlock pointer for UI interactions (Hytopia-compliant approach)
       player.ui.lockPointer(false);
       logger.debug(`<� Pointer unlocked for ${player.username} - UI interactions enabled`);
@@ -129,6 +155,29 @@ export class PlayerEventHandlers {
         this.deps.physicalLobby.onPlayerLeave(player);
         logger.info(`🏠 Player ${player.username} left physical lobby`);
         return;
+      }
+
+      // Save career stats before cleanup
+      if (this.deps.game) {
+        try {
+          const matchStats = this.deps.game.getPlayerStats?.(player.username);
+          if (matchStats) {
+            const persistedData = player.getPersistedData() as Record<string, any> | undefined;
+            const careerStats = persistedData?.careerStats || {
+              totalGoals: 0, totalAssists: 0, totalWins: 0, totalLosses: 0,
+              totalMatches: 0, totalMVPs: 0, penaltyGoals: 0, penaltySaves: 0,
+            };
+
+            careerStats.totalGoals += matchStats.goals || 0;
+            careerStats.totalAssists += matchStats.assists || 0;
+            careerStats.totalMatches += 1;
+
+            player.setPersistedData({ careerStats });
+            logger.info(`📊 Saved career stats for ${player.username}: ${careerStats.totalGoals} total goals`);
+          }
+        } catch (e) {
+          logger.warn(`Failed to save career stats for ${player.username}: ${e}`);
+        }
       }
 
       if (this.deps.game) {

@@ -12,6 +12,48 @@
   </div>
 </div>
 
+<!-- Penalty Shootout Overlay -->
+<div id="penalty-overlay" class="penalty-overlay">
+  <div class="penalty-header">
+    <div class="penalty-title" id="penaltyTitle">Penalty Shootout</div>
+    <div class="penalty-subtitle" id="penaltySubtitle">Best of 5 Rounds</div>
+  </div>
+  <div class="penalty-score-display">
+    <div class="penalty-team-score">
+      <div class="penalty-team-name red">RED</div>
+      <div class="penalty-score-number" id="penaltyRedScore">0</div>
+    </div>
+    <div class="penalty-vs">VS</div>
+    <div class="penalty-team-score">
+      <div class="penalty-team-name blue">BLUE</div>
+      <div class="penalty-score-number" id="penaltyBlueScore">0</div>
+    </div>
+  </div>
+  <div class="penalty-round-tracker" id="penaltyRoundTracker"></div>
+  <div class="penalty-info-bar" id="penaltyInfoBar">
+    <div class="penalty-shooter-info" id="penaltyShooterInfo">Preparing...</div>
+    <div class="penalty-timer" id="penaltyTimer"></div>
+  </div>
+</div>
+<div id="penalty-result-flash" class="penalty-result-flash"></div>
+<div id="penalty-sudden-death" class="penalty-sudden-death-banner">SUDDEN DEATH</div>
+
+<!-- Career Stats Display -->
+<div id="career-stats-display" style="position:fixed; bottom:80px; right:20px; background:rgba(0,0,0,0.6); padding:8px 12px; border-radius:8px; border:1px solid rgba(255,215,0,0.3); z-index:100; display:none; font-family:'Trebuchet MS',Arial,sans-serif;"></div>
+
+<!-- Minimap Radar -->
+<div id="minimap-container" class="minimap-container">
+  <div class="minimap-field" id="minimap-field">
+    <div class="minimap-field-lines">
+      <div class="minimap-center-line"></div>
+      <div class="minimap-center-circle"></div>
+      <div class="minimap-goal-left"></div>
+      <div class="minimap-goal-right"></div>
+    </div>
+    <div class="minimap-label">RADAR</div>
+  </div>
+</div>
+
 <!-- Player Status HUD -->
 <div id="player-status-hud" class="player-status-hud" style="display: none;">
   <div class="role-indicator">
@@ -1925,6 +1967,285 @@
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.4), rgba(255, 215, 0, 0.2));
     box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
     transform: translateY(-3px);
+  }
+
+  .game-mode-btn.penalty {
+    border-color: #FF3366;
+    background: linear-gradient(135deg, rgba(255, 51, 102, 0.2), rgba(255, 51, 102, 0.1));
+  }
+
+  .game-mode-btn.penalty:hover {
+    border-color: #FF6699;
+    background: linear-gradient(135deg, rgba(255, 51, 102, 0.4), rgba(255, 51, 102, 0.2));
+    box-shadow: 0 10px 30px rgba(255, 51, 102, 0.3);
+    transform: translateY(-3px);
+  }
+
+  /* ===== MINIMAP RADAR ===== */
+  .minimap-container {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 200px;
+    height: 130px;
+    background: rgba(0, 20, 0, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    z-index: 500;
+    display: none;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .minimap-field {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .minimap-field-lines {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  .minimap-center-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .minimap-center-circle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .minimap-goal-left, .minimap-goal-right {
+    position: absolute;
+    top: 35%;
+    width: 6px;
+    height: 30%;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .minimap-goal-left { left: 0; border-left: none; }
+  .minimap-goal-right { right: 0; border-right: none; }
+
+  .minimap-dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: left 0.3s linear, top 0.3s linear;
+  }
+
+  .minimap-dot.red { background: #FF4444; box-shadow: 0 0 4px rgba(255,68,68,0.6); }
+  .minimap-dot.blue { background: #4488FF; box-shadow: 0 0 4px rgba(68,136,255,0.6); }
+  .minimap-dot.ball { background: #FFD700; width: 5px; height: 5px; box-shadow: 0 0 6px rgba(255,215,0,0.8); }
+  .minimap-dot.self { width: 8px; height: 8px; border: 1px solid #fff; }
+
+  .minimap-label {
+    position: absolute;
+    bottom: 2px;
+    left: 4px;
+    font-size: 8px;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ===== PENALTY SHOOTOUT OVERLAY ===== */
+  .penalty-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    z-index: 9999;
+    pointer-events: none;
+    animation: penaltyFadeIn 0.5s ease;
+  }
+
+  @keyframes penaltyFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .penalty-header {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+
+  .penalty-title {
+    font-size: 36px;
+    font-weight: bold;
+    color: #FFD700;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+  }
+
+  .penalty-subtitle {
+    font-size: 18px;
+    color: #ffffff;
+    margin-top: 5px;
+    opacity: 0.9;
+  }
+
+  .penalty-score-display {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 40px;
+  }
+
+  .penalty-team-score {
+    text-align: center;
+    min-width: 120px;
+  }
+
+  .penalty-team-name {
+    font-size: 16px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+  }
+
+  .penalty-team-name.red { color: #FF4444; }
+  .penalty-team-name.blue { color: #4488FF; }
+
+  .penalty-score-number {
+    font-size: 72px;
+    font-weight: bold;
+    color: #ffffff;
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+  }
+
+  .penalty-vs {
+    font-size: 24px;
+    color: #FFD700;
+    font-weight: bold;
+  }
+
+  .penalty-round-tracker {
+    position: absolute;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+  }
+
+  .penalty-round-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .penalty-round-dot.goal { background: #00FF00; border-color: #00FF00; box-shadow: 0 0 10px rgba(0, 255, 0, 0.5); }
+  .penalty-round-dot.saved { background: #FF4444; border-color: #FF4444; box-shadow: 0 0 10px rgba(255, 68, 68, 0.5); }
+  .penalty-round-dot.missed { background: #888888; border-color: #888888; }
+  .penalty-round-dot.current { border-color: #FFD700; box-shadow: 0 0 15px rgba(255, 215, 0, 0.8); animation: penaltyPulse 1.5s infinite; }
+
+  @keyframes penaltyPulse {
+    0%, 100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.8); }
+    50% { box-shadow: 0 0 25px rgba(255, 215, 0, 1); }
+  }
+
+  .penalty-info-bar {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+  }
+
+  .penalty-shooter-info {
+    font-size: 20px;
+    color: #ffffff;
+    font-weight: bold;
+  }
+
+  .penalty-timer {
+    font-size: 16px;
+    color: #FFD700;
+    margin-top: 5px;
+  }
+
+  .penalty-result-flash {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 64px;
+    font-weight: bold;
+    text-transform: uppercase;
+    z-index: 10000;
+    pointer-events: none;
+    animation: penaltyResultFlash 2s ease forwards;
+    display: none;
+  }
+
+  .penalty-result-flash.goal { color: #00FF00; text-shadow: 0 0 40px rgba(0, 255, 0, 0.8); }
+  .penalty-result-flash.saved { color: #FF4444; text-shadow: 0 0 40px rgba(255, 68, 68, 0.8); }
+  .penalty-result-flash.missed { color: #888888; text-shadow: 0 0 40px rgba(136, 136, 136, 0.8); }
+
+  @keyframes penaltyResultFlash {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+    40% { transform: translate(-50%, -50%) scale(1); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8) translateY(-30px); }
+  }
+
+  .penalty-sudden-death-banner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 48px;
+    font-weight: bold;
+    color: #FF3366;
+    text-shadow: 0 0 30px rgba(255, 51, 102, 0.8), 2px 2px 4px rgba(0, 0, 0, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    z-index: 10000;
+    pointer-events: none;
+    animation: suddenDeathFlash 3s ease forwards;
+    display: none;
+  }
+
+  @keyframes suddenDeathFlash {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
   }
 
   .game-mode-btn.selected {
@@ -5785,6 +6106,11 @@
         <div class="mode-description">Competitive Bracket Soccer</div>
         <div class="mode-features">• Competitive brackets • Player coordination • Match scheduling</div>
       </button>
+      <button class="game-mode-btn penalty" id="penaltyModeBtn">
+        [P] Penalty Shootout
+        <div class="mode-description">Head-to-Head Penalty Kicks</div>
+        <div class="mode-features">• Best of 5 penalty kicks • Sudden death tiebreaker • Shooter vs Goalkeeper</div>
+      </button>
       <!-- Pickup Mode removed - physical pickups now integrated into Arcade Mode -->
     </div>
     
@@ -6317,6 +6643,56 @@
   let powerBarPercentage = 0;
   let timeUntilStart = 0;
   let timeUntilStartInterval = null;
+  // ===== SCENE UI TEMPLATE REGISTRATION =====
+  if (typeof hytopia !== 'undefined' && hytopia.registerSceneUITemplate) {
+    // 3D Floating Scoreboard above goals
+    hytopia.registerSceneUITemplate('goal-scoreboard', (instanceId, onState) => {
+      const container = document.createElement('div');
+      container.style.cssText = 'text-align:center; pointer-events:none; font-family:"Trebuchet MS",Arial,sans-serif;';
+
+      const scoreDiv = document.createElement('div');
+      scoreDiv.style.cssText = 'background:rgba(0,0,0,0.75); padding:8px 20px; border-radius:10px; border:2px solid rgba(255,215,0,0.6); backdrop-filter:blur(5px); display:inline-block; min-width:120px;';
+
+      const teamLabel = document.createElement('div');
+      teamLabel.style.cssText = 'font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:2px; margin-bottom:2px;';
+
+      const scoreText = document.createElement('div');
+      scoreText.style.cssText = 'font-size:28px; font-weight:bold; color:#FFD700; text-shadow:0 0 10px rgba(255,215,0,0.5);';
+
+      const goalLabel = document.createElement('div');
+      goalLabel.style.cssText = 'font-size:9px; color:rgba(255,255,255,0.6); margin-top:2px; text-transform:uppercase; letter-spacing:1px;';
+      goalLabel.textContent = 'GOALS';
+
+      scoreDiv.appendChild(teamLabel);
+      scoreDiv.appendChild(scoreText);
+      scoreDiv.appendChild(goalLabel);
+      container.appendChild(scoreDiv);
+
+      onState(function(state) {
+        if (state.team) {
+          const isRed = state.team === 'red';
+          teamLabel.textContent = isRed ? 'RED TEAM' : 'BLUE TEAM';
+          teamLabel.style.color = isRed ? '#FF4444' : '#4488FF';
+          scoreDiv.style.borderColor = isRed ? 'rgba(255,68,68,0.6)' : 'rgba(68,136,255,0.6)';
+        }
+        if (state.score !== undefined) {
+          scoreText.textContent = state.score;
+        }
+        if (state.flash) {
+          scoreDiv.style.transition = 'all 0.3s ease';
+          scoreDiv.style.transform = 'scale(1.3)';
+          scoreDiv.style.boxShadow = '0 0 30px rgba(255,215,0,0.8)';
+          setTimeout(function() {
+            scoreDiv.style.transform = 'scale(1)';
+            scoreDiv.style.boxShadow = 'none';
+          }, 500);
+        }
+      });
+
+      return container;
+    });
+  }
+
   let selectedGameMode = null; // Will be set to 'fifa' or 'arcade'
   
   // New Phase 1 variables
@@ -6448,6 +6824,16 @@
         • Competitive FIFA-style gameplay (no power-ups)<br>
         • Tournament statistics and leaderboards
       `;
+    } else if (mode === 'penalty') {
+      titleEl.textContent = '[P] Penalty Shootout Selected';
+      descEl.textContent = 'Face off in a dramatic penalty shootout! Take turns as shooter and goalkeeper.';
+      featuresEl.innerHTML = `
+        • Best of 5 penalty kicks per team<br>
+        • Sudden death tiebreaker if tied<br>
+        • Take turns as shooter and goalkeeper<br>
+        • 30-second shot clock per attempt<br>
+        • Tension-building music and atmosphere
+      `;
     }
     
     infoPanel.style.display = 'block';
@@ -6475,7 +6861,16 @@
     }, 100);
     
     // Show different UI flow based on mode
-    if (mode === 'tournament') {
+    if (mode === 'penalty') {
+      // Penalty mode goes straight to team selection (no player count)
+      setTimeout(() => {
+        const playerCountEl = document.getElementById('playerCountSelection');
+        if (playerCountEl) {
+          playerCountEl.style.display = 'block';
+          playerCountEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 200);
+    } else if (mode === 'tournament') {
       // Show tournament UI instead of player count selection
       setTimeout(() => {
         const tournamentElement = document.getElementById('tournamentSelection');
@@ -8666,6 +9061,26 @@
       showBackgroundLoadingIndicator(data.message);
     }
 
+    // Handle career stats loaded
+    if (data.type === "career-stats-loaded") {
+      console.log("Career stats loaded:", data.stats);
+      window.careerStats = data.stats;
+      // Update career stats display if visible
+      const statsEl = document.getElementById('career-stats-display');
+      if (statsEl && data.stats) {
+        statsEl.innerHTML =
+          '<div style="font-size:12px;color:#FFD700;font-weight:bold;margin-bottom:4px;">CAREER STATS</div>' +
+          '<div style="font-size:11px;color:#fff;">Goals: ' + (data.stats.totalGoals || 0) + '</div>' +
+          '<div style="font-size:11px;color:#fff;">Wins: ' + (data.stats.totalWins || 0) + '</div>' +
+          '<div style="font-size:11px;color:#fff;">Matches: ' + (data.stats.totalMatches || 0) + '</div>';
+      }
+    }
+
+    // Handle minimap position updates
+    if (data.type === "minimap-update") {
+      updateMinimap(data);
+    }
+
     // Handle background loading complete (Phase 2)
     if (data.type === "background-loading-complete") {
       console.log("Background loading complete:", data.message);
@@ -8695,7 +9110,311 @@
       console.log("Powerup activation received:", data);
       activatePowerupIndicator();
     }
+
+    // ===== PENALTY SHOOTOUT HANDLERS =====
+    if (data.type === "penalty-shootout-start") {
+      console.log("Penalty shootout starting:", data);
+      showPenaltyOverlay(data);
+    }
+
+    if (data.type === "penalty-round-start") {
+      console.log("Penalty round starting:", data);
+      updatePenaltyRound(data);
+    }
+
+    if (data.type === "penalty-shot-setup") {
+      console.log("Penalty shot setup:", data);
+      updatePenaltyShotSetup(data);
+    }
+
+    if (data.type === "penalty-shot-result") {
+      console.log("Penalty shot result:", data);
+      showPenaltyShotResult(data);
+    }
+
+    if (data.type === "penalty-sudden-death") {
+      console.log("Penalty sudden death:", data);
+      showPenaltySuddenDeath(data);
+    }
+
+    if (data.type === "penalty-shootout-end") {
+      console.log("Penalty shootout ended:", data);
+      showPenaltyShootoutEnd(data);
+    }
   });
+
+  // ===== MINIMAP FUNCTIONS =====
+  function updateMinimap(data) {
+    const container = document.getElementById('minimap-container');
+    const field = document.getElementById('minimap-field');
+    if (!container || !field) return;
+
+    // Show minimap during gameplay
+    container.style.display = 'block';
+
+    // Field bounds (approximate from game config)
+    const FIELD_MIN_X = -37;
+    const FIELD_MAX_X = 52;
+    const FIELD_MIN_Z = -33;
+    const FIELD_MAX_Z = 26;
+    const fieldWidth = FIELD_MAX_X - FIELD_MIN_X; // 89
+    const fieldHeight = FIELD_MAX_Z - FIELD_MIN_Z; // 59
+
+    // Remove old dots (but keep field lines)
+    field.querySelectorAll('.minimap-dot').forEach(function(el) { el.remove(); });
+
+    // Add player dots
+    if (data.players) {
+      data.players.forEach(function(p) {
+        var dot = document.createElement('div');
+        dot.className = 'minimap-dot ' + (p.team || 'none');
+
+        // Convert world position to minimap percentage
+        var leftPct = ((p.x - FIELD_MIN_X) / fieldWidth) * 100;
+        var topPct = ((p.z - FIELD_MIN_Z) / fieldHeight) * 100;
+
+        // Clamp to bounds
+        leftPct = Math.max(2, Math.min(98, leftPct));
+        topPct = Math.max(2, Math.min(98, topPct));
+
+        dot.style.left = leftPct + '%';
+        dot.style.top = topPct + '%';
+
+        if (!p.isAI) {
+          dot.classList.add('self');
+          dot.title = p.name;
+        }
+
+        field.appendChild(dot);
+      });
+    }
+
+    // Add ball dot
+    if (data.ball) {
+      var ballDot = document.createElement('div');
+      ballDot.className = 'minimap-dot ball';
+
+      var ballLeftPct = ((data.ball.x - FIELD_MIN_X) / fieldWidth) * 100;
+      var ballTopPct = ((data.ball.z - FIELD_MIN_Z) / fieldHeight) * 100;
+
+      ballLeftPct = Math.max(2, Math.min(98, ballLeftPct));
+      ballTopPct = Math.max(2, Math.min(98, ballTopPct));
+
+      ballDot.style.left = ballLeftPct + '%';
+      ballDot.style.top = ballTopPct + '%';
+
+      field.appendChild(ballDot);
+    }
+  }
+
+  // Hide minimap when not in gameplay
+  function hideMinimap() {
+    var container = document.getElementById('minimap-container');
+    if (container) container.style.display = 'none';
+  }
+
+  // ===== PENALTY SHOOTOUT FUNCTIONS =====
+  let penaltyTimerInterval = null;
+
+  function showPenaltyOverlay(data) {
+    const overlay = document.getElementById('penalty-overlay');
+    if (!overlay) return;
+
+    overlay.style.display = 'block';
+
+    document.getElementById('penaltyTitle').textContent = 'Penalty Shootout';
+    document.getElementById('penaltySubtitle').textContent = data.message || 'Best of 5 Rounds';
+    document.getElementById('penaltyRedScore').textContent = data.score?.red || 0;
+    document.getElementById('penaltyBlueScore').textContent = data.score?.blue || 0;
+
+    // Initialize round tracker dots (5 rounds per team)
+    const tracker = document.getElementById('penaltyRoundTracker');
+    if (tracker) {
+      tracker.innerHTML = '';
+      for (let i = 0; i < 5; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'penalty-round-dot';
+        dot.id = 'penalty-dot-red-' + (i + 1);
+        dot.title = 'Red Round ' + (i + 1);
+        tracker.appendChild(dot);
+      }
+      const separator = document.createElement('div');
+      separator.style.cssText = 'width: 2px; height: 20px; background: rgba(255, 215, 0, 0.5); margin: 0 5px;';
+      tracker.appendChild(separator);
+      for (let i = 0; i < 5; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'penalty-round-dot';
+        dot.id = 'penalty-dot-blue-' + (i + 1);
+        dot.title = 'Blue Round ' + (i + 1);
+        tracker.appendChild(dot);
+      }
+    }
+
+    document.getElementById('penaltyShooterInfo').textContent = 'Preparing for penalty shootout...';
+    document.getElementById('penaltyTimer').textContent = '';
+  }
+
+  function updatePenaltyRound(data) {
+    document.getElementById('penaltyRedScore').textContent = data.score?.red || 0;
+    document.getElementById('penaltyBlueScore').textContent = data.score?.blue || 0;
+
+    const subtitle = document.getElementById('penaltySubtitle');
+    if (data.isSuddenDeath) {
+      subtitle.textContent = 'Sudden Death - Round ' + data.round;
+    } else {
+      subtitle.textContent = 'Round ' + data.round + ' of 5';
+    }
+  }
+
+  function updatePenaltyShotSetup(data) {
+    const infoEl = document.getElementById('penaltyShooterInfo');
+    const timerEl = document.getElementById('penaltyTimer');
+
+    if (infoEl) {
+      const teamColor = data.shootingTeam === 'red' ? '#FF4444' : '#4488FF';
+      infoEl.innerHTML = '<span style="color:' + teamColor + '">' + data.shootingTeam.toUpperCase() + '</span>: ' +
+        data.shooter + ' vs GK ' + data.goalkeeper;
+    }
+
+    // Start countdown timer
+    if (penaltyTimerInterval) clearInterval(penaltyTimerInterval);
+    let timeLeft = data.timeLimit || 30;
+
+    if (timerEl) {
+      timerEl.textContent = timeLeft + 's remaining';
+    }
+
+    penaltyTimerInterval = setInterval(function() {
+      timeLeft--;
+      if (timerEl) {
+        timerEl.textContent = timeLeft + 's remaining';
+        if (timeLeft <= 5) {
+          timerEl.style.color = '#FF3366';
+        } else {
+          timerEl.style.color = '#FFD700';
+        }
+      }
+      if (timeLeft <= 0) {
+        clearInterval(penaltyTimerInterval);
+        penaltyTimerInterval = null;
+      }
+    }, 1000);
+
+    // Highlight current round dot
+    const dotId = 'penalty-dot-' + data.shootingTeam + '-' + (Math.ceil((data.round || 1)));
+    const dot = document.getElementById(dotId);
+    if (dot) {
+      dot.classList.add('current');
+    }
+  }
+
+  function showPenaltyShotResult(data) {
+    // Clear timer
+    if (penaltyTimerInterval) {
+      clearInterval(penaltyTimerInterval);
+      penaltyTimerInterval = null;
+    }
+
+    // Update scores
+    document.getElementById('penaltyRedScore').textContent = data.score?.red || 0;
+    document.getElementById('penaltyBlueScore').textContent = data.score?.blue || 0;
+
+    // Show result flash
+    const flash = document.getElementById('penalty-result-flash');
+    if (flash) {
+      flash.className = 'penalty-result-flash ' + data.result;
+      if (data.result === 'goal') {
+        flash.textContent = 'GOAL!';
+      } else if (data.result === 'saved') {
+        flash.textContent = 'SAVED!';
+      } else {
+        flash.textContent = 'MISSED!';
+      }
+      flash.style.display = 'block';
+      setTimeout(function() {
+        flash.style.display = 'none';
+      }, 2500);
+    }
+
+    // Update round dot
+    const currentDots = document.querySelectorAll('.penalty-round-dot.current');
+    currentDots.forEach(function(dot) {
+      dot.classList.remove('current');
+      dot.classList.add(data.result);
+    });
+  }
+
+  function showPenaltySuddenDeath(data) {
+    document.getElementById('penaltyRedScore').textContent = data.score?.red || 0;
+    document.getElementById('penaltyBlueScore').textContent = data.score?.blue || 0;
+    document.getElementById('penaltySubtitle').textContent = 'SUDDEN DEATH';
+
+    const banner = document.getElementById('penalty-sudden-death');
+    if (banner) {
+      banner.style.display = 'block';
+      setTimeout(function() {
+        banner.style.display = 'none';
+      }, 3000);
+    }
+
+    // Add extra dots for sudden death rounds
+    const tracker = document.getElementById('penaltyRoundTracker');
+    if (tracker) {
+      const roundNum = data.round || 6;
+      const redDot = document.createElement('div');
+      redDot.className = 'penalty-round-dot';
+      redDot.id = 'penalty-dot-red-' + roundNum;
+
+      const blueDot = document.createElement('div');
+      blueDot.className = 'penalty-round-dot';
+      blueDot.id = 'penalty-dot-blue-' + roundNum;
+
+      tracker.appendChild(redDot);
+      tracker.appendChild(blueDot);
+    }
+  }
+
+  function showPenaltyShootoutEnd(data) {
+    // Clear any running timer
+    if (penaltyTimerInterval) {
+      clearInterval(penaltyTimerInterval);
+      penaltyTimerInterval = null;
+    }
+
+    // Update final score
+    document.getElementById('penaltyRedScore').textContent = data.finalScore?.red || 0;
+    document.getElementById('penaltyBlueScore').textContent = data.finalScore?.blue || 0;
+
+    // Show winner
+    const title = document.getElementById('penaltyTitle');
+    const subtitle = document.getElementById('penaltySubtitle');
+    const winnerColor = data.winner === 'red' ? '#FF4444' : '#4488FF';
+
+    if (title) title.innerHTML = '<span style="color:' + winnerColor + '">' + data.winner.toUpperCase() + ' TEAM WINS!</span>';
+    if (subtitle) subtitle.textContent = data.message || 'Penalty Shootout Complete';
+
+    // Update info bar
+    const infoEl = document.getElementById('penaltyShooterInfo');
+    if (infoEl) {
+      infoEl.innerHTML = 'Final Score: Red ' + (data.finalScore?.red || 0) + ' - ' + (data.finalScore?.blue || 0) + ' Blue';
+    }
+
+    // Hide overlay after delay
+    setTimeout(function() {
+      const overlay = document.getElementById('penalty-overlay');
+      if (overlay) overlay.style.display = 'none';
+    }, 8000);
+  }
+
+  // Replace the old penalty stub
+  window.startPenaltyShootout = function() {
+    if (typeof hytopia !== 'undefined' && hytopia.sendData) {
+      hytopia.sendData({
+        type: "select-game-mode",
+        mode: "penalty_shootout"
+      });
+    }
+  };
 
   // ===== BACKGROUND LOADING INDICATOR (PHASE 2) =====
   function showBackgroundLoadingIndicator(message) {
@@ -9929,12 +10648,7 @@
   window.closeGameOverScreen = closeGameOverScreen;
   
   // Add any missing functions with safe defaults
-  if (typeof window.startPenaltyShootout === 'undefined') {
-    window.startPenaltyShootout = function() {
-      console.log('Penalty shootout functionality not yet implemented');
-      alert('Penalty shootout mode coming soon!');
-    };
-  }
+  // Penalty shootout is now fully implemented - see penalty shootout functions above
 
   // DISABLED: Window error event listener (violates Hytopia SDK InputManager)
   // NOTE: Error handling should be done through try-catch blocks for Hytopia compatibility

@@ -7,9 +7,11 @@ import {
   ColliderShape,
   BlockType,
   RigidBodyType,
+  ParticleEmitter,
 } from "hytopia";
 import type { Vector3Like } from "hytopia";
-import { 
+import { SceneUI } from "hytopia";
+import {
   MATCH_DURATION, 
   GAME_CONFIG, 
   BALL_SPAWN_POSITION, 
@@ -234,6 +236,10 @@ export class SoccerGame {
   private halfTimeManager!: HalfTimeManager; // Manages half-time logic and stoppage time
   private penaltyShootoutManager: PenaltyShootoutManager | null = null; // Manages penalty shootout mode
 
+  // 3D floating scoreboards above goals
+  private redGoalScoreboard: SceneUI | null = null;
+  private blueGoalScoreboard: SceneUI | null = null;
+
   // Room-specific shared state (for multi-room support)
   // If null, falls back to global sharedState singleton (backward compatibility)
   private roomSharedState: RoomSharedState | null = null;
@@ -261,6 +267,7 @@ export class SoccerGame {
 
   // Player momentum tracking
   private playerMomentum: Map<string, { consecutiveGoals: number; lastGoalTime: number }> = new Map();
+  private _minimapTickCounter: number = 0;
 
   /**
    * Create a new SoccerGame instance
@@ -552,6 +559,38 @@ export class SoccerGame {
     });
   }
 
+  /**
+   * Broadcast minimap position data to all players
+   */
+  private broadcastMinimapData(): void {
+    if (this.state.status !== "playing" && this.state.status !== "overtime") return;
+
+    const players: Array<{ x: number; z: number; team: string; name: string; isAI: boolean }> = [];
+
+    this.world.entityManager.getAllPlayerEntities().forEach((entity) => {
+      if (entity instanceof SoccerPlayerEntity && entity.isSpawned) {
+        players.push({
+          x: Math.round(entity.position.x * 10) / 10,
+          z: Math.round(entity.position.z * 10) / 10,
+          team: entity.team || 'none',
+          name: entity.player.username,
+          isAI: entity instanceof AIPlayerEntity,
+        });
+      }
+    });
+
+    const ballPos = this.soccerBall.isSpawned ? {
+      x: Math.round(this.soccerBall.position.x * 10) / 10,
+      z: Math.round(this.soccerBall.position.z * 10) / 10,
+    } : null;
+
+    this.sendDataToAllPlayers({
+      type: "minimap-update",
+      players,
+      ball: ballPos,
+    });
+  }
+
   private beginMatch() {
     console.log("Beginning match - Starting 1st Quarter");
 
@@ -600,6 +639,26 @@ export class SoccerGame {
       `x=${this.soccerBall.position.x}, y=${this.soccerBall.position.y}, z=${this.soccerBall.position.z}` : 
       "Ball still not spawned");
     
+    // Create 3D floating scoreboards above each goal
+    if (!this.redGoalScoreboard) {
+      this.redGoalScoreboard = new SceneUI({
+        templateId: 'goal-scoreboard',
+        position: { x: -32, y: 8, z: 0 },
+        viewDistance: 80,
+        state: { team: 'red', score: 0 },
+      });
+      this.redGoalScoreboard.load(this.world);
+    }
+    if (!this.blueGoalScoreboard) {
+      this.blueGoalScoreboard = new SceneUI({
+        templateId: 'goal-scoreboard',
+        position: { x: 46, y: 8, z: 0 },
+        viewDistance: 80,
+        state: { team: 'blue', score: 0 },
+      });
+      this.blueGoalScoreboard.load(this.world);
+    }
+
     // Move all players to their respective positions and ensure proper initialization
     this.world.entityManager.getAllPlayerEntities().forEach((entity) => {
       if (entity instanceof SoccerPlayerEntity) {
@@ -645,6 +704,13 @@ export class SoccerGame {
   }
 
   private gameLoop() {
+
+    // Broadcast minimap positions every other tick (every 2 seconds)
+    if (!this._minimapTickCounter) this._minimapTickCounter = 0;
+    this._minimapTickCounter++;
+    if (this._minimapTickCounter % 2 === 0) {
+      this.broadcastMinimapData();
+    }
 
     // Check if ball was picked up for restart (clears timer if ball is possessed)
     this.checkBallPickupForRestart();
@@ -1212,6 +1278,14 @@ export class SoccerGame {
     this.scoreGoal(team);
     this.state.status = "goal-scored";
 
+    // Update 3D floating scoreboards
+    if (this.redGoalScoreboard) {
+      this.redGoalScoreboard.setState({ score: this.state.score.red, flash: team === 'blue' });
+    }
+    if (this.blueGoalScoreboard) {
+      this.blueGoalScoreboard.setState({ score: this.state.score.blue, flash: team === 'red' });
+    }
+
     // Determine the team that conceded and set them as the kickoff team
     const concedingTeam = team === "red" ? "blue" : "red";
     this.state.kickoffTeam = concedingTeam;
@@ -1294,6 +1368,123 @@ export class SoccerGame {
       loop: false,
       volume: 0.3,
     }).play(this.world);
+
+    // Visual celebration effects for goal scorer
+    if (lastPlayerWithBall && lastPlayerWithBall instanceof SoccerPlayerEntity && lastPlayerWithBall.isSpawned) {
+      const scorerEntity = lastPlayerWithBall;
+      const teamColor = team === 'red' ? { r: 1, g: 0.2, b: 0.2 } : { r: 0.2, g: 0.4, b: 1 };
+
+      // Gold outline for goal scorer visible to all players
+      scorerEntity.setOutline({
+        color: { r: 1, g: 0.84, b: 0 },
+        thickness: 0.05,
+        colorIntensity: 3,
+      });
+
+      // Emissive glow on scorer
+      scorerEntity.setEmissiveColor(teamColor);
+      scorerEntity.setEmissiveIntensity(2);
+
+      // Clear effects after 4 seconds
+      setTimeout(() => {
+        if (scorerEntity.isSpawned) {
+          scorerEntity.setOutline(undefined);
+          scorerEntity.setEmissiveColor(undefined);
+          scorerEntity.setEmissiveIntensity(0);
+        }
+      }, 4000);
+    }
+
+    // Flash the ball with a golden glow
+    if (this.soccerBall.isSpawned) {
+      this.soccerBall.setEmissiveColor({ r: 1, g: 0.84, b: 0 });
+      this.soccerBall.setEmissiveIntensity(3);
+      setTimeout(() => {
+        if (this.soccerBall.isSpawned) {
+          this.soccerBall.setEmissiveColor(undefined);
+          this.soccerBall.setEmissiveIntensity(0);
+        }
+      }, 3000);
+    }
+
+    // Particle confetti burst at the goal location
+    const goalX = team === 'red' ? 46 : -32; // Approximate goal X positions
+    const confettiColors = team === 'red'
+      ? { start: { r: 255, g: 50, b: 50 }, end: { r: 255, g: 200, b: 50 } }
+      : { start: { r: 50, g: 100, b: 255 }, end: { r: 50, g: 255, b: 255 } };
+
+    const confetti = new ParticleEmitter({
+      textureUri: 'textures/particles/magic.png',
+      position: { x: goalX, y: 5, z: 0 },
+      maxParticles: 80,
+      rate: 0,
+      lifetime: 2,
+      lifetimeVariance: 0.5,
+      sizeStart: 0.3,
+      sizeEnd: 0.1,
+      sizeStartVariance: 0.1,
+      velocity: { x: 0, y: 8, z: 0 },
+      velocityVariance: { x: 6, y: 3, z: 6 },
+      gravity: { x: 0, y: -5, z: 0 },
+      colorStart: confettiColors.start,
+      colorEnd: confettiColors.end,
+      colorStartVariance: { r: 50, g: 50, b: 50 },
+      opacityStart: 1,
+      opacityEnd: 0,
+      colorIntensityStart: 2,
+      colorIntensityEnd: 0.5,
+    });
+    confetti.spawn(this.world);
+    confetti.burst(60);
+    setTimeout(() => { confetti.despawn(); }, 4000);
+
+    // Camera shake effect for all players on goal
+    this.world.entityManager.getAllPlayerEntities().forEach((entity) => {
+      if (entity instanceof PlayerEntity && entity.player?.camera) {
+        const camera = entity.player.camera;
+        const originalOffset = { x: 0, y: 0, z: 0 };
+        let shakeCount = 0;
+        const maxShakes = 10;
+        const shakeInterval = setInterval(() => {
+          if (shakeCount >= maxShakes) {
+            clearInterval(shakeInterval);
+            camera.setOffset(originalOffset);
+            camera.setFilmOffset(0);
+            return;
+          }
+          const damper = 1 - (shakeCount / maxShakes);
+          const magnitude = 0.4 * damper;
+          camera.setOffset({
+            x: (Math.random() * 2 - 1) * magnitude,
+            y: (Math.random() * 2 - 1) * magnitude * 0.5,
+            z: 0,
+          });
+          camera.setFilmOffset((Math.random() * 2 - 1) * 0.03 * damper);
+          shakeCount++;
+        }, 50);
+      }
+    });
+
+    // World lighting flash on goal
+    const originalAmbient = 0.4;
+    const originalDirectional = 0.6;
+    this.world.setAmbientLightIntensity(1.0);
+    this.world.setDirectionalLightIntensity(1.5);
+    if (team === 'red') {
+      this.world.setAmbientLightColor({ r: 255, g: 200, b: 200 });
+    } else {
+      this.world.setAmbientLightColor({ r: 200, g: 200, b: 255 });
+    }
+    setTimeout(() => {
+      this.world.setAmbientLightIntensity(originalAmbient);
+      this.world.setDirectionalLightIntensity(originalDirectional);
+      this.world.setAmbientLightColor({ r: 255, g: 255, b: 255 });
+    }, 1500);
+
+    // Goal celebration animation on scorer
+    if (lastPlayerWithBall && lastPlayerWithBall instanceof SoccerPlayerEntity && lastPlayerWithBall.isSpawned) {
+      lastPlayerWithBall.startModelOneshotAnimations(['emote_wave']);
+    }
 
     // FIFA crowd manager handles all announcer audio through its queue system
     // to prevent multiple voices playing simultaneously
@@ -1704,15 +1895,63 @@ export class SoccerGame {
   }
 
   public attachBallToPlayer(player: PlayerEntity) {
+    // Remove outline from previous possessor
+    if (this.attachedPlayer && this.attachedPlayer.isSpawned && this.attachedPlayer !== player) {
+      this.attachedPlayer.setOutline(undefined);
+    }
+
     this.attachedPlayer = player;
+
+    // Add possession outline to new possessor
+    if (player && player.isSpawned) {
+      const team = (player as any).team;
+      const outlineColor = team === 'red'
+        ? { r: 1, g: 0.3, b: 0.3 }
+        : team === 'blue'
+          ? { r: 0.3, g: 0.5, b: 1 }
+          : { r: 1, g: 1, b: 1 };
+
+      player.setOutline({
+        color: outlineColor,
+        thickness: 0.03,
+        colorIntensity: 2,
+        opacity: 0.8,
+      });
+    }
   }
 
   public detachBall() {
+    // Remove outline from previous possessor
+    if (this.attachedPlayer && this.attachedPlayer.isSpawned) {
+      this.attachedPlayer.setOutline(undefined);
+    }
     this.attachedPlayer = null;
   }
 
   public getAttachedPlayer(): PlayerEntity | null {
     return this.attachedPlayer;
+  }
+
+  /**
+   * Get stats for a specific player by username (for persistence)
+   */
+  public getPlayerStats(username: string): { goals: number; assists: number; saves: number } | null {
+    const playerData = this.state.players.get(username);
+    if (!playerData) return null;
+
+    // Also check entity for goal count
+    let goals = 0;
+    this.world.entityManager.getAllPlayerEntities().forEach((entity) => {
+      if (entity instanceof SoccerPlayerEntity && entity.player.username === username) {
+        goals = entity.getGoalsScored();
+      }
+    });
+
+    return {
+      goals,
+      assists: (playerData as any).assists || 0,
+      saves: (playerData as any).saves || 0,
+    };
   }
 
   public removePlayer(playerId: string) {

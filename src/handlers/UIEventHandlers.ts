@@ -382,6 +382,14 @@ export class UIEventHandlers {
     } else if (data.mode === "arcade") {
       modeSet = setGameMode(GameMode.ARCADE);
       if (modeSet) logger.info("ðŸŽ® Game mode set to Arcade Mode");
+    } else if (data.mode === "penalty" || data.mode === "penalty_shootout") {
+      // Penalty shootout uses FIFA as base mode, then triggers shootout after team selection
+      modeSet = setGameMode(GameMode.FIFA);
+      if (modeSet) {
+        logger.info("ðŸŽ® Game mode set to Penalty Shootout (FIFA base)");
+        // Flag that penalty shootout should start instead of normal match
+        (this.deps as any)._pendingPenaltyShootout = true;
+      }
     }
 
     if (!modeSet) {

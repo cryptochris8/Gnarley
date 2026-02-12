@@ -1,0 +1,211 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; img-src 'self' https:; connect-src 'self' ws: wss:;">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      overflow: hidden;
+      color: white;
+      user-select: none;
+    }
+
+    /* Top-center welcome banner */
+    #lobby-banner {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 12px 24px;
+      text-align: center;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+    #lobby-banner h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    #lobby-banner p {
+      font-size: 13px;
+      opacity: 0.85;
+    }
+
+    /* Portal legend (bottom-left) */
+    #portal-legend {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 12px 16px;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+    #portal-legend h3 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      opacity: 0.8;
+    }
+    .portal-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+      font-size: 13px;
+    }
+    .portal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Room count (bottom-right) */
+    #room-count {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 13px;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+
+    /* Mobile kick button */
+    #mobile-kick-btn {
+      display: none;
+      position: fixed;
+      bottom: 100px;
+      right: 24px;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(255, 60, 60, 0.85);
+      border: 3px solid rgba(255, 255, 255, 0.5);
+      font-size: 16px;
+      font-weight: 700;
+      color: white;
+      z-index: 200;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    #mobile-kick-btn:active {
+      background: rgba(255, 30, 30, 1);
+      transform: scale(0.92);
+    }
+
+    /* Show kick button on mobile */
+    @media (pointer: coarse), (max-width: 768px) {
+      #mobile-kick-btn { display: flex; align-items: center; justify-content: center; }
+    }
+
+    /* SceneUI portal label template */
+    .portal-label-ui {
+      background: rgba(0, 0, 0, 0.8);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      white-space: nowrap;
+      text-align: center;
+      border: 2px solid currentColor;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Welcome banner -->
+  <div id="lobby-banner">
+    <h2>GNARLEY SOCCER</h2>
+    <p>Kick the ball through a portal to play!</p>
+  </div>
+
+  <!-- Portal legend -->
+  <div id="portal-legend">
+    <h3>PORTALS</h3>
+    <div class="portal-item">
+      <div class="portal-dot" style="background: rgb(0, 220, 60);"></div>
+      <span>FIFA Mode</span>
+    </div>
+    <div class="portal-item">
+      <div class="portal-dot" style="background: rgb(255, 140, 0);"></div>
+      <span>Arcade Mode</span>
+    </div>
+    <div class="portal-item">
+      <div class="portal-dot" style="background: rgb(255, 215, 0);"></div>
+      <span>Tournament</span>
+    </div>
+  </div>
+
+  <!-- Room count -->
+  <div id="room-count">
+    Active Rooms: <span id="room-count-value">0</span> |
+    Players: <span id="player-count-value">0</span>
+  </div>
+
+  <!-- Mobile kick button -->
+  <button id="mobile-kick-btn">KICK</button>
+
+  <!-- SceneUI template for portal labels -->
+  <template id="portal-label-template">
+    <div class="portal-label-ui"><span class="label-text"></span></div>
+  </template>
+
+  <script>
+    // Register SceneUI template for portal labels
+    if (typeof hytopia !== 'undefined') {
+      hytopia.registerSceneUITemplate('portal-label', function(id, onState) {
+        var tmpl = document.getElementById('portal-label-template');
+        var clone = tmpl.content.firstElementChild.cloneNode(true);
+        var textEl = clone.querySelector('.label-text');
+
+        onState(function(state) {
+          if (state.text) textEl.textContent = state.text;
+          if (state.color) {
+            clone.style.color = state.color;
+            clone.style.borderColor = state.color;
+          }
+        });
+
+        return clone;
+      });
+
+      // Listen for data from server
+      hytopia.onData(function(data) {
+        if (data.type === 'lobby-room-count') {
+          document.getElementById('room-count-value').textContent = data.activeRooms || 0;
+          document.getElementById('player-count-value').textContent = data.totalPlayers || 0;
+        }
+      });
+
+      // Mobile kick button: simulate right-mouse press then release
+      var kickBtn = document.getElementById('mobile-kick-btn');
+      kickBtn.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        hytopia.pressInput('mr', true);
+      });
+      kickBtn.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        // Short delay before releasing to build up a kick
+        setTimeout(function() {
+          hytopia.pressInput('mr', false);
+        }, 200);
+      });
+    }
+  </script>
+</body>
+</html>
