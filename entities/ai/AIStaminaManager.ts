@@ -10,7 +10,7 @@
  */
 
 import type { Vector3Like } from "hytopia";
-import { SoccerAIRole, ROLE_DEFINITIONS } from "./AIRoleDefinitions";
+import { type SoccerAIRole, ROLE_DEFINITIONS } from "./AIRoleDefinitions";
 import { logger } from "../../utils/GameLogger";
 
 /**
@@ -85,7 +85,7 @@ export class AIStaminaManager {
     if (Math.random() < 0.02) {
       // 2% chance to log
       logger.debug(
-        `=¨ STAMINA CONSERVATION: ${context.username} (${context.aiRole}) conserving stamina (${staminaPercentage.toFixed(0)}%)`
+        `=ï¿½ STAMINA CONSERVATION: ${context.username} (${context.aiRole}) conserving stamina (${staminaPercentage.toFixed(0)}%)`
       );
     }
 
@@ -94,7 +94,7 @@ export class AIStaminaManager {
       const passSuccess = context.passBall();
       if (passSuccess) {
         logger.debug(
-          `¡ STAMINA CONSERVATION: ${context.username} made quick pass to preserve stamina`
+          `ï¿½ STAMINA CONSERVATION: ${context.username} made quick pass to preserve stamina`
         );
       }
 
@@ -111,7 +111,7 @@ export class AIStaminaManager {
     const distanceToBall = context.distanceBetween(context.position, ballPosition);
 
     // Reduce effective pursuit based on stamina levels
-    const staminaFactor = Math.max(0.3, staminaPercentage / 100); // Never go below 30% pursuit
+    const staminaFactor = Math.max(0.1, staminaPercentage / 100); // Exhausted players barely pursue
     const adjustedPursuitTendency = roleDef.pursuitTendency * staminaFactor;
 
     // Only pursue if we're very close to the ball or if we're the designated role

@@ -2333,7 +2333,7 @@ export class ArcadeEnhancementManager {
         });
 
         // Expand ripple outward
-        let expansionScale = ripple.modelScale;
+        let expansionScale = typeof ripple.modelScale === 'number' ? ripple.modelScale : ripple.modelScale.x;
         const expandInterval = setInterval(() => {
           expansionScale += 0.3;
           if (expansionScale > 8) {
@@ -2543,7 +2543,7 @@ export class ArcadeEnhancementManager {
         });
 
         // Animate ring expansion and fade
-        let scale = ring.modelScale;
+        let scale = typeof ring.modelScale === 'number' ? ring.modelScale : ring.modelScale.x;
         const expandInterval = setInterval(() => {
           scale += 0.1;
           if (scale > 3.0) {

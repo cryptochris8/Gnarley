@@ -182,7 +182,7 @@ export class AIPassingBehavior {
 
     // Process all teammates to find best pass target
     for (const teammate of teammates) {
-      if (teammate === entity) continue;
+      if (teammate === (entity as unknown)) continue;
 
       // Calculate distance to teammate
       const distanceToTeammate = entity.distanceBetween(currentPosition, teammate.position);
@@ -332,14 +332,13 @@ export class AIPassingBehavior {
       const normDx = passDirectionX / passDist;
       const normDz = passDirectionZ / passDist;
 
-      // Check if teammate is moving - only lead if they're running fast
+      // Lead passes to moving teammates - account for any movement speed
       let teammateVelocity = { x: 0, z: 0 };
       if (targetPlayer instanceof (entity.constructor as any) && (targetPlayer as any).linearVelocity) {
         const vel = (targetPlayer as any).linearVelocity;
         const speed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
-        // Only account for velocity if teammate is moving fast (running)
-        if (speed > 3) {
-          teammateVelocity = { x: vel.x * 0.3, z: vel.z * 0.3 }; // Reduced prediction factor
+        if (speed > 0.5) { // Any meaningful movement gets lead passes
+          teammateVelocity = { x: vel.x * 0.7, z: vel.z * 0.7 }; // Increased prediction factor for better leading
         }
       }
 

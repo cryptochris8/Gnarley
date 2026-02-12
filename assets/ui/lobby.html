@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; img-src 'self' https:; connect-src 'self' ws: wss:;">
   <title>Gnarley Soccer - Lobby</title>
   <style>
     * {
@@ -435,6 +436,45 @@
       }
     }
 
+    /* Loading overlay for room operations */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .loading-overlay.active {
+      display: flex;
+    }
+
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #7c3aed;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .loading-text {
+      font-size: 18px;
+      color: white;
+      font-weight: 600;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     /* Animations */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
@@ -444,9 +484,61 @@
     .room-item {
       animation: fadeIn 0.3s ease;
     }
+
+    /* Toast notifications */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toast {
+      background: rgba(0,0,0,0.9);
+      border-radius: 8px;
+      padding: 12px 18px;
+      color: white;
+      font-size: 14px;
+      border-left: 4px solid #ff4444;
+      animation: toastIn 0.3s ease;
+      max-width: 350px;
+    }
+    .toast.info { border-left-color: #4488ff; }
+    .toast .toast-actions {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+    }
+    .toast .toast-actions button {
+      padding: 4px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .toast .toast-actions .btn-yes {
+      background: #4488ff;
+      color: white;
+    }
+    .toast .toast-actions .btn-no {
+      background: #555;
+      color: white;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
   </style>
 </head>
 <body>
+  <div class="toast-container" id="toastContainer"></div>
+  <!-- Loading overlay for room operations -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">Joining...</div>
+  </div>
   <div class="lobby-container">
     <!-- Header -->
     <div class="lobby-header">
@@ -535,6 +627,8 @@
     let rooms = [];
     let selectedMode = 'fifa';
     let isMobile = false;
+    let previousRoomData = null; // For room list diffing (Issue #63/64)
+    let operationTimeoutId = null; // For server response timeouts (Issue #32)
 
     // Detect mobile
     if (typeof hytopia !== 'undefined' && hytopia.isMobile) {
@@ -555,21 +649,50 @@
     const modeArcade = document.getElementById('modeArcade');
     const cancelCreateBtn = document.getElementById('cancelCreateBtn');
     const confirmCreateBtn = document.getElementById('confirmCreateBtn');
-    const roomCount = document.getElementById('roomCount');
-    const playerCount = document.getElementById('playerCount');
+    const roomCountEl = document.getElementById('roomCount');
+    const playerCountEl = document.getElementById('playerCount');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
+
+    // === Loading / Timeout helpers (Issue #32 + #37) ===
+    function showLoading(message) {
+      loadingText.textContent = message || 'Loading...';
+      loadingOverlay.classList.add('active');
+    }
+
+    function hideLoading() {
+      loadingOverlay.classList.remove('active');
+    }
+
+    function startOperationTimeout(operationName, timeoutMs) {
+      clearOperationTimeout();
+      operationTimeoutId = setTimeout(function() {
+        hideLoading();
+        showToast('No response from server for "' + operationName + '". Please try again.', 'error');
+      }, timeoutMs || 10000);
+    }
+
+    function clearOperationTimeout() {
+      if (operationTimeoutId) {
+        clearTimeout(operationTimeoutId);
+        operationTimeoutId = null;
+      }
+    }
 
     // Quick Play FIFA
     quickPlayFifaBtn.addEventListener('click', () => {
-      console.log('Quick Play FIFA clicked');
       if (typeof hytopia !== 'undefined') {
+        showLoading('Joining FIFA game...');
+        startOperationTimeout('Quick Play', 10000);
         hytopia.sendData({ type: 'quick-play', gameMode: 'fifa' });
       }
     });
 
     // Quick Play Arcade
     quickPlayArcadeBtn.addEventListener('click', () => {
-      console.log('Quick Play Arcade clicked');
       if (typeof hytopia !== 'undefined') {
+        showLoading('Joining Arcade game...');
+        startOperationTimeout('Quick Play', 10000);
         hytopia.sendData({ type: 'quick-play', gameMode: 'arcade' });
       }
     });
@@ -600,9 +723,10 @@
     // Confirm Create Room
     confirmCreateBtn.addEventListener('click', () => {
       const roomName = roomNameInput.value.trim() || 'My Room';
-      console.log(`Creating room: ${roomName}, mode: ${selectedMode}`);
 
       if (typeof hytopia !== 'undefined') {
+        showLoading('Creating room...');
+        startOperationTimeout('Create Room', 10000);
         hytopia.sendData({
           type: 'create-room',
           name: roomName,
@@ -617,16 +741,17 @@
 
     // Refresh Rooms
     refreshBtn.addEventListener('click', () => {
-      console.log('Refreshing room list');
       if (typeof hytopia !== 'undefined') {
         hytopia.sendData({ type: 'refresh-room-list' });
       }
     });
 
     // Join Room
-    function joinRoom(roomId, isSpectate = false) {
-      console.log(`Joining room: ${roomId}, spectate: ${isSpectate}`);
+    function joinRoom(roomId, isSpectate) {
+      isSpectate = isSpectate || false;
       if (typeof hytopia !== 'undefined') {
+        showLoading(isSpectate ? 'Joining as spectator...' : 'Joining room...');
+        startOperationTimeout('Join Room', 10000);
         hytopia.sendData({
           type: isSpectate ? 'join-room-spectate' : 'join-room',
           roomId: roomId
@@ -634,10 +759,87 @@
       }
     }
 
-    // Update Room List
+    // === Room List Diffing (Issue #63/64) ===
+    // Serialize room data for comparison
+    function serializeRoom(room) {
+      return room.id + '|' + room.name + '|' + room.gameMode + '|' + room.status + '|' + room.playerCount + '|' + room.maxPlayers;
+    }
+
+    function buildRoomElement(room) {
+      const roomItem = document.createElement('div');
+      roomItem.className = 'room-item';
+      roomItem.setAttribute('data-room-id', room.id);
+
+      const isPlaying = room.status === 'playing';
+      const isFull = room.playerCount >= room.maxPlayers;
+
+      const safeGameMode = escapeHtml(room.gameMode);
+      const safeStatus = escapeHtml(room.status);
+
+      roomItem.innerHTML = `
+        <div class="room-info">
+          <div class="room-name">${escapeHtml(room.name)}</div>
+          <div class="room-details">
+            <span class="room-mode ${safeGameMode}">${safeGameMode}</span>
+            <span>${room.playerCount}/${room.maxPlayers} players</span>
+            <span class="room-status ${safeStatus}">${safeStatus}</span>
+          </div>
+        </div>
+        <button class="join-room-btn ${isPlaying ? 'spectate' : ''}"
+                ${isFull && !isPlaying ? 'disabled' : ''}>
+          ${isPlaying ? 'Spectate' : (isFull ? 'Full' : 'Join')}
+        </button>
+      `;
+
+      const btn = roomItem.querySelector('button');
+      if (btn) {
+        btn.addEventListener('click', () => joinRoom(room.id, isPlaying));
+      }
+
+      return roomItem;
+    }
+
+    // Update Room List with diffing
     function updateRoomList(roomData) {
+      // Build serialized map of new data for comparison
+      const newSerialized = {};
+      roomData.forEach(function(room) {
+        newSerialized[room.id] = serializeRoom(room);
+      });
+
+      // Build serialized map of previous data
+      const oldSerialized = {};
+      if (previousRoomData) {
+        previousRoomData.forEach(function(room) {
+          oldSerialized[room.id] = serializeRoom(room);
+        });
+      }
+
+      // Check if data actually changed
+      const newKeys = Object.keys(newSerialized).sort().join(',');
+      const oldKeys = Object.keys(oldSerialized).sort().join(',');
+      let dataChanged = newKeys !== oldKeys;
+      if (!dataChanged) {
+        for (var id in newSerialized) {
+          if (newSerialized[id] !== oldSerialized[id]) {
+            dataChanged = true;
+            break;
+          }
+        }
+      }
+
+      if (!dataChanged && previousRoomData !== null) {
+        // No changes, skip DOM rebuild
+        return;
+      }
+
+      // Data changed, update DOM
+      previousRoomData = roomData;
       rooms = roomData;
-      roomList.innerHTML = '';
+
+      // Remove existing room items (but keep noRooms element)
+      const existingItems = roomList.querySelectorAll('.room-item');
+      existingItems.forEach(function(item) { item.remove(); });
 
       if (rooms.length === 0) {
         noRooms.style.display = 'block';
@@ -646,37 +848,15 @@
 
       noRooms.style.display = 'none';
 
-      rooms.forEach(room => {
-        const roomItem = document.createElement('div');
-        roomItem.className = 'room-item';
-
-        const isPlaying = room.status === 'playing';
-        const isFull = room.playerCount >= room.maxPlayers;
-
-        roomItem.innerHTML = `
-          <div class="room-info">
-            <div class="room-name">${escapeHtml(room.name)}</div>
-            <div class="room-details">
-              <span class="room-mode ${room.gameMode}">${room.gameMode}</span>
-              <span>${room.playerCount}/${room.maxPlayers} players</span>
-              <span class="room-status ${room.status}">${room.status}</span>
-            </div>
-          </div>
-          <button class="join-room-btn ${isPlaying ? 'spectate' : ''}"
-                  ${isFull && !isPlaying ? 'disabled' : ''}
-                  onclick="joinRoom('${room.id}', ${isPlaying})">
-            ${isPlaying ? 'Spectate' : (isFull ? 'Full' : 'Join')}
-          </button>
-        `;
-
-        roomList.appendChild(roomItem);
+      rooms.forEach(function(room) {
+        roomList.appendChild(buildRoomElement(room));
       });
     }
 
     // Update Server Stats
     function updateStats(stats) {
-      roomCount.textContent = stats.rooms;
-      playerCount.textContent = stats.players;
+      roomCountEl.textContent = stats.rooms;
+      playerCountEl.textContent = stats.players;
     }
 
     // Escape HTML to prevent XSS
@@ -686,11 +866,32 @@
       return div.innerHTML;
     }
 
-    // Listen for server messages
-    if (typeof hytopia !== 'undefined' && hytopia.onMessage) {
-      hytopia.onMessage((data) => {
-        console.log('Lobby received:', data.type);
+    // Toast notification helper
+    function showToast(message, type, actions) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast' + (type === 'info' ? ' info' : '');
+      toast.textContent = message;
+      if (actions) {
+        const actDiv = document.createElement('div');
+        actDiv.className = 'toast-actions';
+        actions.forEach(function(act) {
+          const btn = document.createElement('button');
+          btn.className = act.cls || '';
+          btn.textContent = act.label;
+          btn.addEventListener('click', function() { act.fn(); container.removeChild(toast); });
+          actDiv.appendChild(btn);
+        });
+        toast.appendChild(actDiv);
+      } else {
+        setTimeout(function() { if (toast.parentNode) container.removeChild(toast); }, 4000);
+      }
+      container.appendChild(toast);
+    }
 
+    // Listen for server messages
+    if (typeof hytopia !== 'undefined' && hytopia.onData) {
+      hytopia.onData((data) => {
         if (data.type === 'room-list') {
           updateRoomList(data.rooms || []);
           if (data.stats) {
@@ -698,16 +899,22 @@
           }
         }
         else if (data.type === 'room-joined') {
-          console.log('Joined room:', data.room);
+          clearOperationTimeout();
+          hideLoading();
           // Server will load game UI
         }
         else if (data.type === 'room-error') {
-          alert(data.message);
+          clearOperationTimeout();
+          hideLoading();
+          showToast(data.message, 'error');
         }
         else if (data.type === 'room-full') {
-          if (confirm(`${data.message}\n\nWould you like to spectate instead?`)) {
-            joinRoom(data.roomId, true);
-          }
+          clearOperationTimeout();
+          hideLoading();
+          showToast(data.message, 'info', [
+            { label: 'Spectate', cls: 'btn-yes', fn: function() { joinRoom(data.roomId, true); } },
+            { label: 'Cancel', cls: 'btn-no', fn: function() {} }
+          ]);
         }
         else if (data.type === 'server-stats') {
           updateStats(data);

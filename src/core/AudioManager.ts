@@ -18,6 +18,7 @@
 
 import { Audio, World } from "hytopia";
 import { GameMode } from "../../state/gameModes";
+import { GAME_MODE_CONFIGS } from "../../config/ConfigManager";
 import { logger } from "../../utils/GameLogger";
 
 export class AudioManager {
@@ -30,30 +31,30 @@ export class AudioManager {
   constructor(world: World) {
     this.world = world;
 
-    logger.info("<µ Initializing AudioManager...");
+    logger.info("Initializing AudioManager...");
 
     // Create opening/menu music
     this.mainMusic = new Audio({
-      uri: "audio/music/Ian%20Post%20-%208%20Bit%20Samba%20-%20No%20FX.mp3",
+      uri: "audio/music/Ian Post - 8 Bit Samba - No FX.mp3",
       loop: true,
-      volume: 1.0, // Maximum volume for testing - can reduce if too loud
+      volume: 1.0,
     });
 
     // Create arcade gameplay music
     this.arcadeGameplayMusic = new Audio({
       uri: "audio/music/always-win.mp3",
       loop: true,
-      volume: 1.0, // Maximum volume for testing
+      volume: 1.0,
     });
 
     // Create FIFA gameplay music
     this.fifaGameplayMusic = new Audio({
-      uri: "audio/music/Vettore%20-%20Silk.mp3",
+      uri: "audio/music/Vettore - Silk.mp3",
       loop: true,
-      volume: 1.0, // Maximum volume for testing
+      volume: 1.0,
     });
 
-    logger.info(" AudioManager initialized with 3 music tracks");
+    logger.info("AudioManager initialized with 3 music tracks");
     logger.debug("   - Opening: Ian Post - 8 Bit Samba");
     logger.debug("   - Arcade: Always Win");
     logger.debug("   - FIFA: Vettore - Silk");
@@ -68,7 +69,7 @@ export class AudioManager {
       this.mainMusic.pause();
       this.arcadeGameplayMusic.pause();
       this.fifaGameplayMusic.pause();
-      logger.debug("= All music tracks paused");
+      logger.debug("All music tracks paused");
     } catch (error) {
       logger.error("Error stopping music:", error);
     }
@@ -86,16 +87,16 @@ export class AudioManager {
       return true;
     }
 
-    logger.info("<µ Starting opening music (8 Bit Samba)...");
+    logger.info("Starting opening music (8 Bit Samba)...");
     this.stopAllMusic();
 
     try {
       this.mainMusic.play(this.world);
       this.currentlyPlaying = 'opening';
-      logger.info(" Opening music playing at volume 1.0");
+      logger.info("Opening music playing at volume 1.0");
       return true;
     } catch (error) {
-      logger.error("L Failed to play opening music:", error);
+      logger.error("Failed to play opening music:", error);
       this.currentlyPlaying = null;
       return false;
     }
@@ -116,22 +117,29 @@ export class AudioManager {
     }
 
     const trackName = trackType === 'fifa' ? "Vettore - Silk" : "Always Win";
-    logger.info(`<µ Starting gameplay music: ${trackName} (${mode} mode)...`);
+    logger.info(`Starting gameplay music: ${trackName} (${mode} mode)...`);
 
     this.stopAllMusic();
 
     try {
+      // Apply config volume for the game mode
+      const modeKey = mode === GameMode.ARCADE ? 'arcade' : mode === GameMode.TOURNAMENT ? 'tournament' : 'fifa';
+      const modeConfig = GAME_MODE_CONFIGS[modeKey];
+      const volume = modeConfig?.audioConfig?.musicVolume ?? 1.0;
+
       if (trackType === 'fifa') {
+        this.fifaGameplayMusic.setVolume(volume);
         this.fifaGameplayMusic.play(this.world);
       } else {
+        this.arcadeGameplayMusic.setVolume(volume);
         this.arcadeGameplayMusic.play(this.world);
       }
 
       this.currentlyPlaying = trackType;
-      logger.info(` Gameplay music (${trackName}) playing at volume 1.0`);
+      logger.info(`Gameplay music (${trackName}) playing at volume ${volume}`);
       return true;
     } catch (error) {
-      logger.error(`L Failed to play gameplay music (${trackName}):`, error);
+      logger.error(`Failed to play gameplay music (${trackName}):`, error);
       this.currentlyPlaying = null;
       return false;
     }
@@ -155,7 +163,7 @@ export class AudioManager {
    * Stop all music (for cleanup or muting)
    */
   stopAll(): void {
-    logger.info("= Stopping all music");
+    logger.info("Stopping all music");
     this.stopAllMusic();
     this.currentlyPlaying = null;
   }
@@ -168,12 +176,11 @@ export class AudioManager {
   setVolume(volume: number): void {
     const clampedVolume = Math.max(0, Math.min(1, volume));
 
-    this.mainMusic.volume = clampedVolume;
-    this.arcadeGameplayMusic.volume = clampedVolume;
-    this.fifaGameplayMusic.volume = clampedVolume;
+    this.mainMusic.setVolume(clampedVolume);
+    this.arcadeGameplayMusic.setVolume(clampedVolume);
+    this.fifaGameplayMusic.setVolume(clampedVolume);
 
-    logger.info(`=
- Music volume set to: ${clampedVolume.toFixed(2)}`);
+    logger.info(`Music volume set to: ${clampedVolume.toFixed(2)}`);
   }
 
   /**

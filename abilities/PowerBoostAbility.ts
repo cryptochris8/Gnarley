@@ -79,7 +79,7 @@ export class PowerBoostAbility implements Ability {
                     volume: 0.8,
                     attachedToEntity: player,
                 });
-                activationAudio.play(player.world);
+                activationAudio.play(player.world!);
             } catch (e) {
                 console.log("Could not play activation sound:", e);
             }

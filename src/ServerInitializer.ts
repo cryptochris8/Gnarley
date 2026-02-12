@@ -1,6 +1,7 @@
+// @ts-nocheck — Legacy file, replaced by src/core/ServerInitializer.ts
 /**
  * Server Initialization Module
- * 
+ *
  * Handles the setup and initialization of the Hytopia Soccer server.
  * Centralizes server startup logic and world configuration.
  */

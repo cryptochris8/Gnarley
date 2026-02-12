@@ -11,7 +11,7 @@
  */
 
 import type { Vector3Like, Entity, PlayerEntity } from "hytopia";
-import { SoccerAIRole, SHOT_FORCE, SHOT_ARC_FACTOR, PASS_FORCE, PASS_ARC_FACTOR } from "./AIRoleDefinitions";
+import { type SoccerAIRole, SHOT_FORCE, SHOT_ARC_FACTOR, PASS_FORCE, PASS_ARC_FACTOR } from "./AIRoleDefinitions";
 import {
   AI_GOAL_LINE_X_RED,
   AI_GOAL_LINE_X_BLUE,
@@ -22,13 +22,14 @@ import {
   FIELD_MIN_Z,
   FIELD_MAX_Z,
 } from "../../state/gameConfig";
-import type SoccerPlayerEntity from "../SoccerPlayerEntity";
-import type { AIPlayerEntity } from "../AIPlayerEntity";
+import SoccerPlayerEntity from "../SoccerPlayerEntity";
+import AIPlayerEntity from "../AIPlayerEntity";
 
 /**
  * Interface for ball handler context
  */
 export interface BallHandlerContext {
+  entity: any; // Reference to the actual AI player entity for possession checks
   team: "red" | "blue";
   position: Vector3Like;
   aiRole: SoccerAIRole;
@@ -68,7 +69,7 @@ export class AIBallHandler {
     attachedPlayer: any,
     setAttachedPlayer: (player: any) => void
   ): boolean {
-    if (!ball || attachedPlayer !== context) return false;
+    if (!ball || attachedPlayer !== context.entity) return false;
 
     // Calculate direction towards target
     const dx = targetPoint.x - context.position.x;
@@ -166,7 +167,7 @@ export class AIBallHandler {
       powerMultiplier: number
     ) => boolean
   ): boolean {
-    if (!ball || attachedPlayer !== context) return false;
+    if (!ball || attachedPlayer !== context.entity) return false;
 
     const teammates = context.getVisibleTeammates();
     let bestTargetPlayer: PlayerEntity | null = null;
@@ -177,7 +178,7 @@ export class AIBallHandler {
 
     // Evaluate each teammate as a pass target
     for (const teammate of teammates) {
-      if (teammate === context) continue;
+      if (teammate === (context as unknown)) continue;
 
       const distanceToTeammate = context.distanceBetween(context.position, teammate.position);
       if (distanceToTeammate > 30) continue;
@@ -214,8 +215,8 @@ export class AIBallHandler {
 
       // Calculate forward progression bonus
       const isForward =
-        (context.team === "red" && teammate.position.x > context.position.x) ||
-        (context.team === "blue" && teammate.position.x < context.position.x);
+        (context.team === "red" && teammate.position.x < context.position.x) ||
+        (context.team === "blue" && teammate.position.x > context.position.x);
       const forwardPositionBonus = isForward ? 5 : 0;
 
       // Goal proximity bonus

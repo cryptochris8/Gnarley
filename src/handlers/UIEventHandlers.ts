@@ -7,7 +7,7 @@
  * - In-game controls (pass requests, manual resets)
  * - Tournament management
  * - Spectator mode controls
- * - Mobile input handling (movement, actions, camera, gestures)
+ * - Mobile mode detection (SDK handles movement/camera automatically)
  *
  * Extracted from index.ts (lines 412-1722) to reduce file size.
  * This massive handler was nested within the JOINED_WORLD event.
@@ -61,7 +61,7 @@ export class UIEventHandlers {
     player.ui.on(PlayerUIEvent.DATA, async ({ playerUI, data }) => {
       // Skip processing if player is in a room world (handled by RoomManager)
       // Only process events for lobby world players or room-agnostic events
-      if (RoomManager.instance && !RoomManager.isLobbyWorld(player.world)) {
+      if ((RoomManager as any).instance && !RoomManager.isLobbyWorld(player.world!)) {
         // Room players: Only allow room management events through here
         // Team selection and game events are handled by RoomManager
         const roomOnlyEvents = [
@@ -78,7 +78,8 @@ export class UIEventHandlers {
       }
 
       // Debug: Log all incoming data
-      logger.debug(`= Server received data from ${player.username}:`, JSON.stringify(data, null, 2));
+      logger.debug(`=
+ Server received data from ${player.username}:`, JSON.stringify(data, null, 2));
 
       // Route to appropriate handler based on data.type
       switch (data.type) {
@@ -180,25 +181,6 @@ export class UIEventHandlers {
         case "mobile-mode-enabled":
           this.handleMobileModeEnabled(player, data);
           break;
-        /* DISABLED - Conflicts with Hytopia SDK automatic mobile controls
-        case "mobile-movement-input":
-          this.handleMobileMovementInput(player, data);
-          break;
-        case "mobile-action-input":
-          this.handleMobileActionInput(player, data);
-          break;
-        case "mobile-camera-input":
-          this.handleMobileCameraInput(player, data);
-          break;
-
-        // ===== MOBILE GESTURES =====
-        case "mobile-swipe-gesture":
-          this.handleMobileSwipeGesture(player, data);
-          break;
-        case "mobile-zoom-gesture":
-          this.handleMobileZoomGesture(player, data);
-          break;
-        */
 
         default:
           logger.warn(`Unknown UI event type: ${data.type}`);
@@ -212,7 +194,7 @@ export class UIEventHandlers {
   // ============================================================================
 
   private async handleMobileAutoStartFIFA(player: Player, data: any): Promise<void> {
-    logger.info(`📱 Mobile auto-start requested by: ${player.username}`);
+    logger.info(`ðŸ“± Mobile auto-start requested by: ${player.username}`);
 
     // Mark player as mobile
     setMobilePlayer(player, true);
@@ -221,7 +203,7 @@ export class UIEventHandlers {
     // If so, join the existing game with its current mode instead of forcing FIFA
     if (isGameModeLocked() || this.deps.game?.inProgress()) {
       const currentMode = getCurrentGameMode();
-      logger.info(`📱 Game already in progress with ${currentMode} mode - mobile player will join existing match`);
+      logger.info(`ðŸ“± Game already in progress with ${currentMode} mode - mobile player will join existing match`);
 
       // Notify player they're joining an existing game
       player.ui.sendData({
@@ -252,21 +234,21 @@ export class UIEventHandlers {
     // No game in progress - set to FIFA mode (default for mobile quick-start)
     const modeSet = setGameMode(GameMode.FIFA);
     if (modeSet) {
-      logger.info("🎮 Game mode set to FIFA Mode (mobile auto-start)");
+      logger.info("ðŸŽ® Game mode set to FIFA Mode (mobile auto-start)");
     } else {
-      logger.warn("⚠️ Could not set FIFA mode - using current mode");
+      logger.warn("âš ï¸ Could not set FIFA mode - using current mode");
     }
 
     // Check if player already on a team
     if (this.deps.game && this.deps.game.getTeamOfPlayer(player.username) !== null) {
-      logger.warn("📱 Mobile player already on a team");
+      logger.warn("ðŸ“± Mobile player already on a team");
       return;
     }
 
     // Clean up any existing entities
     const existingEntities = this.deps.world.entityManager.getPlayerEntitiesByPlayer(player);
     if (existingEntities.length > 0) {
-      logger.warn(`📱 Mobile player ${player.username} has existing entities - cleaning up...`);
+      logger.warn(`ðŸ“± Mobile player ${player.username} has existing entities - cleaning up...`);
       existingEntities.forEach((entity) => {
         if (entity.isSpawned) {
           entity.despawn();
@@ -279,26 +261,26 @@ export class UIEventHandlers {
     if (this.deps.game) {
       this.deps.game.joinGame(player.username, player.username);
       this.deps.game.joinTeam(player.username, autoTeam);
-      logger.info(`📱 Mobile player auto-joined team: ${autoTeam}`);
+      logger.info(`ðŸ“± Mobile player auto-joined team: ${autoTeam}`);
     }
 
     // Create player entity
     const humanPlayerRole = "central-midfielder-1";
     const playerEntity = new SoccerPlayerEntity(player, autoTeam, humanPlayerRole);
-    logger.info(`📱 Creating mobile player entity for team ${autoTeam} as ${humanPlayerRole}`);
+    logger.info(`ðŸ“± Creating mobile player entity for team ${autoTeam} as ${humanPlayerRole}`);
 
     // Add spawn event listener
     playerEntity.on(EntityEvent.SPAWN, () => {
-      logger.info(`📱 Mobile player entity ${playerEntity.id} successfully spawned`);
+      logger.info(`ðŸ“± Mobile player entity ${playerEntity.id} successfully spawned`);
     });
 
     // Get spawn position
     const spawnPosition = getStartPosition(autoTeam, humanPlayerRole);
-    logger.info(`📱 Mobile spawn position: X=${spawnPosition.x.toFixed(2)}, Y=${spawnPosition.y.toFixed(2)}, Z=${spawnPosition.z.toFixed(2)}`);
+    logger.info(`ðŸ“± Mobile spawn position: X=${spawnPosition.x.toFixed(2)}, Y=${spawnPosition.y.toFixed(2)}, Z=${spawnPosition.z.toFixed(2)}`);
 
     // Spawn player entity
     playerEntity.spawn(this.deps.world, spawnPosition);
-    logger.info(`📱 Mobile player entity spawned as ${humanPlayerRole}`);
+    logger.info(`ðŸ“± Mobile player entity spawned as ${humanPlayerRole}`);
 
     // Freeze player initially
     playerEntity.freeze();
@@ -313,18 +295,18 @@ export class UIEventHandlers {
     // Start gameplay music based on actual mode
     const gameMode = getCurrentGameMode();
     this.deps.audioManager.playGameplayMusic(gameMode);
-    logger.info(`🎵 Music started for ${actualMode} mode (mobile)`);
+    logger.info(`ðŸŽµ Music started for ${actualMode} mode (mobile)`);
 
     // Spawn AI players
-    logger.info("📱 Spawning AI players for mobile single-player mode...");
+    logger.info("ðŸ“± Spawning AI players for mobile single-player mode...");
     await this.deps.spawnAIPlayers(autoTeam);
 
     // Start the game
-    logger.info("📱 Starting game with AI for mobile player...");
+    logger.info("ðŸ“± Starting game with AI for mobile player...");
     const gameStarted = this.deps.game && this.deps.game.startGame();
 
     if (gameStarted) {
-      logger.info(`📱 Mobile ${actualMode} game started successfully!`);
+      logger.info(`ðŸ“± Mobile ${actualMode} game started successfully!`);
 
       // Send chat message to player
       this.deps.world.chatManager.sendPlayerMessage(
@@ -336,16 +318,16 @@ export class UIEventHandlers {
       setTimeout(() => {
         if (playerEntity && typeof playerEntity.unfreeze === "function") {
           playerEntity.unfreeze();
-          logger.info("📱 Mobile player unfrozen - game active!");
+          logger.info("ðŸ“± Mobile player unfrozen - game active!");
         }
 
         // Lock pointer for gameplay
         player.ui.lockPointer(true);
-        logger.info(`📱 Pointer locked for mobile player ${player.username} - Game controls enabled`);
+        logger.info(`ðŸ“± Pointer locked for mobile player ${player.username} - Game controls enabled`);
       }, 500);
 
     } else {
-      logger.error("📱 Failed to start mobile game");
+      logger.error("ðŸ“± Failed to start mobile game");
       this.deps.world.chatManager.sendPlayerMessage(
         player,
         "Failed to start game. Please reconnect."
@@ -363,7 +345,7 @@ export class UIEventHandlers {
     // CRITICAL FIX: Check if game mode is locked (match in progress)
     if (isGameModeLocked()) {
       const currentMode = getCurrentGameMode();
-      logger.warn(`⚠️ Player ${player.username} tried to select ${data.mode} but mode is locked to ${currentMode}`);
+      logger.warn(`âš ï¸ Player ${player.username} tried to select ${data.mode} but mode is locked to ${currentMode}`);
 
       // Inform the player that a match is in progress with a specific mode
       player.ui.sendData({
@@ -381,7 +363,7 @@ export class UIEventHandlers {
         wasLocked: true,
       });
 
-      logger.info(`📱 Player ${player.username} will join existing ${currentMode} match`);
+      logger.info(`ðŸ“± Player ${player.username} will join existing ${currentMode} match`);
       return;
     }
 
@@ -389,21 +371,21 @@ export class UIEventHandlers {
     // This is after a user gesture, so browser will allow audio playback
     if (!this.deps.game?.inProgress()) {
       this.deps.audioManager.playOpeningMusic();
-      logger.info("🎵 Opening music started after user interaction");
+      logger.info("ðŸŽµ Opening music started after user interaction");
     }
 
     // Set the game mode using the imported functions
     let modeSet = false;
     if (data.mode === "fifa") {
       modeSet = setGameMode(GameMode.FIFA);
-      if (modeSet) logger.info("🎮 Game mode set to FIFA Mode");
+      if (modeSet) logger.info("ðŸŽ® Game mode set to FIFA Mode");
     } else if (data.mode === "arcade") {
       modeSet = setGameMode(GameMode.ARCADE);
-      if (modeSet) logger.info("🎮 Game mode set to Arcade Mode");
+      if (modeSet) logger.info("ðŸŽ® Game mode set to Arcade Mode");
     }
 
     if (!modeSet) {
-      logger.warn(`⚠️ Failed to set game mode to ${data.mode} - mode may be locked`);
+      logger.warn(`âš ï¸ Failed to set game mode to ${data.mode} - mode may be locked`);
     }
 
     // Send confirmation back to UI
@@ -413,7 +395,7 @@ export class UIEventHandlers {
       config: getCurrentModeConfig(),
     });
 
-    logger.info("🎮 Game mode selected - ready for team selection");
+    logger.info("ðŸŽ® Game mode selected - ready for team selection");
   }
 
   private handleSinglePlayerSelection(player: Player, data: any): void {
@@ -455,7 +437,7 @@ export class UIEventHandlers {
     const existingEntities = this.deps.world.entityManager.getPlayerEntitiesByPlayer(player);
     if (existingEntities.length > 0) {
       logger.warn(
-        `�  Player ${player.username} already has ${existingEntities.length} entities! Cleaning up...`
+        `ï¿½  Player ${player.username} already has ${existingEntities.length} entities! Cleaning up...`
       );
       existingEntities.forEach((entity) => {
         if (entity.isSpawned) {
@@ -496,7 +478,7 @@ export class UIEventHandlers {
 
     // Show mobile controls after spawn if player is on mobile
     if ((player as any)._isMobilePlayer) {
-      logger.info(`📱 Showing mobile controls for ${player.username} after spawn`);
+      logger.info(`ðŸ“± Showing mobile controls for ${player.username} after spawn`);
       player.ui.sendData({
         type: "show-mobile-controls",
         message: "Player spawned - showing mobile controls",
@@ -513,7 +495,7 @@ export class UIEventHandlers {
     if (this.deps.game) {
       const currentMode = getCurrentGameMode();
       this.deps.audioManager.playGameplayMusic(currentMode);
-      logger.info(`🎵 Music transitioned to gameplay (${currentMode} mode)`);
+      logger.info(`ðŸŽµ Music transitioned to gameplay (${currentMode} mode)`);
     }
 
     // Start FIFA crowd atmosphere if in FIFA mode
@@ -552,12 +534,12 @@ export class UIEventHandlers {
 
         // DEBUG: Log current game mode at game start
         const currentModeCheck = getCurrentGameMode();
-        logger.info(`🎮 GAME START DEBUG: Current game mode is: ${currentModeCheck}`);
-        logger.info(`🎮 GAME START DEBUG: isArcadeMode() returns: ${isArcadeMode()}`);
+        logger.info(`ðŸŽ® GAME START DEBUG: Current game mode is: ${currentModeCheck}`);
+        logger.info(`ðŸŽ® GAME START DEBUG: isArcadeMode() returns: ${isArcadeMode()}`);
 
         // Activate pickup system if in arcade mode
         if (isArcadeMode()) {
-          logger.info(`<� Activating pickup system for Arcade Mode`);
+          logger.info(`<ï¿½ Activating pickup system for Arcade Mode`);
           this.deps.pickupManager.activate();
         }
 
@@ -570,7 +552,7 @@ export class UIEventHandlers {
 
           // CRITICAL: Lock pointer for gameplay (Hytopia-compliant approach)
           player.ui.lockPointer(true);
-          logger.info(`<� Pointer locked for ${player.username} - Game controls enabled`);
+          logger.info(`<ï¿½ Pointer locked for ${player.username} - Game controls enabled`);
 
           // Clear loading UI
           player.ui.sendData({
@@ -733,7 +715,7 @@ export class UIEventHandlers {
 
   private async handleMobileTeamSelection(player: Player, data: any): Promise<void> {
     const selectedTeam = data.team;
-    logger.info(`=� Mobile team selection: ${player.username} chose ${selectedTeam}`);
+    logger.info(`=ï¿½ Mobile team selection: ${player.username} chose ${selectedTeam}`);
 
     // Send immediate mobile confirmation
     player.ui.sendData({
@@ -746,7 +728,7 @@ export class UIEventHandlers {
     // This ensures mobile players get properly spawned into the game
     await this.handleTeamSelection(player, data);
 
-    logger.info(`=� Mobile team selection complete for ${player.username} on ${selectedTeam} team`);
+    logger.info(`=ï¿½ Mobile team selection complete for ${player.username} on ${selectedTeam} team`);
   }
 
   // ============================================================================
@@ -766,7 +748,7 @@ export class UIEventHandlers {
   }
 
   private handleForcePass(player: Player, data: any): void {
-    logger.info(`<� SERVER: Received force-pass request from ${player.username}`);
+    logger.info(`<ï¿½ SERVER: Received force-pass request from ${player.username}`);
 
     // Find the player's entity
     const playerEntity = this.deps.world.entityManager
@@ -839,7 +821,7 @@ export class UIEventHandlers {
       playerWithBall.team === requestingPlayerEntity.team
     ) {
       logger.info(
-        `<� HUMAN PLAYER REQUESTING PASS: AI ${playerWithBall.player.username} passing to ${requestingPlayerEntity.player.username}`
+        `<ï¿½ HUMAN PLAYER REQUESTING PASS: AI ${playerWithBall.player.username} passing to ${requestingPlayerEntity.player.username}`
       );
 
       // Calculate distance between AI and requesting player for power scaling
@@ -934,7 +916,7 @@ export class UIEventHandlers {
       // CRITICAL: Unlock pointer for UI interactions after manual reset (Hytopia-compliant approach)
       player.ui.lockPointer(false);
       logger.info(
-        `<� Pointer unlocked for ${player.username} after manual reset - UI interactions enabled`
+        `<ï¿½ Pointer unlocked for ${player.username} after manual reset - UI interactions enabled`
       );
 
       // Clear AI players list
@@ -961,7 +943,7 @@ export class UIEventHandlers {
   }
 
   private handleStartSecondHalf(player: Player, data: any): void {
-    logger.info(`=� Player ${player.username} requested to start second half`);
+    logger.info(`=ï¿½ Player ${player.username} requested to start second half`);
 
     // Only allow if game is in halftime
     if (this.deps.game && this.deps.game.getState().isHalftime) {
@@ -987,8 +969,8 @@ export class UIEventHandlers {
   // ============================================================================
 
   private handleTournamentCreate(player: Player, data: any): void {
-    logger.info(`<� Player ${player.username} creating tournament:`, data);
-    logger.info(`<� Tournament creation request details:`, {
+    logger.info(`<ï¿½ Player ${player.username} creating tournament:`, data);
+    logger.info(`<ï¿½ Tournament creation request details:`, {
       name: data.name,
       type: data.tournamentType,
       gameMode: data.gameMode,
@@ -1007,7 +989,7 @@ export class UIEventHandlers {
         player.username
       );
 
-      logger.info(`<� Tournament created successfully, sending response to ${player.username}`);
+      logger.info(`<ï¿½ Tournament created successfully, sending response to ${player.username}`);
 
       const tournamentResponse = {
         type: "tournament-created",
@@ -1023,12 +1005,12 @@ export class UIEventHandlers {
         },
       };
 
-      logger.info(`<� Sending tournament-created response:`, tournamentResponse);
+      logger.info(`<ï¿½ Sending tournament-created response:`, tournamentResponse);
       player.ui.sendData(tournamentResponse);
 
       // Broadcast tournament creation to all players
       const allPlayers = PlayerManager.instance.getConnectedPlayers();
-      logger.info(`<� Broadcasting tournament list to ${allPlayers.length} players`);
+      logger.info(`<ï¿½ Broadcasting tournament list to ${allPlayers.length} players`);
 
       allPlayers.forEach((p) => {
         p.ui.sendData({
@@ -1055,13 +1037,13 @@ export class UIEventHandlers {
         message: `Failed to create tournament: ${error.message}`,
       };
 
-      logger.info(`<� Sending tournament-error response:`, errorResponse);
+      logger.info(`<ï¿½ Sending tournament-error response:`, errorResponse);
       player.ui.sendData(errorResponse);
     }
   }
 
   private handleTournamentJoin(player: Player, data: any): void {
-    logger.info(`<� Player ${player.username} joining tournament: ${data.tournamentId}`);
+    logger.info(`<ï¿½ Player ${player.username} joining tournament: ${data.tournamentId}`);
 
     try {
       const success = this.deps.tournamentManager.registerPlayer(
@@ -1123,7 +1105,7 @@ export class UIEventHandlers {
   }
 
   private handleTournamentLeave(player: Player, data: any): void {
-    logger.info(`<� Player ${player.username} leaving tournament`);
+    logger.info(`<ï¿½ Player ${player.username} leaving tournament`);
 
     const activeTournaments = this.deps.tournamentManager.getPlayerActiveTournaments(
       player.username
@@ -1181,7 +1163,7 @@ export class UIEventHandlers {
   }
 
   private handleTournamentReady(player: Player, data: any): void {
-    logger.info(`<� Player ${player.username} marking ready for tournament match`);
+    logger.info(`<ï¿½ Player ${player.username} marking ready for tournament match`);
 
     const match = this.deps.tournamentManager.getMatchForPlayer(player.username);
     if (match) {
@@ -1235,7 +1217,7 @@ export class UIEventHandlers {
   }
 
   private handleTournamentGetStatus(player: Player, data: any): void {
-    logger.info(`<� Player ${player.username} requesting tournament status`);
+    logger.info(`<ï¿½ Player ${player.username} requesting tournament status`);
 
     const activeTournaments = this.deps.tournamentManager.getPlayerActiveTournaments(
       player.username
@@ -1278,7 +1260,7 @@ export class UIEventHandlers {
   }
 
   private handleTournamentGetList(player: Player, data: any): void {
-    logger.info(`<� Player ${player.username} requesting tournament list`);
+    logger.info(`<ï¿½ Player ${player.username} requesting tournament list`);
 
     const tournaments = this.deps.tournamentManager.getActiveTournaments();
 
@@ -1303,17 +1285,17 @@ export class UIEventHandlers {
   // ============================================================================
 
   private handleSpectatorNextPlayer(player: Player, data: any): void {
-    logger.info(`<� Spectator ${player.username} wants to switch to next player`);
+    logger.info(`<ï¿½ Spectator ${player.username} wants to switch to next player`);
     this.deps.spectatorMode.nextPlayer(player);
   }
 
   private handleSpectatorNextCamera(player: Player, data: any): void {
-    logger.info(`<� Spectator ${player.username} wants to switch camera mode`);
+    logger.info(`<ï¿½ Spectator ${player.username} wants to switch camera mode`);
     this.deps.spectatorMode.nextCameraMode(player);
   }
 
   private handleSpectatorLeave(player: Player, data: any): void {
-    logger.info(`<� Spectator ${player.username} wants to leave spectator mode`);
+    logger.info(`<ï¿½ Spectator ${player.username} wants to leave spectator mode`);
     this.deps.spectatorMode.removeSpectator(player);
   }
 
@@ -1322,8 +1304,8 @@ export class UIEventHandlers {
   // ============================================================================
 
   private handleMobileModeEnabled(player: Player, data: any): void {
-    logger.info(`=� Player ${player.username} enabled mobile mode`);
-    logger.info(`=� Device info:`, data.deviceInfo);
+    logger.info(`=ï¿½ Player ${player.username} enabled mobile mode`);
+    logger.info(`=ï¿½ Device info:`, data.deviceInfo);
 
     // Store mobile mode preference for this player
     (player as any)._isMobilePlayer = true;
@@ -1341,320 +1323,6 @@ export class UIEventHandlers {
     logger.info(` Mobile mode enabled for ${player.username}`);
   }
 
-  private handleMobileMovementInput(player: Player, data: any): void {
-    // Handle mobile virtual joystick movement - HYTOPIA SDK COMPLIANT
-    const movementInput = data.movement;
-    const inputMagnitude = data.inputMagnitude || 0;
-
-    // Input validation and throttling
-    if (
-      !movementInput ||
-      (Math.abs(movementInput.x) < 0.01 && Math.abs(movementInput.y) < 0.01)
-    ) {
-      return; // Ignore negligible input to reduce processing
-    }
-
-    // Get the player's soccer entity
-    const playerEntity = this.deps.world.entityManager.getPlayerEntitiesByPlayer(player)[0];
-    if (playerEntity && playerEntity instanceof SoccerPlayerEntity) {
-      // Store mobile player optimization data
-      const mobileData = (player as any)._mobileOptimization || {
-        lastInputTime: 0,
-        inputBuffer: [],
-        throttleInterval: 33, // 30fps for mobile optimization
-      };
-
-      const currentTime = Date.now();
-
-      // Server-side input throttling for mobile devices
-      if (currentTime - mobileData.lastInputTime < mobileData.throttleInterval) {
-        // Buffer the input for smooth interpolation
-        mobileData.inputBuffer.push({ movement: movementInput, time: currentTime });
-        if (mobileData.inputBuffer.length > 3) {
-          mobileData.inputBuffer.shift(); // Keep only recent inputs
-        }
-        return;
-      }
-
-      // Process buffered inputs for smooth movement
-      if (mobileData.inputBuffer.length > 0) {
-        const avgInput = mobileData.inputBuffer.reduce(
-          (acc: { x: number; y: number }, input: any) => ({
-            x: acc.x + input.movement.x,
-            y: acc.y + input.movement.y,
-          }),
-          { x: 0, y: 0 }
-        );
-
-        avgInput.x /= mobileData.inputBuffer.length;
-        avgInput.y /= mobileData.inputBuffer.length;
-
-        // Use averaged input for smoother movement
-        Object.assign(movementInput, avgInput);
-        mobileData.inputBuffer = [];
-      }
-
-      mobileData.lastInputTime = currentTime;
-      (player as any)._mobileOptimization = mobileData;
-
-      // Convert joystick input to HYTOPIA SDK PlayerInput format
-      const deadzone = 0.15; // Server-side deadzone verification
-      const magnitude = Math.sqrt(movementInput.x * movementInput.x + movementInput.y * movementInput.y);
-
-      if (magnitude < deadzone) {
-        return; // Ignore inputs within deadzone
-      }
-
-      // Apply mobile-specific movement scaling
-      const mobileSensitivity = (player as any)._mobileSensitivity || 1.0;
-      const scaledInput = {
-        x: movementInput.x * mobileSensitivity,
-        y: movementInput.y * mobileSensitivity,
-      };
-
-      // HYTOPIA SDK COMPLIANT PlayerInput - Use standard SDK input properties
-      const hytopiaPlayerInput = {
-        // Movement keys (w, a, s, d)
-        w: scaledInput.y > 0.1, // forward
-        a: scaledInput.x < -0.1, // left
-        s: scaledInput.y < -0.1, // backward
-        d: scaledInput.x > 0.1, // right
-
-        // Mouse buttons
-        ml: false, // mouse left click
-        mr: false, // mouse right click
-
-        // Other standard keys
-        sp: false, // spacebar
-        sh: false, // shift
-        q: false, // charge shot
-        e: false, // tackle
-        r: false,
-        f: false,
-        z: false,
-        x: false,
-        c: false,
-        v: false,
-
-        // Number keys
-        1: false,
-        2: false,
-        3: false,
-        4: false,
-        5: false,
-        6: false,
-        7: false,
-        8: false,
-        9: false,
-      };
-
-      // Apply movement through the player controller using proper PlayerInput
-      if (playerEntity.controller && playerEntity.controller.tickWithPlayerInput) {
-        // Use stored mobile camera orientation for movement direction
-        const storedCamera = (player as any)._mobileCameraOrientation || { yaw: 0, pitch: 0 };
-        const cameraOrientation = {
-          yaw: storedCamera.yaw,
-          pitch: storedCamera.pitch,
-        };
-
-        // Optimized delta time for mobile devices
-        const deltaTime = Math.min(33, currentTime - mobileData.lastInputTime + 16);
-
-        playerEntity.controller.tickWithPlayerInput(
-          playerEntity,
-          hytopiaPlayerInput, // Now using proper Hytopia SDK format
-          cameraOrientation,
-          deltaTime
-        );
-      }
-    }
-  }
-
-  private handleMobileActionInput(player: Player, data: any): void {
-    // Handle mobile action button presses - HYTOPIA SDK COMPLIANT
-    const action = data.action;
-    const pressed = data.pressed;
-
-    logger.info(`=� Mobile action: ${player.username} ${action} ${pressed ? "pressed" : "released"}`);
-
-    // Get the player's soccer entity
-    const playerEntity = this.deps.world.entityManager.getPlayerEntitiesByPlayer(player)[0];
-    if (playerEntity && playerEntity instanceof SoccerPlayerEntity) {
-      // Create HYTOPIA SDK compliant PlayerInput for actions
-      const hytopiaActionInput = {
-        // Movement keys - false for action input
-        w: false,
-        a: false,
-        s: false,
-        d: false,
-
-        // Map mobile actions to proper Hytopia SDK input properties
-        ml: action === "pass" && pressed, // mouse left = pass
-        mr: action === "shoot" && pressed, // mouse right = shoot
-        sp: false, // spacebar
-        sh: false, // shift
-        q: false, // charge shot
-        e: action === "tackle" && pressed, // tackle
-        r: false,
-        f: action === "dodge" && pressed, // dodge (f key)
-        z: false,
-        x: false,
-        c: false,
-        v: false,
-
-        // Number keys
-        1: false,
-        2: false,
-        3: false,
-        4: false,
-        5: false,
-        6: false,
-        7: false,
-        8: false,
-        9: false,
-      };
-
-      // Get stored mobile camera orientation or default
-      const storedCamera = (player as any)._mobileCameraOrientation || { yaw: 0, pitch: 0 };
-
-      // Apply action through the player controller using proper PlayerInput
-      if (playerEntity.controller && playerEntity.controller.tickWithPlayerInput) {
-        const cameraOrientation = {
-          yaw: storedCamera.yaw,
-          pitch: storedCamera.pitch,
-        };
-
-        playerEntity.controller.tickWithPlayerInput(
-          playerEntity,
-          hytopiaActionInput, // Now using proper Hytopia SDK format
-          cameraOrientation,
-          16 // 16ms delta time
-        );
-      }
-
-      // Send feedback for successful action registration
-      if (pressed) {
-        player.ui.sendData({
-          type: "mobile-action-feedback",
-          action: action,
-          success: true,
-        });
-      }
-    }
-  }
-
-  private handleMobileCameraInput(player: Player, data: any): void {
-    // Handle mobile camera rotation - NEW SYSTEM
-    const camera = data.camera;
-
-    logger.info(
-      `=� Mobile camera: ${player.username} yaw=${camera.yaw.toFixed(3)}, pitch=${camera.pitch.toFixed(3)}`
-    );
-
-    // Store camera orientation for this mobile player
-    (player as any)._mobileCameraOrientation = {
-      yaw: camera.yaw,
-      pitch: camera.pitch,
-    };
-
-    // Get the player's soccer entity
-    const playerEntity = this.deps.world.entityManager.getPlayerEntitiesByPlayer(player)[0];
-    if (playerEntity && playerEntity instanceof SoccerPlayerEntity) {
-      // Apply camera rotation through Hytopia SDK if available
-      if (player.camera && typeof player.camera.setOffset === "function") {
-        try {
-          // Calculate camera offset based on mobile rotation
-          const distance = 5; // Camera distance from player
-          const height = 2; // Camera height offset
-
-          const offsetX = Math.sin(camera.yaw) * distance;
-          const offsetZ = Math.cos(camera.yaw) * distance;
-          const offsetY = height + Math.sin(camera.pitch) * 2;
-
-          // Apply camera offset for third-person view optimized for mobile
-          player.camera.setOffset({
-            x: offsetX,
-            y: offsetY,
-            z: offsetZ,
-          });
-
-          // Set camera to track the player entity
-          player.camera.setTrackedEntity(playerEntity);
-
-          // Optimize FOV for mobile
-          if (typeof player.camera.setFov === "function") {
-            player.camera.setFov(85); // Wider FOV for better mobile experience
-          }
-        } catch (cameraError) {
-          logger.warn(`=� Camera control error for ${player.username}:`, cameraError);
-        }
-      }
-
-      // Send camera feedback to mobile UI
-      player.ui.sendData({
-        type: "mobile-camera-feedback",
-        camera: camera,
-        success: true,
-      });
-    }
-  }
-
-  // ============================================================================
-  // MOBILE GESTURE HANDLERS
-  // ============================================================================
-
-  private handleMobileSwipeGesture(player: Player, data: any): void {
-    // Handle swipe gestures for special actions
-    const direction = data.direction;
-    const speed = data.speed;
-    const distance = data.distance;
-
-    logger.info(`=� Swipe gesture: ${player.username} swiped ${direction} (${speed.toFixed(1)} px/ms)`);
-
-    // Get the player's soccer entity
-    const playerEntity = this.deps.world.entityManager.getPlayerEntitiesByPlayer(player)[0];
-    if (playerEntity && playerEntity instanceof SoccerPlayerEntity) {
-      // NOTE: The original code had complex swipe handling with hardcoded input objects
-      // This is a placeholder - the actual implementation would need to be adapted
-      // to match the new controller architecture
-
-      // Send feedback to mobile UI
-      player.ui.sendData({
-        type: "mobile-swipe-feedback",
-        direction: direction,
-        action:
-          direction === "up"
-            ? "Power Shot"
-            : direction === "down"
-              ? "Dodge"
-              : `Pass ${direction.toUpperCase()}`,
-        success: true,
-      });
-    }
-  }
-
-  private handleMobileZoomGesture(player: Player, data: any): void {
-    // Handle pinch-to-zoom for camera control
-    const zoom = data.zoom;
-    const center = data.center;
-
-    logger.info(`=� Zoom gesture: ${player.username} zoom ${zoom.toFixed(2)}x`);
-
-    // Get the player's soccer entity
-    const playerEntity = this.deps.world.entityManager.getPlayerEntitiesByPlayer(player)[0];
-    if (playerEntity && playerEntity instanceof SoccerPlayerEntity) {
-      // Store mobile zoom preference for this player
-      (player as any)._mobileZoomLevel = zoom;
-
-      // Send zoom feedback to mobile UI
-      player.ui.sendData({
-        type: "mobile-zoom-feedback",
-        zoom: zoom,
-        success: true,
-      });
-    }
-  }
-
   // ===== ROOM MANAGEMENT HANDLERS =====
 
   /**
@@ -1666,7 +1334,7 @@ export class UIEventHandlers {
                           data.gameMode === 'tournament' ? GameMode.TOURNAMENT :
                           getCurrentGameMode() || GameMode.FIFA;
 
-    logger.info(`⚡ Quick Play requested by ${player.username} (preferred mode: ${preferredMode})`);
+    logger.info(`âš¡ Quick Play requested by ${player.username} (preferred mode: ${preferredMode})`);
 
     if (!RoomManager.isInitialized()) {
       logger.warn("RoomManager not initialized - falling back to lobby game");
@@ -1698,7 +1366,7 @@ export class UIEventHandlers {
    * Handle create room request
    */
   private async handleCreateRoom(player: Player, data: any): Promise<void> {
-    logger.info(`🏠 Create room requested by ${player.username}: ${data.name}`);
+    logger.info(`ðŸ  Create room requested by ${player.username}: ${data.name}`);
 
     if (!RoomManager.isInitialized()) {
       player.ui.sendData({
@@ -1727,7 +1395,7 @@ export class UIEventHandlers {
    * Handle join room request
    */
   private async handleJoinRoom(player: Player, data: any): Promise<void> {
-    logger.info(`🚪 Join room requested by ${player.username}: ${data.roomId}`);
+    logger.info(`ðŸšª Join room requested by ${player.username}: ${data.roomId}`);
 
     if (!RoomManager.isInitialized()) {
       player.ui.sendData({
@@ -1745,7 +1413,7 @@ export class UIEventHandlers {
    * Handle join room as spectator request
    */
   private async handleJoinRoomSpectate(player: Player, data: any): Promise<void> {
-    logger.info(`👁️ Spectate room requested by ${player.username}: ${data.roomId}`);
+    logger.info(`ðŸ‘ï¸ Spectate room requested by ${player.username}: ${data.roomId}`);
 
     if (!RoomManager.isInitialized()) {
       player.ui.sendData({
@@ -1763,7 +1431,7 @@ export class UIEventHandlers {
    * Handle leave room request
    */
   private handleLeaveRoom(player: Player, data: any): void {
-    logger.info(`🚶 Leave room requested by ${player.username}`);
+    logger.info(`ðŸš¶ Leave room requested by ${player.username}`);
 
     if (!RoomManager.isInitialized()) {
       return;
@@ -1777,7 +1445,7 @@ export class UIEventHandlers {
    * Handle refresh room list request
    */
   private handleRefreshRoomList(player: Player, data: any): void {
-    logger.debug(`🔄 Room list refresh requested by ${player.username}`);
+    logger.debug(`ðŸ”„ Room list refresh requested by ${player.username}`);
 
     if (!RoomManager.isInitialized()) {
       player.ui.sendData({

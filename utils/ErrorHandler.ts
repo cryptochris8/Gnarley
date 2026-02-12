@@ -21,7 +21,8 @@ export enum ErrorCategory {
   PERFORMANCE = 'PERFORMANCE',
   CONFIGURATION = 'CONFIGURATION',
   ENTITY = 'ENTITY',
-  TIMER = 'TIMER'
+  TIMER = 'TIMER',
+  MOBILE = 'MOBILE'
 }
 
 export enum ErrorSeverity {
@@ -239,7 +240,8 @@ export class ErrorHandler {
       [ErrorCategory.PERFORMANCE]: '⚡',
       [ErrorCategory.CONFIGURATION]: '⚙️',
       [ErrorCategory.ENTITY]: '👤',
-      [ErrorCategory.TIMER]: '⏰'
+      [ErrorCategory.TIMER]: '⏰',
+      [ErrorCategory.MOBILE]: '📱'
     };
     return emojiMap[category] || '❌';
   }

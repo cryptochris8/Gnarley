@@ -284,8 +284,8 @@ export class TeamManagementService {
     const redCount = this.getTeamPlayerCount("red");
     const blueCount = this.getTeamPlayerCount("blue");
 
-    this.world.entityManager.getAllPlayerEntities().forEach((player) => {
-      player.sendData({
+    this.world.entityManager.getAllPlayerEntities().forEach((playerEntity) => {
+      playerEntity.player.ui.sendData({
         type: "team-counts",
         redCount,
         blueCount,

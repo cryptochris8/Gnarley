@@ -28,6 +28,10 @@ export const GAME_CONFIG = {
   AI_MIDFIELD_Z_BOUNDARY_MAX: 20, // Max Z for midfielders
   AI_MIDFIELD_Z_BOUNDARY_MIN: -27, // Min Z for midfielders
   
+  // Goal dimensions
+  GOAL_WIDTH: 10,       // Total width of goal (5 blocks each side of center)
+  GOAL_HEIGHT: 4,       // Goal height in blocks
+
   // Team setup
   MAX_PLAYERS_PER_TEAM: 6,
   MIN_PLAYERS_PER_TEAM: 1,
@@ -60,6 +64,8 @@ export const AI_WIDE_Z_BOUNDARY_MIN = GAME_CONFIG.AI_WIDE_Z_BOUNDARY_MIN;
 export const AI_MIDFIELD_Z_BOUNDARY_MAX = GAME_CONFIG.AI_MIDFIELD_Z_BOUNDARY_MAX;
 export const AI_MIDFIELD_Z_BOUNDARY_MIN = GAME_CONFIG.AI_MIDFIELD_Z_BOUNDARY_MIN;
 export const MAX_PLAYERS_PER_TEAM = GAME_CONFIG.MAX_PLAYERS_PER_TEAM;
+export const GOAL_WIDTH = GAME_CONFIG.GOAL_WIDTH;
+export const GOAL_HEIGHT = GAME_CONFIG.GOAL_HEIGHT;
 
 // Game timing configuration - Updated to 2 halves system
 export const HALF_DURATION = 3 * 60; // 3 minutes per half in seconds
@@ -76,10 +82,10 @@ export const BALL_CONFIG = {
   // Ball properties
   SCALE: 0.2,
   RADIUS: 0.2,
-  FRICTION: 0.25, // REDUCED from 0.4 to prevent ball from stopping in outer areas
+  FRICTION: 0.35, // Balanced: enough grip to control, not too slippery
 
-  // Movement damping - REDUCED to keep ball moving longer
-  LINEAR_DAMPING: 0.4, // REDUCED from 0.7 to prevent ball from stopping too quickly
+  // Movement damping - lower for longer rolling
+  LINEAR_DAMPING: 0.2, // Reduced for more natural ball travel distance
   ANGULAR_DAMPING: 2.5, // REDUCED from 3.0 for more natural ball rotation
 
   // ENHANCED: Impact forces for realistic crossbar bouncing
@@ -88,7 +94,7 @@ export const BALL_CONFIG = {
   UPWARD_BIAS: 0.2, // Increased from 0.15 for more realistic ball trajectory
 };
 
-export const ABILITY_RESPAWN_TIME = 8 * 1000; // Reduced from 15s to 8s for faster testing
+export const ABILITY_RESPAWN_TIME = 15 * 1000; // 15 seconds between ability respawns
 
 // Ability pickup positions for large stadium - ENHANCED for better visibility and spacing
 export const ABILITY_PICKUP_POSITIONS = [

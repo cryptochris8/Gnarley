@@ -57,7 +57,7 @@ describe('ConfigManager', () => {
       expect(config.scale).toBe(0.2);
       expect(config.friction).toBe(0.4);
       expect(config.linearDamping).toBe(0.7);
-      expect(config.realisticPhysics).toBeUndefined(); // Should not have game mode properties
+      expect((config as any).realisticPhysics).toBeUndefined(); // Should not have game mode properties
     });
 
     it('should return arcade ball physics', () => {

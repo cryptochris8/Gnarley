@@ -105,7 +105,7 @@ export class EnhancedPowerAbility implements Ability {
                 }
             });
 
-            magicCircle.spawn(player.world, {
+            magicCircle.spawn(player.world!, {
                 x: player.position.x,
                 y: player.position.y + 0.1, // Slightly above ground
                 z: player.position.z
@@ -279,7 +279,7 @@ export class EnhancedPowerAbility implements Ability {
                 z: player.position.z + direction.z * 3
             };
 
-            waveEffect.spawn(player.world, wavePosition);
+            waveEffect.spawn(player.world!, wavePosition);
 
             // Push ball and players in wave direction
             this.applyWaveForces(player, direction, waveForce);
@@ -315,7 +315,7 @@ export class EnhancedPowerAbility implements Ability {
             }
 
             // Push other players
-            const allPlayers = caster.world.entityManager.getAllPlayerEntities()
+            const allPlayers = caster.world!.entityManager.getAllPlayerEntities()
                 .filter(entity => entity instanceof SoccerPlayerEntity) as SoccerPlayerEntity[];
 
             allPlayers.forEach(player => {
@@ -642,8 +642,8 @@ export class EnhancedPowerAbility implements Ability {
             });
 
             // Use caster's world for room-awareness
-            const world = caster?.world || null;
-            honeyTrap.spawn(world, position);
+            const world = caster?.world;
+            honeyTrap.spawn(world!, position);
 
             // Add collision detection for sticky effects
             honeyTrap.createAndAddChildCollider({
@@ -701,7 +701,7 @@ export class EnhancedPowerAbility implements Ability {
                 }
             });
 
-            stickyEffect.spawn(player.world, {
+            stickyEffect.spawn(player.world!, {
                 x: player.position.x,
                 y: player.position.y + 0.1,
                 z: player.position.z
@@ -727,7 +727,7 @@ export class EnhancedPowerAbility implements Ability {
     private applyStickyBallEffect(ball: Entity, trapPos: Vector3Like): void {
         try {
             // Slow down the ball significantly
-            const currentVelocity = ball.getLinearVelocity();
+            const currentVelocity = ball.linearVelocity;
             ball.setLinearVelocity({
                 x: currentVelocity.x * 0.2,
                 y: currentVelocity.y * 0.2,
@@ -797,7 +797,7 @@ export class EnhancedPowerAbility implements Ability {
                 volume: 1.0,
                 attachedToEntity: player,
             });
-            activationAudio.play(player.world);
+            activationAudio.play(player.world!);
         } catch (error) {
             console.error("❌ ACTIVATION SOUND ERROR:", error);
         }

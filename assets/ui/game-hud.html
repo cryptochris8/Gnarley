@@ -364,13 +364,24 @@
   // NOTE: Mobile action controls are now handled by mobile-controls.html
   // This HUD file only manages display elements (scoreboard, stamina, etc.)
 
+  // ===== THROTTLE HELPER =====
+  let lastScoreRed = -1, lastScoreBlue = -1;
+  let lastTimerText = '', lastHalf = -1;
+  let lastStaminaPct = -1;
+
   // ===== HELPER FUNCTIONS =====
   function updateScore(red, blue) {
+    if (red === lastScoreRed && blue === lastScoreBlue) return;
+    lastScoreRed = red;
+    lastScoreBlue = blue;
     redScore.textContent = red;
     blueScore.textContent = blue;
   }
 
   function updateTimer(time, half) {
+    if (time === lastTimerText && half === lastHalf) return;
+    lastTimerText = time;
+    lastHalf = half;
     timerValue.textContent = time;
     if (half) {
       halfIndicator.textContent = half === 1 ? '1st Half' : '2nd Half';
@@ -378,11 +389,14 @@
   }
 
   function updateStamina(percent) {
-    staminaFill.style.width = percent + '%';
+    var rounded = Math.round(percent);
+    if (rounded === lastStaminaPct) return;
+    lastStaminaPct = rounded;
+    staminaFill.style.width = rounded + '%';
     staminaFill.classList.remove('low', 'critical');
-    if (percent < 20) {
+    if (rounded < 20) {
       staminaFill.classList.add('critical');
-    } else if (percent < 50) {
+    } else if (rounded < 50) {
       staminaFill.classList.add('low');
     }
   }
@@ -426,8 +440,6 @@
   function handleServerData(data) {
     if (!data || !data.type) return;
 
-    console.log('📥 HUD received:', data.type);
-
     switch (data.type) {
       case 'score-update':
         updateScore(data.red || 0, data.blue || 0);
@@ -466,11 +478,8 @@
 
   // ===== INITIALIZE =====
   function init() {
-    console.log('[HUD] Game HUD Initializing...');
-
     // Detect mobile for HUD adjustments
     const isMobile = window.hytopia && window.hytopia.isMobile === true;
-    console.log('[HUD] Mobile device:', isMobile);
 
     // NOTE: Mobile action buttons are now handled by mobile-controls.html
     // This HUD only manages display elements (scoreboard, stamina, etc.)
@@ -480,7 +489,6 @@
       window.hytopia.onData(handleServerData);
     }
 
-    console.log('[HUD] HUD initialized successfully!');
   }
 
   // Run init

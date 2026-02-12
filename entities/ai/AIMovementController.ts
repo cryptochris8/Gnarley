@@ -12,7 +12,7 @@
 
 import type { Vector3Like } from "hytopia";
 import {
-  SoccerAIRole,
+  type SoccerAIRole,
   ROLE_DEFINITIONS,
   TEAMMATE_REPULSION_DISTANCE,
   TEAMMATE_REPULSION_STRENGTH,
@@ -61,13 +61,15 @@ export class AIMovementController {
 
     // Apply repulsion from nearby teammates
     for (const teammate of teammates) {
-      if (teammate.position === context.position) continue;
-
+      // Use distance check instead of === identity comparison (Vector3 objects are never ===)
       const dx = context.position.x - teammate.position.x;
       const dz = context.position.z - teammate.position.z;
       const distance = Math.sqrt(dx * dx + dz * dz);
 
-      if (distance < TEAMMATE_REPULSION_DISTANCE && distance > 0.1) {
+      // Skip self (distance ~0)
+      if (distance < 0.1) continue;
+
+      if (distance < TEAMMATE_REPULSION_DISTANCE) {
         const repulsionStrength =
           TEAMMATE_REPULSION_STRENGTH * (1 - distance / TEAMMATE_REPULSION_DISTANCE);
         adjustedX += (dx / distance) * repulsionStrength;
@@ -75,10 +77,12 @@ export class AIMovementController {
       }
     }
 
+    // Clamp to field bounds after repulsion to prevent pushing out of bounds
+    const margin = 2;
     return {
-      x: adjustedX,
+      x: Math.max(FIELD_MIN_X + margin, Math.min(FIELD_MAX_X - margin, adjustedX)),
       y: targetPos.y,
-      z: adjustedZ,
+      z: Math.max(FIELD_MIN_Z + margin, Math.min(FIELD_MAX_Z - margin, adjustedZ)),
     };
   }
 

@@ -27,6 +27,21 @@ interface BallStationaryTracker {
     stationaryDuration: number;
 }
 
+// Cached pursuit coordination data per team
+interface PursuitCoordinationEntry {
+    /** Sorted list of AI players by distance to ball (closest first) */
+    rankedPlayers: Array<{ player: AIPlayerEntity; distanceToBall: number; isPursuing: boolean }>;
+    /** Timestamp when this cache was last computed */
+    lastUpdated: number;
+    /** Ball position used for this computation */
+    ballPosition: { x: number; y: number; z: number };
+}
+
+interface PursuitCoordinationCache {
+    red: PursuitCoordinationEntry | null;
+    blue: PursuitCoordinationEntry | null;
+}
+
 /**
  * RoomSharedState - Instance-based state for each game room
  * Unlike SharedState singleton, this is created per-room for isolation
@@ -54,6 +69,13 @@ export class RoomSharedState {
     private readonly STATIONARY_THRESHOLD = 1.0;
     private readonly STATIONARY_TIME_LIMIT = 3000;
     private readonly STATIONARY_CHECK_INTERVAL = 1000;
+
+    // Pursuit coordination cache - avoids O(n^2) checks every AI decision cycle
+    private pursuitCoordinationCache: PursuitCoordinationCache = {
+        red: null,
+        blue: null
+    };
+    private readonly PURSUIT_CACHE_TTL = 200; // ms before cache is considered stale
 
     // Room identification
     private roomId: string;
@@ -266,6 +288,74 @@ export class RoomSharedState {
         return this.ballStationaryTracker.lastPosition;
     }
 
+    // --- Pursuit Coordination Cache ---
+    /**
+     * Get cached pursuit coordination data for a team.
+     * Recomputes if the cache is older than PURSUIT_CACHE_TTL ms.
+     * This avoids O(n^2) checks where each of 6 AI players iterates all 5 teammates every decision cycle.
+     * @param team The team to get coordination data for
+     * @param ballPosition Current ball position (used to detect stale cache from ball movement)
+     * @returns The cached pursuit coordination entry
+     */
+    public getPursuitCoordinationCache(team: 'red' | 'blue', ballPosition: { x: number; y: number; z: number }): PursuitCoordinationEntry {
+        const now = Date.now();
+        const existing = this.pursuitCoordinationCache[team];
+
+        // Check if cache is still valid
+        if (existing && (now - existing.lastUpdated) < this.PURSUIT_CACHE_TTL) {
+            return existing;
+        }
+
+        // Recompute the cache
+        const teamPlayers = team === 'red' ? this.redAITeam : this.blueAITeam;
+        const ranked: PursuitCoordinationEntry['rankedPlayers'] = [];
+
+        for (const player of teamPlayers) {
+            if (!player.isSpawned) continue;
+
+            const pos = player.position;
+            const distanceToBall = Math.sqrt(
+                (pos.x - ballPosition.x) ** 2 +
+                (pos.y - ballPosition.y) ** 2 +
+                (pos.z - ballPosition.z) ** 2
+            );
+
+            // Check if pursuing: target position is close to ball
+            const targetPos = player.targetPosition;
+            let isPursuing = false;
+            if (targetPos) {
+                const targetToBall = Math.sqrt(
+                    (targetPos.x - ballPosition.x) ** 2 +
+                    (targetPos.y - ballPosition.y) ** 2 +
+                    (targetPos.z - ballPosition.z) ** 2
+                );
+                isPursuing = targetToBall < 3;
+            }
+
+            ranked.push({ player, distanceToBall, isPursuing });
+        }
+
+        // Sort by distance to ball (closest first)
+        ranked.sort((a, b) => a.distanceToBall - b.distanceToBall);
+
+        const entry: PursuitCoordinationEntry = {
+            rankedPlayers: ranked,
+            lastUpdated: now,
+            ballPosition: { ...ballPosition }
+        };
+
+        this.pursuitCoordinationCache[team] = entry;
+        return entry;
+    }
+
+    /**
+     * Invalidate the pursuit coordination cache (e.g., after a goal or reset)
+     */
+    public invalidatePursuitCache(): void {
+        this.pursuitCoordinationCache.red = null;
+        this.pursuitCoordinationCache.blue = null;
+    }
+
     // --- Room Cleanup ---
     /**
      * Clean up all state when room is destroyed
@@ -282,6 +372,7 @@ export class RoomSharedState {
         this.ballHasMovedFromSpawn = false;
         this.gameState = null;
         this.resetBallStationaryStatus();
+        this.invalidatePursuitCache();
     }
 }
 

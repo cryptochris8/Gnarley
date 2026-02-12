@@ -69,7 +69,7 @@ export class CrystalBarrierAbility implements Ability {
                 volume: 1.0,
                 attachedToEntity: player,
             });
-            activationAudio.play(player.world);
+            activationAudio.play(player.world!);
         } catch (error) {
             console.error("❌ CRYSTAL BARRIER AUDIO ERROR:", error);
         }
@@ -238,7 +238,7 @@ export class CrystalBarrierAbility implements Ability {
                 }
             });
 
-            phaseEffect.spawn(player.world, {
+            phaseEffect.spawn(player.world!, {
                 x: player.position.x,
                 y: player.position.y + 1.0,
                 z: player.position.z

@@ -60,7 +60,7 @@ describe('Performance Tests - AI Caching System', () => {
   });
 
   it('should handle high-frequency AI decisions efficiently', () => {
-    const agent = new CachedSoccerAgent('midfielder');
+    const agent = new CachedSoccerAgent('central-midfielder-1');
     const startTime = Date.now();
     const decisionsCount = 1000;
     
@@ -77,14 +77,20 @@ describe('Performance Tests - AI Caching System', () => {
         teammates: [],
         opponents: [],
         gameState: {
+          mode: 'fifa' as const,
           isActive: true,
+          isPaused: false,
           currentHalf: 1,
+          totalHalves: 2,
           timeRemaining: 45000,
-          score: { team1: 0, team2: 0 }
-        }
+          isHalftime: false,
+          score: { team1: 0, team2: 0 },
+          teamStats: { team1: {} as any, team2: {} as any }
+        },
+        deltaTime: 0.016
       });
     }
-    
+
     const duration = Date.now() - startTime;
     const decisionsPerSecond = (decisionsCount / duration) * 1000;
     
@@ -99,7 +105,7 @@ describe('Performance Tests - AI Caching System', () => {
   });
 
   it('should maintain performance under cache pressure', () => {
-    const agent = new CachedSoccerAgent('forward');
+    const agent = new CachedSoccerAgent('striker');
     const cacheSize = 100;
     const testCache = new AIDecisionCache({
       maxCacheSize: cacheSize,
@@ -121,14 +127,20 @@ describe('Performance Tests - AI Caching System', () => {
         teammates: [],
         opponents: [],
         gameState: {
+          mode: 'fifa' as const,
           isActive: true,
+          isPaused: false,
           currentHalf: 1,
+          totalHalves: 2,
           timeRemaining: 45000,
-          score: { team1: 0, team2: 0 }
-        }
+          isHalftime: false,
+          score: { team1: 0, team2: 0 },
+          teamStats: { team1: {} as any, team2: {} as any }
+        },
+        deltaTime: 0.016
       });
     }
-    
+
     const duration = Date.now() - startTime;
     const stats = testCache.getStats();
     
@@ -140,7 +152,7 @@ describe('Performance Tests - AI Caching System', () => {
 
   it('should demonstrate performance improvement with caching', () => {
     // Test without caching
-    const noCacheAgent = new CachedSoccerAgent('midfielder');
+    const noCacheAgent = new CachedSoccerAgent('central-midfielder-1');
     const testContext = {
       player: {
         position: { x: 10, y: 0, z: 10 },
@@ -152,13 +164,19 @@ describe('Performance Tests - AI Caching System', () => {
       teammates: [],
       opponents: [],
       gameState: {
+        mode: 'fifa' as const,
         isActive: true,
+        isPaused: false,
         currentHalf: 1,
+        totalHalves: 2,
         timeRemaining: 45000,
-        score: { team1: 0, team2: 0 }
-      }
+        isHalftime: false,
+        score: { team1: 0, team2: 0 },
+        teamStats: { team1: {} as any, team2: {} as any }
+      },
+      deltaTime: 0.016
     };
-    
+
     // Warm up cache
     for (let i = 0; i < 5; i++) {
       noCacheAgent.makeDecision(testContext);
@@ -258,7 +276,7 @@ describe('Performance Tests - Timer Management', () => {
   let timerManager: TimerManager;
 
   beforeEach(() => {
-    timerManager = new TimerManager();
+    timerManager = TimerManager.getInstance();
   });
 
   afterEach(() => {
@@ -330,7 +348,7 @@ describe('Performance Tests - Integrated System Load', () => {
     // Initialize all systems
     const cache = new AIDecisionCache({ maxCacheSize: 500 });
     const dashboard = new PerformanceDashboard(mockWorld);
-    const timerManager = new TimerManager();
+    const timerManager = TimerManager.getInstance();
     
     const agents = Array(10).fill(null).map((_, i) => 
       new CachedSoccerAgent(['goalkeeper', 'defender', 'midfielder', 'forward'][i % 4] as any)
@@ -373,11 +391,17 @@ describe('Performance Tests - Integrated System Load', () => {
             teammates: [],
             opponents: [],
             gameState: {
+              mode: 'fifa' as const,
               isActive: true,
+              isPaused: false,
               currentHalf: 1,
+              totalHalves: 2,
               timeRemaining: 45000 - iterations * 100,
-              score: { team1: 0, team2: 0 }
-            }
+              isHalftime: false,
+              score: { team1: 0, team2: 0 },
+              teamStats: { team1: {} as any, team2: {} as any }
+            },
+            deltaTime: 0.016
           });
         });
         
@@ -430,7 +454,7 @@ describe('Performance Tests - Integrated System Load', () => {
     for (let cycle = 0; cycle < 10; cycle++) {
       // Simulate activity
       for (let i = 0; i < 50; i++) {
-        const agent = new CachedSoccerAgent('midfielder');
+        const agent = new CachedSoccerAgent('central-midfielder-1');
         agent.makeDecision({
           player: {
             position: { x: i, y: 0, z: cycle },
@@ -442,11 +466,17 @@ describe('Performance Tests - Integrated System Load', () => {
           teammates: [],
           opponents: [],
           gameState: {
+            mode: 'fifa' as const,
             isActive: true,
+            isPaused: false,
             currentHalf: 1,
+            totalHalves: 2,
             timeRemaining: 45000,
-            score: { team1: 0, team2: 0 }
-          }
+            isHalftime: false,
+            score: { team1: 0, team2: 0 },
+            teamStats: { team1: {} as any, team2: {} as any }
+          },
+          deltaTime: 0.016
         });
       }
       

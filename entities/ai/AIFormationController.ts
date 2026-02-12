@@ -259,10 +259,10 @@ export class AIFormationController {
     const forwardXMultiplier = team === 'red' ? -1 : 1;
 
     // Calculate role's area boundaries
-    const minX = ownGoalLineX + (roleDefinition.minX * forwardXMultiplier);
-    const maxX = ownGoalLineX + (roleDefinition.maxX * forwardXMultiplier);
-    const minZ = AI_FIELD_CENTER_Z + roleDefinition.minZ;
-    const maxZ = AI_FIELD_CENTER_Z + roleDefinition.maxZ;
+    const minX = ownGoalLineX + (roleDefinition.preferredArea.minX * forwardXMultiplier);
+    const maxX = ownGoalLineX + (roleDefinition.preferredArea.maxX * forwardXMultiplier);
+    const minZ = AI_FIELD_CENTER_Z + roleDefinition.preferredArea.minZ;
+    const maxZ = AI_FIELD_CENTER_Z + roleDefinition.preferredArea.maxZ;
 
     // Check if position is within boundaries
     const withinX = team === 'red'
@@ -291,10 +291,10 @@ export class AIFormationController {
     const forwardXMultiplier = team === 'red' ? -1 : 1;
 
     // Calculate role's area boundaries
-    const minX = ownGoalLineX + (roleDefinition.minX * forwardXMultiplier);
-    const maxX = ownGoalLineX + (roleDefinition.maxX * forwardXMultiplier);
-    const minZ = AI_FIELD_CENTER_Z + roleDefinition.minZ;
-    const maxZ = AI_FIELD_CENTER_Z + roleDefinition.maxZ;
+    const minX = ownGoalLineX + (roleDefinition.preferredArea.minX * forwardXMultiplier);
+    const maxX = ownGoalLineX + (roleDefinition.preferredArea.maxX * forwardXMultiplier);
+    const minZ = AI_FIELD_CENTER_Z + roleDefinition.preferredArea.minZ;
+    const maxZ = AI_FIELD_CENTER_Z + roleDefinition.preferredArea.maxZ;
 
     // Constrain to role area
     let constrainedX = position.x;
@@ -374,7 +374,7 @@ export class AIFormationController {
     if (!roleDefinition) return basePosition;
 
     // Apply ball attraction/avoidance based on role
-    const ballAttractionFactor = roleDefinition.ballAttractionStrength || 0;
+    const ballAttractionFactor = roleDefinition.pursuitTendency || 0;
 
     if (ballAttractionFactor > 0) {
       // Move toward ball based on attraction factor
@@ -428,6 +428,7 @@ export class AIFormationController {
    * Check if team is maintaining formation shape
    */
   public isFormationMaintained(
+    entity: AIPlayerEntity,
     team: "red" | "blue",
     toleranceDistance: number = 10
   ): boolean {

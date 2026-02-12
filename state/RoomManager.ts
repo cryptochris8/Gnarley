@@ -338,6 +338,16 @@ export class RoomManager {
       logger.info(`Room ${roomId} cleanup cancelled - player joined`);
     }
 
+    // Ensure mutual exclusion: remove from spectatorMap if somehow present
+    if (this.spectatorMap.has(player.username)) {
+      const prevSpectateRoom = this.rooms.get(this.spectatorMap.get(player.username)!);
+      if (prevSpectateRoom) {
+        prevSpectateRoom.spectatorCount = Math.max(0, prevSpectateRoom.spectatorCount - 1);
+      }
+      this.spectatorMap.delete(player.username);
+      logger.warn(`Removed ${player.username} from spectatorMap before adding as player`);
+    }
+
     // Track player-room mapping
     this.playerRoomMap.set(player.username, roomId);
     room.playerCount++;
@@ -364,6 +374,20 @@ export class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) {
       return false;
+    }
+
+    // Cancel any pending cleanup -- a spectator joining should keep the room alive
+    if (room.cleanupTimer) {
+      clearTimeout(room.cleanupTimer);
+      room.cleanupTimer = null;
+      logger.info(`Room ${roomId} cleanup cancelled - spectator joined`);
+    }
+
+    // Ensure mutual exclusion: remove from playerRoomMap if somehow present
+    if (this.playerRoomMap.get(player.username) === roomId) {
+      this.playerRoomMap.delete(player.username);
+      room.playerCount = Math.max(0, room.playerCount - 1);
+      logger.warn(`Removed ${player.username} from playerRoomMap before adding as spectator`);
     }
 
     // Track spectator BEFORE joinWorld so the JOINED_WORLD handler knows this is a spectator
@@ -430,15 +454,12 @@ export class RoomManager {
     }
 
     // Move player back to lobby
+    // NOTE: joinWorld triggers disconnect/reconnect. The lobby JOINED_WORLD handler
+    // (PhysicalLobby.onPlayerJoin) will load UI and send room data after reconnect.
+    // Do NOT send UI data here — it would be lost before the client reconnects.
     player.joinWorld(this.lobbyWorld);
 
-    // Send room list to returning player
-    player.ui.sendData({
-      type: "room-list",
-      rooms: this.getPublicRoomList(),
-    });
-
-    // Broadcast updated room list
+    // Broadcast updated room list to players already in lobby
     this.broadcastRoomList();
   }
 
@@ -936,6 +957,7 @@ export class RoomManager {
    */
   private broadcastRoomList(): void {
     const roomList = this.getPublicRoomList();
+    const stats = this.getStats();
     const players = this.lobbyWorld.entityManager.getAllPlayerEntities();
 
     for (const playerEntity of players) {
@@ -943,6 +965,12 @@ export class RoomManager {
         playerEntity.player.ui.sendData({
           type: "room-list",
           rooms: roomList,
+        });
+        // Also update lobby HUD room count
+        playerEntity.player.ui.sendData({
+          type: "lobby-room-count",
+          activeRooms: stats.rooms,
+          totalPlayers: stats.players,
         });
       }
     }

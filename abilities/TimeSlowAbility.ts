@@ -131,7 +131,7 @@ export class TimeSlowAbility implements Ability {
             const timeScale = this.options.speed; // Time scale factor (0.3 = 30% speed)
 
             // Get all player entities from the world
-            const allPlayers = caster.world.entityManager.getAllPlayerEntities()
+            const allPlayers = caster.world!.entityManager.getAllPlayerEntities()
                 .filter(entity => entity instanceof SoccerPlayerEntity) as SoccerPlayerEntity[];
 
             const affectedPlayers: SoccerPlayerEntity[] = [];
@@ -315,7 +315,8 @@ export class TimeSlowAbility implements Ability {
 
                 try {
                     const progress = animationTime / maxAnimationTime;
-                    const scale = startScale * (1 + progress * 2); // Expand over time
+                    const scaleVal = (typeof startScale === 'number' ? startScale : startScale.x) * (1 + progress * 2); // Expand over time
+                    const scale = scaleVal; // uniform scale
                     
                     // Update scale (if Hytopia supports dynamic scaling)
                     // ripple.setModelScale(scale); // This may not be available
@@ -407,7 +408,7 @@ export class TimeSlowAbility implements Ability {
                 }
             });
 
-            slowEffect.spawn(player.world, {
+            slowEffect.spawn(player.world!, {
                 x: player.position.x,
                 y: player.position.y + 2.2,
                 z: player.position.z

@@ -61,7 +61,7 @@ export default class SoccerPlayerEntity extends PlayerEntity {
   private hasBallPossession: boolean = false;
 
   // Room-based state for multi-room support
-  private roomSharedState: RoomSharedState | null = null;
+  protected roomSharedState: RoomSharedState | null = null;
 
   // Enhanced stamina recovery rates based on movement state
   private staminaRegenRates = {
@@ -71,39 +71,33 @@ export default class SoccerPlayerEntity extends PlayerEntity {
   };
 
   public constructor(player: Player, team: "red" | "blue", role: SoccerAIRole) {
-    super({
-      player,
-      name: "Player",
-      modelUri: `models/players/player-${team}.gltf`,
-      modelLoopedAnimations: ["idle"],
-      modelScale: 0.5,
-    });
-    this._team = team;
-    this.role = role; // Assign role
-    // create random id for player
-    this.playerId = Math.random().toString(36).substring(2, 15);
-    // Set goalkeeper-specific speed boost for better shot blocking
-    if (role === 'goalkeeper') {
-      this.setController(
-        new CustomSoccerPlayer({
+    const controller = role === 'goalkeeper'
+      ? new CustomSoccerPlayer({
           canJump: () => true,
           canWalk: () => true,
           canRun: () => true,
           runVelocity: 7.0,    // Increased from 5.5 for goalkeepers
           walkVelocity: 4.5,   // Increased from 3.5 for goalkeepers
         })
-      );
-    } else {
-      this.setController(
-        new CustomSoccerPlayer({
+      : new CustomSoccerPlayer({
           canJump: () => true,
           canWalk: () => true,
           canRun: () => true,
           runVelocity: 5.5,
           walkVelocity: 3.5,
-        })
-      );
-    }
+        });
+    super({
+      player,
+      name: "Player",
+      modelUri: `models/players/player-${team}.gltf`,
+      modelLoopedAnimations: ["idle"],
+      modelScale: 0.5,
+      controller,
+    });
+    this._team = team;
+    this.role = role; // Assign role
+    // create random id for player
+    this.playerId = Math.random().toString(36).substring(2, 15);
     
     // Don't set camera properties immediately, only on EntityEvent.SPAWN
     // This ensures the entity is fully registered before attaching the camera
@@ -338,7 +332,7 @@ export default class SoccerPlayerEntity extends PlayerEntity {
 
       // If we're tackling and hit another player, stun them unless they're dodging
       if (this.isTackling && !otherEntity.isStunned && !otherEntity.isDodging) {
-        otherEntity.stunPlayer();
+        otherEntity.stunPlayer(this.position);
         this.addTackle(); // Track successful tackle
       }
     }
@@ -355,7 +349,7 @@ export default class SoccerPlayerEntity extends PlayerEntity {
     return this.speedAmplifier;
   }
 
-  public stunPlayer() {
+  public stunPlayer(tacklerPosition?: { x: number; y?: number; z: number }) {
     console.log("Stunning player");
         const attachedPlayer = sharedState.getAttachedPlayer();
         const soccerBall = sharedState.getSoccerBall();
@@ -378,31 +372,33 @@ export default class SoccerPlayerEntity extends PlayerEntity {
         // Stun the other player
         this.stunPlayerTimeout();
         console.log("Starting dizzy animation");
-        
+
         // Large stadium mode - realistic soccer without visual effects
         // No stars or special effects in large stadium mode
-        
+
         this.stopModelAnimations(Array.from(this.modelLoopedAnimations).filter(v => v !== 'dizzy'));
         this.startModelOneshotAnimations(["dizzy"]);
 
-        // Apply knockback to the hit player
-        const direction = {
-          x: this.position.x - this.position.x,
-          z: this.position.z - this.position.z,
-        };
-        const length = Math.sqrt(
-          direction.x * direction.x + direction.z * direction.z
-        );
-        if (length > 0) {
-          const normalized = {
-            x: direction.x / length,
-            z: direction.z / length,
+        // Apply knockback to the hit player (direction away from tackler)
+        if (tacklerPosition) {
+          const direction = {
+            x: this.position.x - tacklerPosition.x,
+            z: this.position.z - tacklerPosition.z,
           };
-          this.applyImpulse({
-            x: normalized.x * TACKLE_KNOCKBACK_FORCE,
-            y: 4,
-            z: normalized.z * TACKLE_KNOCKBACK_FORCE,
-          });
+          const length = Math.sqrt(
+            direction.x * direction.x + direction.z * direction.z
+          );
+          if (length > 0) {
+            const normalized = {
+              x: direction.x / length,
+              z: direction.z / length,
+            };
+            this.applyImpulse({
+              x: normalized.x * TACKLE_KNOCKBACK_FORCE,
+              y: 4,
+              z: normalized.z * TACKLE_KNOCKBACK_FORCE,
+            });
+          }
         }
   }
 
@@ -550,20 +546,10 @@ export default class SoccerPlayerEntity extends PlayerEntity {
    * This can be used by controllers to modify movement speed
    */
   public getStaminaSpeedMultiplier(): number {
-    const staminaPercentage = this.getStaminaPercentage();
-    
-    // Progressive speed reduction based on stamina level
-    if (staminaPercentage >= 75) {
-      return 1.0;      // 100% speed (75-100% stamina)
-    } else if (staminaPercentage >= 50) {
-      return 0.9;      // 90% speed (50-75% stamina)
-    } else if (staminaPercentage >= 25) {
-      return 0.75;     // 75% speed (25-50% stamina)
-    } else if (staminaPercentage >= 10) {
-      return 0.6;      // 60% speed (10-25% stamina)
-    } else {
-      return 0.4;      // 40% speed (0-10% stamina)
-    }
+    const staminaFraction = this.getStaminaPercentage() / 100;
+
+    // Smooth curve: scales from 0.4 (empty) to 1.0 (full) without jerky transitions
+    return 0.4 + (staminaFraction * 0.6);
   }
 
   public getStamina(): number {

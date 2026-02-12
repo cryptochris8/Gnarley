@@ -6,10 +6,10 @@
  */
 
 import { World } from "hytopia";
-import { ArcadeEnhancementManager } from "../src/state/arcadeEnhancements";
-import { PickupGameManager } from "../src/state/pickupGameManager";
-import { TournamentManager } from "../src/state/tournamentManager";
-import { PerformanceProfiler } from "../src/utils/performanceProfiler";
+import { ArcadeEnhancementManager } from "../state/arcadeEnhancements";
+import { PickupGameManager } from "../state/pickupGameManager";
+import { TournamentManager } from "../state/tournamentManager";
+import { PerformanceProfiler } from "../utils/performanceProfiler";
 
 /**
  * Extended World interface with custom game manager properties

@@ -22,7 +22,7 @@ const PROJECTILE_CONFIGS: Record<ProjectileType, ProjectileConfig> = {
     modelUri: "models/projectiles/fireball.gltf", 
     speed: 12,
     damage: 2,
-    effectRadius: 4,
+    effectRadius: 2.0,
     soundUri: "audio/sfx/fire/fire-ignite.mp3",
     stunDuration: 1500 // 1.5 seconds
   },
@@ -42,7 +42,7 @@ export class ProjectileEntity extends Entity {
   private direction: Vector3Like;
   private config: ProjectileConfig;
   private lifeTime: number = 0;
-  private maxLifeTime: number = 5000; // 5 seconds max flight time
+  private maxLifeTime: number = 3000; // 3 seconds max flight time
 
   constructor(
     type: ProjectileType, 

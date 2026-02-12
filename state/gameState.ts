@@ -57,6 +57,100 @@ declare module "hytopia" {
 // Node.js Timer type
 type Timer = ReturnType<typeof setTimeout>;
 
+// ============================================================
+// Game Loop Constants (Issue #79: Extract magic numbers)
+// ============================================================
+
+/** Seconds between player stats UI broadcasts */
+const PLAYER_STATS_UPDATE_INTERVAL_SECONDS = 5;
+
+/** Delay in ms after a goal before setting up kickoff positioning */
+const GOAL_KICKOFF_SETUP_DELAY_MS = 3000;
+
+/** Delay in ms after kickoff positioning before starting countdown */
+const GOAL_COUNTDOWN_START_DELAY_MS = 1000;
+
+/** Delay in ms before starting match countdown after coin toss */
+const COIN_TOSS_DELAY_MS = 2000;
+
+/** Countdown start number for match/kickoff countdowns */
+const COUNTDOWN_START = 3;
+
+/** Delay in ms for unfreezing players after halftime/ball reset */
+const UNFREEZE_DELAY_MS = 2000;
+
+/** Delay in ms before overtime starts after regulation end */
+const OVERTIME_START_DELAY_MS = 3000;
+
+/** Overtime duration in seconds */
+const OVERTIME_DURATION_SECONDS = 60;
+
+/** Delay in ms before penalty shootout starts after overtime */
+const PENALTY_SHOOTOUT_DELAY_MS = 3000;
+
+/** Seconds remaining when ticking sound starts playing */
+const TICKING_SOUND_THRESHOLD_SECONDS = 5;
+
+/** Delay in ms for momentum announcement after goal */
+const MOMENTUM_ANNOUNCEMENT_DELAY_MS = 2500;
+
+/** Delay in ms for team momentum announcement after goal */
+const TEAM_MOMENTUM_ANNOUNCEMENT_DELAY_MS = 3000;
+
+/** Consecutive goals threshold for player momentum announcement */
+const PLAYER_MOMENTUM_THRESHOLD = 3;
+
+/** Consecutive goals threshold for team momentum announcement */
+const TEAM_MOMENTUM_THRESHOLD = 2;
+
+/** Throw-in inset distance from field boundary */
+const THROW_IN_INSET = 1.0;
+
+/** Ball elevation for set piece positions */
+const SET_PIECE_BALL_HEIGHT = 1.5;
+
+/** Distance from goal line for goal kicks */
+const GOAL_KICK_OFFSET = 8;
+
+/** Corner kick inset from field edge */
+const CORNER_KICK_INSET = 1;
+
+/** Clamp margin for throw-in X position */
+const THROW_IN_X_CLAMP_MARGIN = 2;
+
+/** Center circle enforcement distance for defending team at kickoff */
+const CENTER_CIRCLE_ENFORCEMENT_DISTANCE = 12;
+
+/** Kickoff taker offset from center */
+const KICKOFF_TAKER_CENTER_OFFSET = 2;
+
+/** Half position offset for own-half enforcement */
+const OWN_HALF_OFFSET = 5;
+
+/** Half position deeper offset for own-half enforcement */
+const OWN_HALF_DEEPER_OFFSET = 8;
+
+// ============================================================
+// Audio Interfaces (Issue #80: Replace `as any` with types)
+// ============================================================
+
+/** Interface for music audio instances attached to the world */
+interface WorldMusicInstances {
+  _mainMusic?: Audio;
+  _arcadeGameplayMusic?: Audio;
+  _fifaGameplayMusic?: Audio;
+}
+
+/** Interface for FIFA Crowd Manager methods used in gameState */
+interface IFIFACrowdManager {
+  start(): void;
+  stop(): void;
+  playGoalReaction(): void;
+  playMomentumAnnouncement(): void;
+  playGameEndAnnouncement(): void;
+  playGameStart(): void;
+}
+
 // Audio resources
 const TICKING_AUDIO = new Audio({
   uri: "audio/sfx/soccer/ticking.mp3",
@@ -136,7 +230,7 @@ export class SoccerGame {
   private gameLoopInterval: Timer | null = null;
   private aiPlayersList: AIPlayerEntity[] = [];
   private arcadeManager: ArcadeEnhancementManager | null = null;
-  private fifaCrowdManager: any | null = null; // FIFA crowd manager for stadium atmosphere
+  private fifaCrowdManager: IFIFACrowdManager | null = null; // FIFA crowd manager for stadium atmosphere
   private halfTimeManager!: HalfTimeManager; // Manages half-time logic and stoppage time
   private penaltyShootoutManager: PenaltyShootoutManager | null = null; // Manages penalty shootout mode
 
@@ -149,6 +243,12 @@ export class SoccerGame {
   private restartTeam: "red" | "blue" | null = null;
   private restartPosition: { x: number; y: number; z: number } | null = null;
   private readonly RESTART_TIMEOUT = 5000; // 5 seconds before AI automatically takes restart
+
+  // Issue #73: Track the team that kicked off first half for fair alternation
+  private firstHalfKickoffTeam: "red" | "blue" | null = null;
+
+  // Issue #74: Guard against ball detach/respawn race conditions
+  private isBallRespawning: boolean = false;
 
   // Momentum tracking for announcer commentary
   private teamMomentum: {
@@ -403,30 +503,24 @@ export class SoccerGame {
       if (this.state.kickoffTeam === null) {
         this.performCoinToss();
       }
-      
+
       this.world.chatManager.sendBroadcastMessage(
-        "Game will start in 3 seconds!"
+        `Game will start in ${COUNTDOWN_START} seconds!`
       );
-      
+
       // Start the countdown
       this.startCountdown(() => {
         this.beginMatch();
-        
-        // Ability pickups disabled for clean soccer gameplay
-        // this.abilityPickups = [
-        //   new AbilityConsumable(this.world, this.getAbilityPickupPosition(0), shurikenThrowOptions),
-        //   new AbilityConsumable(this.world, this.getAbilityPickupPosition(1), speedBoostOptions),
-        // ];
       });
-    }, 2 * 1000);
+    }, COIN_TOSS_DELAY_MS);
 
     return true;
   }
 
   private startCountdown(onComplete: () => void) {
-    let count = 3;
+    let count = COUNTDOWN_START;
     const countInterval = setInterval(() => {
-      if (count === 3) {
+      if (count === COUNTDOWN_START) {
         new Audio({
           uri: "audio/sfx/soccer/321.mp3",
           loop: false,
@@ -544,6 +638,7 @@ export class SoccerGame {
     }
 
     // Start the game loop for time tracking
+    if (this.gameLoopInterval) clearInterval(this.gameLoopInterval);
     this.gameLoopInterval = setInterval(() => {
       this.gameLoop();
     }, 1000); // Update every second
@@ -580,8 +675,8 @@ export class SoccerGame {
       this.state.halfTimeRemaining--;
       this.state.timeRemaining = this.state.halfTimeRemaining; // Keep in sync
       
-      // Play ticking sound in last 5 seconds of overtime
-      if (this.state.halfTimeRemaining === 5) {
+      // Play ticking sound in last seconds of overtime
+      if (this.state.halfTimeRemaining === TICKING_SOUND_THRESHOLD_SECONDS) {
         TICKING_AUDIO.play(this.world);
       }
       
@@ -632,12 +727,16 @@ export class SoccerGame {
       }
     }
 
+    // Cache entity lookups for this tick (Issue #58: avoid repeated getAllPlayerEntities calls)
+    const allPlayerEntities = this.world.entityManager.getAllPlayerEntities();
+    const soccerPlayers = allPlayerEntities.filter(
+      (entity): entity is SoccerPlayerEntity => entity instanceof SoccerPlayerEntity
+    );
+
     // Update player movement statistics and stamina
-    this.world.entityManager.getAllPlayerEntities().forEach((entity) => {
-      if (entity instanceof SoccerPlayerEntity) {
-        entity.updateDistanceTraveled();
-        entity.updateStamina(); // Update stamina system
-      }
+    soccerPlayers.forEach((entity) => {
+      entity.updateDistanceTraveled();
+      entity.updateStamina(); // Update stamina system
     });
 
     // Send game state to UI (now including stoppage time information)
@@ -654,8 +753,8 @@ export class SoccerGame {
       status: this.state.status,
     });
 
-    // Send player stats update every 5 seconds during gameplay
-    if (this.state.status === "playing" && this.state.timeRemaining % 5 === 0) {
+    // Send player stats update at configured intervals during gameplay
+    if (this.state.status === "playing" && this.state.timeRemaining % PLAYER_STATS_UPDATE_INTERVAL_SECONDS === 0) {
       this.sendPlayerStatsUpdate();
     }
   }
@@ -724,9 +823,26 @@ export class SoccerGame {
 
   private startHalftime() {
     console.log("🏟️ Starting halftime break - MANUAL MODE");
+
+    // Issue #59: Clear restart timer during halftime transition
+    this.clearRestartTimer();
+
+    // Issue #72: Set all halftime state atomically to prevent timing gaps
+    // Set status before isHalftime to ensure the game loop (which checks isHalftime)
+    // doesn't see an inconsistent state where isHalftime=true but status is still "playing"
+    this.state.status = "halftime";
     this.state.isHalftime = true;
     this.state.halftimeTimeRemaining = 0; // No automatic countdown
-    this.state.status = "halftime";
+
+    // Issue #75: Safely deactivate AI players during halftime to prevent stale actions
+    this.safelyDeactivateAllAI();
+
+    // Freeze all players during halftime
+    this.world.entityManager.getAllPlayerEntities().forEach((entity) => {
+      if (entity instanceof SoccerPlayerEntity) {
+        entity.freeze();
+      }
+    });
 
     // Announce halftime
     this.world.chatManager.sendBroadcastMessage(
@@ -803,6 +919,7 @@ export class SoccerGame {
     this.endHalftime();
     
     // Restart the game loop for the second half
+    if (this.gameLoopInterval) clearInterval(this.gameLoopInterval);
     this.gameLoopInterval = setInterval(() => {
       this.gameLoop();
     }, 1000);
@@ -841,9 +958,9 @@ export class SoccerGame {
     // Announce start of 2nd half
     this.world.chatManager.sendBroadcastMessage("2nd Half starting!");
 
-    // Perform kickoff positioning for 2nd half
-    // In soccer, the team that didn't start the game gets kickoff in 2nd half
-    const secondHalfKickoffTeam = this.state.kickoffTeam === "red" ? "blue" : "red";
+    // Issue #73: Alternate kickoff fairly - use the stored first-half kickoff team
+    // In soccer, the team that didn't kick off first half gets kickoff in second half
+    const secondHalfKickoffTeam = this.firstHalfKickoffTeam === "red" ? "blue" : "red";
     this.performKickoffPositioning(secondHalfKickoffTeam, "2nd half start");
 
     // Send countdown for 2nd half start
@@ -865,13 +982,12 @@ export class SoccerGame {
         }
       });
       
-      // ✨ LOCK POINTER FOR GAMEPLAY ✨
       // Lock pointer for all players when returning to gameplay
       PlayerManager.instance.getConnectedPlayers().forEach((player) => {
         player.ui.lockPointer(true);
-        console.log(`🎮 Pointer locked for ${player.username} - Game controls enabled`);
+        console.log(`Pointer locked for ${player.username} - Game controls enabled`);
       });
-    }, 2000);
+    }, UNFREEZE_DELAY_MS);
   }
 
   private handleEndOfRegulation() {
@@ -887,8 +1003,8 @@ export class SoccerGame {
       setTimeout(() => {
         console.log("Starting overtime setup...");
         this.state.status = "overtime";
-        this.state.halfTimeRemaining = 60; // 1 minute overtime
-        this.state.timeRemaining = 60;
+        this.state.halfTimeRemaining = OVERTIME_DURATION_SECONDS;
+        this.state.timeRemaining = OVERTIME_DURATION_SECONDS;
         this.world.chatManager.sendBroadcastMessage(
           "Tie game after 2 halves, going to overtime!"
         );
@@ -902,20 +1018,21 @@ export class SoccerGame {
             type: "countdown",
             count: ""
           });
-          
+
           // Ensure all players are unfrozen for overtime
           this.world.entityManager.getAllPlayerEntities().forEach((entity) => {
             if (entity instanceof SoccerPlayerEntity) {
               entity.unfreeze();
             }
           });
-          
+
           // Restart the game loop for overtime
+          if (this.gameLoopInterval) clearInterval(this.gameLoopInterval);
           this.gameLoopInterval = setInterval(() => {
             this.gameLoop();
           }, 1000);
-        }, 2000);
-      }, 3000);
+        }, UNFREEZE_DELAY_MS);
+      }, OVERTIME_START_DELAY_MS);
     } else {
       // Game has a winner after 4 halves
       this.endGame();
@@ -947,13 +1064,13 @@ export class SoccerGame {
         if (this.penaltyShootoutManager) {
           this.penaltyShootoutManager.start();
         } else {
-          console.error("❌ Penalty shootout manager not initialized");
+          console.error("Penalty shootout manager not initialized");
           this.world.chatManager.sendBroadcastMessage(
             "Error starting penalty shootout. Match ends in a draw."
           );
           this.endGame();
         }
-      }, 3000);
+      }, PENALTY_SHOOTOUT_DELAY_MS);
     } else {
       // Game has a winner after overtime
       this.endGame();
@@ -1130,12 +1247,12 @@ export class SoccerGame {
       playerMomentumData.lastGoalTime = currentTime;
       
       // Check for individual player momentum (hat-trick, etc.)
-      if (playerMomentumData.consecutiveGoals >= 3) {
-        console.log(`🔥 ${playerId} has scored ${playerMomentumData.consecutiveGoals} consecutive goals!`);
-        if (this.fifaCrowdManager && this.fifaCrowdManager.playMomentumAnnouncement) {
+      if (playerMomentumData.consecutiveGoals >= PLAYER_MOMENTUM_THRESHOLD) {
+        console.log(`${playerId} has scored ${playerMomentumData.consecutiveGoals} consecutive goals!`);
+        if (this.fifaCrowdManager) {
           setTimeout(() => {
-            this.fifaCrowdManager.playMomentumAnnouncement();
-          }, 2500); // Delay so it plays after goal announcement
+            this.fifaCrowdManager!.playMomentumAnnouncement();
+          }, MOMENTUM_ANNOUNCEMENT_DELAY_MS);
         }
       }
     } else {
@@ -1145,12 +1262,12 @@ export class SoccerGame {
     }
     
     // Check for team momentum (multiple goals in short time)
-    if (this.teamMomentum[team].consecutiveGoals >= 2) {
-      console.log(`🔥 ${team} team is on fire with ${this.teamMomentum[team].consecutiveGoals} consecutive goals!`);
-      if (this.fifaCrowdManager && this.fifaCrowdManager.playMomentumAnnouncement) {
+    if (this.teamMomentum[team].consecutiveGoals >= TEAM_MOMENTUM_THRESHOLD) {
+      console.log(`${team} team is on fire with ${this.teamMomentum[team].consecutiveGoals} consecutive goals!`);
+      if (this.fifaCrowdManager) {
         setTimeout(() => {
-          this.fifaCrowdManager.playMomentumAnnouncement();
-        }, 3000); // Delay so it plays after goal announcement
+          this.fifaCrowdManager!.playMomentumAnnouncement();
+        }, TEAM_MOMENTUM_ANNOUNCEMENT_DELAY_MS);
       }
     }
     
@@ -1182,7 +1299,7 @@ export class SoccerGame {
     // to prevent multiple voices playing simultaneously
     
     // Play FIFA crowd goal reaction if in FIFA mode and crowd manager is available
-    if (this.fifaCrowdManager && this.fifaCrowdManager.playGoalReaction) {
+    if (this.fifaCrowdManager) {
       this.fifaCrowdManager.playGoalReaction();
     }
 
@@ -1197,7 +1314,7 @@ export class SoccerGame {
       console.log(`Setting up proper kickoff positioning after goal scored by ${team}`);
       this.performKickoffPositioning(concedingTeam, `goal scored by ${team}`);
       
-      // Start countdown after kickoff positioning is complete
+      // Start countdown after kickoff positioning settles
       setTimeout(() => {
         this.startCountdown(() => {
           new Audio({
@@ -1225,8 +1342,8 @@ export class SoccerGame {
             kickoffTeam: this.state.kickoffTeam, // Ensure UI knows who kicks off
           });
         });
-      }, 1000); // Start countdown after 1 second
-    }, 3000); // Wait 3 seconds after goal before resetting
+      }, GOAL_COUNTDOWN_START_DELAY_MS);
+    }, GOAL_KICKOFF_SETUP_DELAY_MS);
   }
 
   public scoreGoal(team: "red" | "blue") {
@@ -1239,6 +1356,13 @@ export class SoccerGame {
 
     // Mercy rule removed - games are short (2x 5-minute halves) so let them play to completion
     console.log(`⚽ Goal scored by ${team} team - game will continue to completion`);
+  }
+
+  /**
+   * Public method to force-end a game (e.g., via admin /endgame command)
+   */
+  public forceEndGame(): void {
+    this.endGame();
   }
 
   private endGame() {
@@ -1262,14 +1386,17 @@ export class SoccerGame {
     // Clear restart timer if active
     this.clearRestartTimer();
 
+    // Issue #75: Safely deactivate all AI before ending game
+    this.safelyDeactivateAllAI();
+
     // Set game status to finished
     this.state.status = "finished";
-    
+
     // Switch back to opening music
     this.switchToOpeningMusic();
-    
+
     // Play FIFA game end announcement if in FIFA mode and crowd manager is available
-    if (this.fifaCrowdManager && this.fifaCrowdManager.playGameEndAnnouncement) {
+    if (this.fifaCrowdManager) {
       this.fifaCrowdManager.playGameEndAnnouncement();
     }
 
@@ -1291,17 +1418,15 @@ export class SoccerGame {
     
     console.log(`🏁 Total player stats collected: ${playerStats.length}`);
 
-    // Calculate team statistics from player stats
-    const redTeamStats = this.world.entityManager
-      .getAllPlayerEntities()
-      .filter((entity) => entity instanceof SoccerPlayerEntity && entity.team === "red")
-      .map((player) => (player as SoccerPlayerEntity).getPlayerStats());
-    
-    const blueTeamStats = this.world.entityManager
-      .getAllPlayerEntities()
-      .filter((entity) => entity instanceof SoccerPlayerEntity && entity.team === "blue")
-      .map((player) => (player as SoccerPlayerEntity).getPlayerStats());
-    
+    // Calculate team statistics from cached entity list (Issue #58)
+    const redTeamStats = soccerPlayerEntities
+      .filter((entity) => entity.team === "red")
+      .map((player) => player.getPlayerStats());
+
+    const blueTeamStats = soccerPlayerEntities
+      .filter((entity) => entity.team === "blue")
+      .map((player) => player.getPlayerStats());
+
     const finalStats = {
       red: {
         goals: redTeamStats.reduce((sum, p) => sum + p.goals, 0),
@@ -1327,11 +1452,9 @@ export class SoccerGame {
       winner = 'blue';
     }
 
-    // Freeze all players at game end
-    this.world.entityManager.getAllPlayerEntities().forEach((entity) => {
-      if (entity instanceof SoccerPlayerEntity) {
-        entity.freeze();
-      }
+    // Freeze all players at game end (use cached list)
+    soccerPlayerEntities.forEach((entity) => {
+      entity.freeze();
     });
 
     // Send game over data to UI (DO NOT reset game automatically)
@@ -1385,6 +1508,33 @@ export class SoccerGame {
     this.resetGame();
   }
 
+  /**
+   * Issue #75: Safely deactivate all AI entities with proper null checks and error handling.
+   * Deactivates AI in a safe order: field players first, then goalkeepers.
+   */
+  private safelyDeactivateAllAI(): void {
+    // Get current AI players from the world
+    const aiPlayers = this.world.entityManager.getAllPlayerEntities()
+      .filter((entity): entity is AIPlayerEntity => entity instanceof AIPlayerEntity);
+
+    // Sort so goalkeepers are deactivated last (they may be referenced by field players)
+    const sorted = aiPlayers.sort((a, b) => {
+      if (a.aiRole === 'goalkeeper') return 1;
+      if (b.aiRole === 'goalkeeper') return -1;
+      return 0;
+    });
+
+    for (const ai of sorted) {
+      try {
+        if (ai.isSpawned) {
+          ai.deactivate();
+        }
+      } catch (error) {
+        console.log(`Warning: Error deactivating AI ${ai.player?.username ?? 'unknown'}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+  }
+
   public resetGame() {
     console.log("🔄 RESETTING GAME - Starting cleanup process...");
 
@@ -1408,6 +1558,11 @@ export class SoccerGame {
     this.playerMomentum.clear();
     console.log("🔄 Reset momentum tracking for new game");
 
+    // Reset first-half kickoff team for next game (Issue #73)
+    this.firstHalfKickoffTeam = null;
+    // Reset ball respawning guard (Issue #74)
+    this.isBallRespawning = false;
+
     // Clean up ability pickups (disabled)
     // this.abilityPickups.forEach(pickup => {
     //   pickup.destroy();
@@ -1415,14 +1570,20 @@ export class SoccerGame {
     // this.abilityPickups = [];
     // console.log("🔄 Cleaned up ability pickups for new game");
 
-    // Deactivate all AI players first to clear their intervals
+    // Issue #75: Use safe deactivation sequence for AI players
+    this.safelyDeactivateAllAI();
+
+    // Despawn AI players after deactivation
     this.aiPlayersList.forEach(ai => {
-      if (ai.isSpawned) {
-        ai.deactivate();
-        ai.despawn();
+      try {
+        if (ai.isSpawned) {
+          ai.despawn();
+        }
+      } catch (error) {
+        console.log(`Warning: Error despawning AI: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
-    
+
     // Clear the AI players list to prevent stale references
     this.aiPlayersList = [];
 
@@ -1595,7 +1756,7 @@ export class SoccerGame {
     console.log("Pickup manager set for SoccerGame");
   }
 
-  public setFIFACrowdManager(fifaCrowdManager: any): void {
+  public setFIFACrowdManager(fifaCrowdManager: IFIFACrowdManager): void {
     this.fifaCrowdManager = fifaCrowdManager;
     console.log("FIFA crowd manager set for SoccerGame");
   }
@@ -1644,7 +1805,12 @@ export class SoccerGame {
     }
     
     this.state.kickoffTeam = kickoffTeam;
-    
+
+    // Issue #73: Store first-half kickoff team for fair second-half alternation
+    if (this.state.currentHalf === 1 && this.firstHalfKickoffTeam === null) {
+      this.firstHalfKickoffTeam = kickoffTeam;
+    }
+
     // Announce the result
     this.world.chatManager.sendBroadcastMessage(
       `Coin toss result: ${coinResult.toUpperCase()}! ${kickoffTeam.toUpperCase()} team will kick off.`
@@ -1768,11 +1934,21 @@ export class SoccerGame {
    * @param restartTeam - Optional: The team that should take the restart (starts 5s timer for AI)
    */
   private resetBallAtPosition(position: Vector3Like, restartTeam?: "red" | "blue") {
+    // Issue #74: Guard against ball detach/respawn race condition
+    if (this.isBallRespawning) {
+      console.log("Ball respawn already in progress, skipping duplicate reset");
+      return;
+    }
+    this.isBallRespawning = true;
+
+    // Detach ball from any player BEFORE despawning to prevent race
+    this.attachedPlayer = null;
+    this.getSharedState().setAttachedPlayer(null);
+
     // Despawn and respawn ball at position
     if (this.soccerBall.isSpawned) {
       this.soccerBall.despawn();
     }
-    this.getSharedState().setAttachedPlayer(null);
 
     this.soccerBall.spawn(this.world, position);
     this.soccerBall.setLinearVelocity({ x: 0, y: 0, z: 0 });
@@ -1784,6 +1960,9 @@ export class SoccerGame {
 
     // Reset ball movement flag
     this.getSharedState().resetBallMovementFlag();
+
+    // Clear the respawning guard
+    this.isBallRespawning = false;
 
     // Play whistle
     new Audio({
@@ -1802,25 +1981,22 @@ export class SoccerGame {
    * Calculate throw-in position based on where ball went out
    */
   private calculateThrowInPosition(side: string, outPosition: { x: number; y: number; z: number }) {
-    // Place ball slightly inside the field boundary
-    const THROW_IN_INSET = 1.0; // Distance inside field boundary
-    
     let throwInX = outPosition.x;
     let throwInZ = outPosition.z;
-    
+
     // Adjust based on which side was crossed
     if (side === "min-z") {
       throwInZ = FIELD_MIN_Z + THROW_IN_INSET;
     } else if (side === "max-z") {
       throwInZ = FIELD_MAX_Z - THROW_IN_INSET;
     }
-    
+
     // Clamp X position to stay within field length
-    throwInX = Math.max(FIELD_MIN_X + 2, Math.min(FIELD_MAX_X - 2, throwInX));
-    
+    throwInX = Math.max(FIELD_MIN_X + THROW_IN_X_CLAMP_MARGIN, Math.min(FIELD_MAX_X - THROW_IN_X_CLAMP_MARGIN, throwInX));
+
     return {
       x: throwInX,
-      y: 1.5, // Slightly elevated for visibility
+      y: SET_PIECE_BALL_HEIGHT,
       z: throwInZ
     };
   }
@@ -1832,20 +2008,20 @@ export class SoccerGame {
     // Determine which corner based on goal line side and Z position
     let cornerX: number;
     let cornerZ: number;
-    
+
     if (goalLineSide === "min-x") {
       // Red goal line
-      cornerX = FIELD_MIN_X + 1; // Slightly inside field
-      cornerZ = outPosition.z > AI_FIELD_CENTER_Z ? FIELD_MAX_Z - 1 : FIELD_MIN_Z + 1;
+      cornerX = FIELD_MIN_X + CORNER_KICK_INSET;
+      cornerZ = outPosition.z > AI_FIELD_CENTER_Z ? FIELD_MAX_Z - CORNER_KICK_INSET : FIELD_MIN_Z + CORNER_KICK_INSET;
     } else {
-      // Blue goal line  
-      cornerX = FIELD_MAX_X - 1; // Slightly inside field
-      cornerZ = outPosition.z > AI_FIELD_CENTER_Z ? FIELD_MAX_Z - 1 : FIELD_MIN_Z + 1;
+      // Blue goal line
+      cornerX = FIELD_MAX_X - CORNER_KICK_INSET;
+      cornerZ = outPosition.z > AI_FIELD_CENTER_Z ? FIELD_MAX_Z - CORNER_KICK_INSET : FIELD_MIN_Z + CORNER_KICK_INSET;
     }
-    
+
     return {
       x: cornerX,
-      y: 1.5, // Slightly elevated
+      y: SET_PIECE_BALL_HEIGHT,
       z: cornerZ
     };
   }
@@ -1854,21 +2030,18 @@ export class SoccerGame {
    * Calculate goal kick position
    */
   private calculateGoalKickPosition(kickingTeam: "red" | "blue") {
-    // Position in penalty area/goal area
-    const GOAL_KICK_OFFSET = 8; // Distance from goal line
-    
     let goalKickX: number;
-    
+
     if (kickingTeam === "red") {
       goalKickX = AI_GOAL_LINE_X_RED + GOAL_KICK_OFFSET;
     } else {
       goalKickX = AI_GOAL_LINE_X_BLUE - GOAL_KICK_OFFSET;
     }
-    
+
     return {
       x: goalKickX,
-      y: 1.5, // Slightly elevated
-      z: AI_FIELD_CENTER_Z // Center of goal area
+      y: SET_PIECE_BALL_HEIGHT,
+      z: AI_FIELD_CENTER_Z
     };
   }
 
@@ -1879,15 +2052,25 @@ export class SoccerGame {
    */
   public performKickoffPositioning(kickoffTeam: "red" | "blue", reason: string = "restart"): void {
     console.log(`Setting up kickoff positioning for ${kickoffTeam} team (${reason})`);
-    
+
     // Set the kickoff team in state
     this.state.kickoffTeam = kickoffTeam;
-    
+
+    // Issue #74: Guard against ball detach/respawn race condition
+    if (this.isBallRespawning) {
+      console.log("Ball respawn already in progress, skipping duplicate kickoff positioning");
+      return;
+    }
+    this.isBallRespawning = true;
+
+    // Detach ball from any player BEFORE despawning
+    this.attachedPlayer = null;
+    this.getSharedState().setAttachedPlayer(null);
+
     // First, reset ball position and ensure it's stationary
     if (this.soccerBall.isSpawned) {
       this.soccerBall.despawn();
     }
-    this.getSharedState().setAttachedPlayer(null);
 
     // Spawn ball at center with proper elevation to prevent collision
     const adjustedSpawnPosition = {
@@ -1906,7 +2089,10 @@ export class SoccerGame {
     
     // Reset ball movement flag so AI knows this is a kickoff situation
     this.getSharedState().resetBallMovementFlag();
-    
+
+    // Issue #74: Clear the respawning guard after ball is successfully placed
+    this.isBallRespawning = false;
+
     // Position all players according to kickoff rules
     this.world.entityManager.getAllPlayerEntities().forEach((entity) => {
       if (entity instanceof SoccerPlayerEntity) {
@@ -1936,9 +2122,9 @@ export class SoccerGame {
       if (player instanceof AIPlayerEntity && player.aiRole === 'central-midfielder-1') {
         // This AI player will take the kickoff - position near the ball
         // COORDINATE FIX: Kickoff taker should be slightly toward their own goal
-        // Red defends X=52 (right), so +2. Blue defends X=-37 (left), so -2
+        // Red defends X=52 (right), so +offset. Blue defends X=-37 (left), so -offset
         targetPosition = {
-          x: AI_FIELD_CENTER_X + (kickoffTeam === 'red' ? 2 : -2), // Slightly toward own goal
+          x: AI_FIELD_CENTER_X + (kickoffTeam === 'red' ? KICKOFF_TAKER_CENTER_OFFSET : -KICKOFF_TAKER_CENTER_OFFSET),
           y: SAFE_SPAWN_Y,
           z: AI_FIELD_CENTER_Z
         };
@@ -1946,7 +2132,7 @@ export class SoccerGame {
       } else if (isHumanPlayer && player.role === 'central-midfielder-1') {
         // Human player taking kickoff
         targetPosition = {
-          x: AI_FIELD_CENTER_X + (kickoffTeam === 'red' ? 2 : -2),
+          x: AI_FIELD_CENTER_X + (kickoffTeam === 'red' ? KICKOFF_TAKER_CENTER_OFFSET : -KICKOFF_TAKER_CENTER_OFFSET),
           y: SAFE_SPAWN_Y,
           z: AI_FIELD_CENTER_Z
         };
@@ -1959,11 +2145,9 @@ export class SoccerGame {
       // Defending team positioning
       if (player instanceof AIPlayerEntity && player.aiRole === 'central-midfielder-1') {
         // One defending midfielder positions at center circle edge (10-yard rule)
-        // COORDINATE FIX: Defender must be in their own half, 10 yards from ball
-        // If Red kicks off, Blue defends from left side (X < 7), so -12
-        // If Blue kicks off, Red defends from right side (X > 7), so +12
+        // COORDINATE FIX: Defender must be in their own half, enforcing center circle distance
         targetPosition = {
-          x: AI_FIELD_CENTER_X + (kickoffTeam === 'red' ? -12 : 12), // 12 units away in defending team's half
+          x: AI_FIELD_CENTER_X + (kickoffTeam === 'red' ? -CENTER_CIRCLE_ENFORCEMENT_DISTANCE : CENTER_CIRCLE_ENFORCEMENT_DISTANCE),
           y: SAFE_SPAWN_Y,
           z: AI_FIELD_CENTER_Z
         };
@@ -1971,7 +2155,7 @@ export class SoccerGame {
       } else if (isHumanPlayer && player.role === 'central-midfielder-1') {
         // Human defending midfielder
         targetPosition = {
-          x: AI_FIELD_CENTER_X + (kickoffTeam === 'red' ? -12 : 12),
+          x: AI_FIELD_CENTER_X + (kickoffTeam === 'red' ? -CENTER_CIRCLE_ENFORCEMENT_DISTANCE : CENTER_CIRCLE_ENFORCEMENT_DISTANCE),
           y: SAFE_SPAWN_Y,
           z: AI_FIELD_CENTER_Z
         };
@@ -2005,8 +2189,8 @@ export class SoccerGame {
     // Red team defends X=52 (right side), defensive half: X > 7 (right of center)
     // Blue team defends X=-37 (left side), defensive half: X < 7 (left of center)
     const inOwnHalf = playerTeam === 'red' ?
-      (AI_FIELD_CENTER_X + 5) :  // Red players in right half (X > 7)
-      (AI_FIELD_CENTER_X - 5);   // Blue players in left half (X < 7)
+      (AI_FIELD_CENTER_X + OWN_HALF_OFFSET) :
+      (AI_FIELD_CENTER_X - OWN_HALF_OFFSET);
 
     // Get base position for the player's role
     let basePosition: Vector3Like;
@@ -2018,12 +2202,12 @@ export class SoccerGame {
       // COORDINATE FIX: Adjust X to ensure player is in correct half
       let adjustedX = rolePosition.x;
       // Red team must stay in right half (X > AI_FIELD_CENTER_X)
-      if (playerTeam === 'red' && adjustedX < AI_FIELD_CENTER_X + 5) {
-        adjustedX = AI_FIELD_CENTER_X + 8; // Keep red team in their half (right side)
+      if (playerTeam === 'red' && adjustedX < AI_FIELD_CENTER_X + OWN_HALF_OFFSET) {
+        adjustedX = AI_FIELD_CENTER_X + OWN_HALF_DEEPER_OFFSET;
       }
       // Blue team must stay in left half (X < AI_FIELD_CENTER_X)
-      else if (playerTeam === 'blue' && adjustedX > AI_FIELD_CENTER_X - 5) {
-        adjustedX = AI_FIELD_CENTER_X - 8; // Keep blue team in their half (left side)
+      else if (playerTeam === 'blue' && adjustedX > AI_FIELD_CENTER_X - OWN_HALF_OFFSET) {
+        adjustedX = AI_FIELD_CENTER_X - OWN_HALF_DEEPER_OFFSET;
       }
 
       basePosition = {
@@ -2161,7 +2345,7 @@ export class SoccerGame {
         }
       });
       console.log(`Players unfrozen, kickoff can begin`);
-    }, 2000); // 2 second delay
+    }, UNFREEZE_DELAY_MS);
   }
 
   /**
@@ -2169,11 +2353,12 @@ export class SoccerGame {
    */
   private switchToGameplayMusic(): void {
     console.log("🎵 Switching to gameplay music");
-    
+
     // Get the music instances from the index.ts global scope
-    const mainMusic = (this.world as any)._mainMusic;
-    const arcadeGameplayMusic = (this.world as any)._arcadeGameplayMusic;
-    const fifaGameplayMusic = (this.world as any)._fifaGameplayMusic;
+    const worldMusic = this.world as unknown as WorldMusicInstances;
+    const mainMusic = worldMusic._mainMusic;
+    const arcadeGameplayMusic = worldMusic._arcadeGameplayMusic;
+    const fifaGameplayMusic = worldMusic._fifaGameplayMusic;
     
     // Enhanced debugging for music system
     console.log("🎵 Music instance check:");
@@ -2242,11 +2427,12 @@ export class SoccerGame {
    */
   private switchToOpeningMusic(): void {
     console.log("🎵 Switching back to opening music");
-    
+
     // Get the music instances from the index.ts global scope
-    const mainMusic = (this.world as any)._mainMusic;
-    const arcadeGameplayMusic = (this.world as any)._arcadeGameplayMusic;
-    const fifaGameplayMusic = (this.world as any)._fifaGameplayMusic;
+    const worldMusic = this.world as unknown as WorldMusicInstances;
+    const mainMusic = worldMusic._mainMusic;
+    const arcadeGameplayMusic = worldMusic._arcadeGameplayMusic;
+    const fifaGameplayMusic = worldMusic._fifaGameplayMusic;
     
     if (!mainMusic || !arcadeGameplayMusic || !fifaGameplayMusic) {
       console.error("Music system not properly initialized");

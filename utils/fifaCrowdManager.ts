@@ -4,6 +4,28 @@ import { isFIFAMode } from "../state/gameModes";
 // Node.js Timer type
 type Timer = ReturnType<typeof setTimeout>;
 
+// ========== CONFIGURABLE CONSTANTS ==========
+
+/** Default duration estimate for announcer clips (ms). Used when actual clip duration is unknown. */
+const DEFAULT_ANNOUNCER_DURATION_MS = 5000;
+
+/**
+ * Per-type announcer duration estimates (ms).
+ * More specific estimates prevent cutting off long clips or leaving excessive gaps.
+ */
+const ANNOUNCER_DURATION_ESTIMATES: Record<string, number> = {
+  "goal": 4000,
+  "near-miss": 3000,
+  "save": 3500,
+  "momentum": 3500,
+  "red-card": 4000,
+  "game-end": 5000,
+  "game-start": 4500,
+};
+
+/** Maximum number of pooled Audio objects for crowd reactions */
+const AUDIO_POOL_MAX_SIZE = 8;
+
 /**
  * FIFA Crowd Manager - Creates realistic stadium atmosphere for FIFA mode
  * Handles ambient crowd noise, event-triggered reactions, random chants, and announcer commentary
@@ -13,7 +35,7 @@ export class FIFACrowdManager {
   private ambientAudio: Audio | null = null;
   private chantInterval: Timer | null = null;
   private isActive: boolean = false;
-  
+
   // Voice management system to prevent overlapping announcer audio
   private currentAnnouncerAudio: Audio | null = null;
   private isAnnouncerSpeaking: boolean = false;
@@ -24,6 +46,9 @@ export class FIFACrowdManager {
     volume: number;
   }> = [];
   private queueProcessorInterval: Timer | null = null;
+
+  // Audio object pool for crowd reaction sounds (avoids creating new Audio() every time)
+  private audioPool: Audio[] = [];
   
   // Audio collections based on available files
   private crowdSounds = {
@@ -98,9 +123,14 @@ export class FIFACrowdManager {
     this.isActive = true;
     console.log("🏟️ Starting FIFA stadium crowd atmosphere");
 
+    // Restart queue processor if it was stopped
+    if (!this.queueProcessorInterval) {
+      this.startQueueProcessor();
+    }
+
     // Start ambient crowd noise
     this.startAmbientCrowd();
-    
+
     // Start random chants system
     this.startRandomChants();
   }
@@ -133,8 +163,18 @@ export class FIFACrowdManager {
     }
     this.isAnnouncerSpeaking = false;
     this.announcerQueue = [];
-    
-    // Note: Don't stop queue processor as it should run continuously
+
+    // Stop queue processor to prevent memory leak
+    if (this.queueProcessorInterval) {
+      clearInterval(this.queueProcessorInterval);
+      this.queueProcessorInterval = null;
+    }
+
+    // Drain the audio object pool
+    for (const audio of this.audioPool) {
+      audio.pause();
+    }
+    this.audioPool = [];
   }
 
   /**
@@ -163,13 +203,10 @@ export class FIFACrowdManager {
 
       const randomChant = this.getRandomSound(this.crowdSounds.chants);
       
-      const chantAudio = new Audio({
-        uri: randomChant,
-        loop: false,
-        volume: 0.65,
-      });
-      
+      const chantAudio = this.getPooledAudio(randomChant, 0.65);
       chantAudio.play(this.world);
+      // Return to pool after estimated playback time
+      setTimeout(() => this.returnToPool(chantAudio), 8000);
       console.log(`📢 Playing crowd chant: ${randomChant.split('/').pop()}`);
     };
 
@@ -197,12 +234,9 @@ export class FIFACrowdManager {
     console.log("🥅 Playing FIFA crowd goal reaction");
     
     // Play crowd cheer (immediate, no queue needed for crowd sounds)
-    const goalCheer = new Audio({
-      uri: this.crowdSounds.reactions.goalCheer,
-      loop: false,
-      volume: 0.9,
-    });
+    const goalCheer = this.getPooledAudio(this.crowdSounds.reactions.goalCheer, 0.9);
     goalCheer.play(this.world);
+    setTimeout(() => this.returnToPool(goalCheer), 6000);
 
     // Queue announcer commentary with high priority
     const randomAnnouncer = this.getRandomSound(this.crowdSounds.announcer.goals);
@@ -218,12 +252,9 @@ export class FIFACrowdManager {
     console.log("😲 Playing FIFA crowd near miss reaction");
     
     // Play mixed reaction (gasps, applause)
-    const reactionAudio = new Audio({
-      uri: this.crowdSounds.reactions.mixedReaction,
-      loop: false,
-      volume: 0.65,
-    });
+    const reactionAudio = this.getPooledAudio(this.crowdSounds.reactions.mixedReaction, 0.65);
     reactionAudio.play(this.world);
+    setTimeout(() => this.returnToPool(reactionAudio), 5000);
 
     // Sometimes add announcer commentary with medium priority
     if (Math.random() < 0.6) { // 60% chance
@@ -241,12 +272,9 @@ export class FIFACrowdManager {
     console.log("🥅 Playing FIFA save reaction");
     
     // Play applause for good save
-    const applauseAudio = new Audio({
-      uri: this.crowdSounds.reactions.applause,
-      loop: false,
-      volume: 0.65,
-    });
+    const applauseAudio = this.getPooledAudio(this.crowdSounds.reactions.applause, 0.65);
     applauseAudio.play(this.world);
+    setTimeout(() => this.returnToPool(applauseAudio), 5000);
 
     // Queue save commentary with medium-high priority
     const randomAnnouncer = this.getRandomSound(this.crowdSounds.announcer.saves);
@@ -275,12 +303,9 @@ export class FIFACrowdManager {
     console.log("🔴 Playing FIFA red card announcement");
     
     // Play foul reaction first
-    const foulAudio = new Audio({
-      uri: this.crowdSounds.reactions.foulReaction,
-      loop: false,
-      volume: 0.75,
-    });
+    const foulAudio = this.getPooledAudio(this.crowdSounds.reactions.foulReaction, 0.75);
     foulAudio.play(this.world);
+    setTimeout(() => this.returnToPool(foulAudio), 5000);
 
     // Queue red card announcement with very high priority
     const randomAnnouncer = this.getRandomSound(this.crowdSounds.announcer.redCard);
@@ -308,12 +333,9 @@ export class FIFACrowdManager {
 
     console.log("😠 Playing FIFA crowd foul reaction");
 
-    const foulAudio = new Audio({
-      uri: this.crowdSounds.reactions.foulReaction,
-      loop: false,
-      volume: 0.7,
-    });
-    foulAudio.play(this.world);
+    const foulAudio2 = this.getPooledAudio(this.crowdSounds.reactions.foulReaction, 0.7);
+    foulAudio2.play(this.world);
+    setTimeout(() => this.returnToPool(foulAudio2), 5000);
   }
 
   /**
@@ -335,12 +357,9 @@ export class FIFACrowdManager {
   public playApplause(): void {
     if (!this.isActive || !isFIFAMode()) return;
 
-    const applauseAudio = new Audio({
-      uri: this.crowdSounds.reactions.applause,
-      loop: false,
-      volume: 0.6,
-    });
-    applauseAudio.play(this.world);
+    const applauseAudio2 = this.getPooledAudio(this.crowdSounds.reactions.applause, 0.6);
+    applauseAudio2.play(this.world);
+    setTimeout(() => this.returnToPool(applauseAudio2), 5000);
   }
 
   /**
@@ -423,8 +442,8 @@ export class FIFACrowdManager {
 
     console.log(`🎙️ Playing queued announcer: ${nextAnnouncement.type} - ${nextAnnouncement.audioUri.split('/').pop()}`);
 
-    // Play the announcement
-    this.playAnnouncerAudio(nextAnnouncement.audioUri, nextAnnouncement.volume);
+    // Play the announcement with type-based duration estimate
+    this.playAnnouncerAudio(nextAnnouncement.audioUri, nextAnnouncement.volume, nextAnnouncement.type);
   }
 
   /**
@@ -448,9 +467,10 @@ export class FIFACrowdManager {
   }
 
   /**
-   * Play announcer audio and track when it finishes
+   * Play announcer audio and track when it finishes.
+   * Uses per-type duration estimates to avoid cutting clips short or leaving excessive gaps.
    */
-  private playAnnouncerAudio(audioUri: string, volume: number): void {
+  private playAnnouncerAudio(audioUri: string, volume: number, announcerType?: string): void {
     this.isAnnouncerSpeaking = true;
 
     this.currentAnnouncerAudio = new Audio({
@@ -461,12 +481,41 @@ export class FIFACrowdManager {
 
     this.currentAnnouncerAudio.play(this.world);
 
-    // Estimate audio duration and mark as finished
-    // Most announcer clips are 2-4 seconds, so we'll use a safe 5 second timeout
+    // Use per-type duration estimate, falling back to the default constant
+    const estimatedDuration = (announcerType && ANNOUNCER_DURATION_ESTIMATES[announcerType])
+      ? ANNOUNCER_DURATION_ESTIMATES[announcerType]
+      : DEFAULT_ANNOUNCER_DURATION_MS;
+
     setTimeout(() => {
       this.isAnnouncerSpeaking = false;
       this.currentAnnouncerAudio = null;
       console.log(`🎙️ Announcer finished speaking`);
-    }, 5000); // 5 second timeout
+    }, estimatedDuration);
+  }
+
+  /**
+   * Get or create a pooled Audio object for one-shot crowd/reaction sounds.
+   * Reuses existing Audio objects to reduce garbage collection pressure.
+   */
+  private getPooledAudio(uri: string, volume: number, loop: boolean = false): Audio {
+    // Try to reuse an existing pooled audio object
+    if (this.audioPool.length > 0) {
+      this.audioPool.pop(); // discard old instance (properties are read-only in new SDK)
+      return new Audio({ uri, volume, loop });
+    }
+
+    // Create a new Audio object when pool is empty
+    return new Audio({ uri, volume, loop });
+  }
+
+  /**
+   * Return an Audio object to the pool for reuse.
+   * If pool is full, the object is simply discarded.
+   */
+  private returnToPool(audio: Audio): void {
+    if (this.audioPool.length < AUDIO_POOL_MAX_SIZE) {
+      audio.pause();
+      this.audioPool.push(audio);
+    }
   }
 } 

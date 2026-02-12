@@ -241,6 +241,71 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
+
+  /* ===== MODE LOCKED INDICATOR (Issue #34) ===== */
+  .menu-btn.mode-locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+    position: relative;
+    pointer-events: none;
+  }
+
+  .mode-locked-badge {
+    display: none;
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .menu-btn.mode-locked .mode-locked-badge {
+    display: inline-block;
+  }
+
+  .mode-locked-notice {
+    display: none;
+    text-align: center;
+    font-size: 13px;
+    color: #ef4444;
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+
+  .mode-locked-notice.visible {
+    display: block;
+  }
+
+  /* ===== SPECTATOR HINT (Issue #35) ===== */
+  .spectator-hint {
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 12px;
+    font-style: italic;
+  }
+
+  /* ===== TIMEOUT ERROR (Issue #32) ===== */
+  .timeout-error {
+    display: none;
+    text-align: center;
+    font-size: 14px;
+    color: #ef4444;
+    margin-top: 10px;
+  }
+
+  .timeout-error.visible {
+    display: block;
+  }
 </style>
 
 <!-- ===== GAME MENU CONTAINER ===== -->
@@ -259,23 +324,32 @@
     <button class="menu-btn btn-fifa" id="btnFifa">
       [T] FIFA Mode
       <div class="btn-desc">Realistic Soccer Simulation</div>
+      <span class="mode-locked-badge">Locked</span>
     </button>
 
     <button class="menu-btn btn-arcade" id="btnArcade">
       [A] Arcade Mode
       <div class="btn-desc">Power-ups & Fast Action</div>
+      <span class="mode-locked-badge">Locked</span>
     </button>
 
     <button class="menu-btn btn-tournament" id="btnTournament">
-      🏅 Tournament Mode
+      Tournament Mode
       <div class="btn-desc">Competitive Brackets</div>
+      <span class="mode-locked-badge">Locked</span>
     </button>
+
+    <div class="mode-locked-notice" id="modeLockNotice">
+      Game mode is locked during an active match.
+    </div>
 
     <div class="instructions">
       <p>* WASD or Arrow keys to move</p>
       <p>* Left Click to pass • Right Click to shoot</p>
       <p>* Space to tackle/dodge • F to use ability</p>
     </div>
+
+    <div class="spectator-hint">Full game? You can still join as a spectator!</div>
   </div>
 
   <!-- SCREEN 2: Player Count Selection -->
@@ -313,6 +387,10 @@
   <!-- SCREEN 4: Loading/Starting -->
   <div class="menu-panel screen" id="screenLoading">
     <div class="loading-text">* Starting Game...</div>
+    <div class="timeout-error" id="loadingTimeoutError">
+      Server did not respond. Please go back and try again.
+    </div>
+    <button class="menu-btn btn-back" id="btnBackFromLoading" style="display:none; margin-top: 15px;">Back to Menu</button>
   </div>
 
 </div>
@@ -325,6 +403,8 @@
   let selectedMode = null;
   let selectedPlayerCount = null;
   let isMobile = false;
+  let modesLocked = false;
+  let teamSelectTimeoutId = null;
 
   // ===== DOM ELEMENTS =====
   const gameMenu = document.getElementById('gameMenu');
@@ -350,23 +430,46 @@
   function sendToServer(data) {
     if (window.hytopia && typeof window.hytopia.sendData === 'function') {
       window.hytopia.sendData(data);
-      console.log('📤 Sent to server:', data);
     } else {
       console.error('❌ hytopia.sendData not available');
+    }
+  }
+
+  // ===== MODE LOCK HELPERS (Issue #34) =====
+  function setModesLocked(locked) {
+    modesLocked = locked;
+    var modeBtns = ['btnFifa', 'btnArcade', 'btnTournament'];
+    var notice = document.getElementById('modeLockNotice');
+
+    modeBtns.forEach(function(id) {
+      var btn = document.getElementById(id);
+      if (btn) {
+        if (locked) {
+          btn.classList.add('mode-locked');
+        } else {
+          btn.classList.remove('mode-locked');
+        }
+      }
+    });
+
+    if (notice) {
+      if (locked) {
+        notice.classList.add('visible');
+      } else {
+        notice.classList.remove('visible');
+      }
     }
   }
 
   function lockPointerForGame() {
     if (window.hytopia && typeof window.hytopia.lockPointer === 'function') {
       window.hytopia.lockPointer(true);
-      console.log('🔒 Pointer locked for gameplay');
     }
   }
 
   function unlockPointerForUI() {
     if (window.hytopia && typeof window.hytopia.lockPointer === 'function') {
       window.hytopia.lockPointer(false, false);
-      console.log('🔓 Pointer unlocked for UI');
     }
   }
 
@@ -395,7 +498,6 @@
   // Game Mode Selection
   function selectGameMode(mode) {
     selectedMode = mode;
-    console.log('[A] Game mode selected:', mode);
     sendToServer({ type: 'select-game-mode', mode: mode });
 
     if (mode === 'tournament') {
@@ -409,15 +511,19 @@
   // Player Count Selection
   function selectPlayerCount(count) {
     selectedPlayerCount = count;
-    console.log('👥 Player count selected:', count);
     sendToServer({ type: 'select-player-count', count: count });
     showScreen('team');
   }
 
   // Team Selection
   function selectTeam(team) {
-    console.log('* Team selected:', team);
     showScreen('loading');
+
+    // Reset timeout error state
+    var timeoutError = document.getElementById('loadingTimeoutError');
+    var backBtn = document.getElementById('btnBackFromLoading');
+    if (timeoutError) timeoutError.classList.remove('visible');
+    if (backBtn) backBtn.style.display = 'none';
 
     // Send team selection to server
     sendToServer({
@@ -428,6 +534,13 @@
       isMobile: isMobile
     });
 
+    // Start a timeout - if server doesn't respond in 10s, show error (Issue #32)
+    if (teamSelectTimeoutId) clearTimeout(teamSelectTimeoutId);
+    teamSelectTimeoutId = setTimeout(function() {
+      if (timeoutError) timeoutError.classList.add('visible');
+      if (backBtn) backBtn.style.display = 'block';
+    }, 10000);
+
     // Lock pointer and hide menu after a short delay
     setTimeout(() => {
       lockPointerForGame();
@@ -437,24 +550,32 @@
 
   // ===== INITIALIZE =====
   function init() {
-    console.log('[A] Gnarly Nutmeg Menu Initializing...');
-
     // Detect mobile
     isMobile = window.hytopia && window.hytopia.isMobile === true;
-    console.log('📱 Mobile device:', isMobile);
 
     // CRITICAL: Unlock pointer so buttons are clickable
     unlockPointerForUI();
 
-    // Setup game mode buttons
-    setupButton('btnFifa', () => selectGameMode('fifa'));
-    setupButton('btnArcade', () => selectGameMode('arcade'));
-    setupButton('btnTournament', () => selectGameMode('tournament'));
+    // Setup game mode buttons (with mode-lock guard, Issue #34)
+    setupButton('btnFifa', () => { if (!modesLocked) selectGameMode('fifa'); });
+    setupButton('btnArcade', () => { if (!modesLocked) selectGameMode('arcade'); });
+    setupButton('btnTournament', () => { if (!modesLocked) selectGameMode('tournament'); });
 
     // Setup player count buttons
     setupButton('btnSingle', () => selectPlayerCount('single'));
     setupButton('btnMulti', () => selectPlayerCount('multiplayer'));
     setupButton('btnBackToMode', () => showScreen('gameMode'));
+
+    // Setup back-from-loading button (Issue #32)
+    setupButton('btnBackFromLoading', () => {
+      if (teamSelectTimeoutId) {
+        clearTimeout(teamSelectTimeoutId);
+        teamSelectTimeoutId = null;
+      }
+      showScreen('gameMode');
+      unlockPointerForUI();
+      gameMenu.classList.remove('hidden');
+    });
 
     // Setup team buttons
     setupButton('btnRed', () => selectTeam('red'));
@@ -470,9 +591,12 @@
     // Listen for server messages
     if (window.hytopia && typeof window.hytopia.onData === 'function') {
       window.hytopia.onData((data) => {
-        console.log('📥 Received from server:', data);
-
         if (data.type === 'game-started' || data.type === 'hide-menu') {
+          // Server responded, clear timeout (Issue #32)
+          if (teamSelectTimeoutId) {
+            clearTimeout(teamSelectTimeoutId);
+            teamSelectTimeoutId = null;
+          }
           lockPointerForGame();
           hideMenu();
         }
@@ -482,13 +606,22 @@
           gameMenu.classList.remove('hidden');
           showScreen('gameMode');
         }
+
+        // Handle mode-locked message from server (Issue #34)
+        if (data.type === 'mode-locked') {
+          setModesLocked(true);
+        }
+
+        // Handle mode-unlocked message from server
+        if (data.type === 'mode-unlocked') {
+          setModesLocked(false);
+        }
       });
     }
 
     // Send platform info to server
     sendToServer({ type: 'platform-info', isMobile: isMobile });
 
-    console.log('[OK] Menu initialized successfully!');
   }
 
   // Run init when DOM is ready

@@ -6,7 +6,7 @@
  */
 
 import type { Vector3Like } from "hytopia";
-import type { SoccerAIRole } from "../entities/AIPlayerEntity";
+import type { SoccerAIRole } from "../entities/ai/AIRoleDefinitions";
 import {
   SAFE_SPAWN_Y,
   AI_FIELD_CENTER_Z,

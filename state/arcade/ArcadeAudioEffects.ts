@@ -3,12 +3,35 @@
 import { Audio, World, type Vector3Like } from "hytopia";
 import SoccerPlayerEntity from "../../entities/SoccerPlayerEntity";
 
+/** Minimum interval (ms) between playing the same sound type to prevent overlap */
+const SOUND_OVERLAP_COOLDOWN_MS = 300;
+
 export class ArcadeAudioEffects {
   private world: World;
+
+  /**
+   * Tracks the last time each sound type was played.
+   * Prevents rapid-fire ability triggers from causing overlapping sounds.
+   */
+  private activeSounds: Map<string, number> = new Map();
 
   constructor(world: World) {
     this.world = world;
     console.log("ArcadeAudioEffects initialized");
+  }
+
+  /**
+   * Check if a sound type is allowed to play (not overlapping).
+   * Returns true if the sound may play, and records the timestamp.
+   */
+  private canPlaySound(soundType: string): boolean {
+    const now = Date.now();
+    const lastPlayed = this.activeSounds.get(soundType) ?? 0;
+    if (now - lastPlayed < SOUND_OVERLAP_COOLDOWN_MS) {
+      return false;
+    }
+    this.activeSounds.set(soundType, now);
+    return true;
   }
 
   /**
@@ -67,6 +90,8 @@ export class ArcadeAudioEffects {
    * @param powerUpType - Type of power-up
    */
   playPowerUpSound(position: Vector3Like, powerUpType: string): void {
+    if (!this.canPlaySound(`powerup_${powerUpType}`)) return;
+
     const audio = new Audio({
       uri: "audio/sfx/ui/inventory-grab-item.mp3",
       loop: false,
@@ -82,6 +107,8 @@ export class ArcadeAudioEffects {
    * @param position - Position to play sound at
    */
   playFreezeSound(position: Vector3Like): void {
+    if (!this.canPlaySound("freeze")) return;
+
     const freezeAudio = new Audio({
       uri: "audio/sfx/liquid/large-splash.mp3",
       loop: false,
@@ -119,6 +146,8 @@ export class ArcadeAudioEffects {
    * @param position - Position to play sound at
    */
   playFireballSound(position: Vector3Like): void {
+    if (!this.canPlaySound("fireball")) return;
+
     const launchAudio = this.safeCreateAudio("audio/sfx/fire/fire-ignite.mp3", {
       loop: false,
       volume: 0.8,
@@ -133,6 +162,8 @@ export class ArcadeAudioEffects {
    * @param position - Position to play sound at
    */
   playExplosionSound(position: Vector3Like): void {
+    if (!this.canPlaySound("explosion")) return;
+
     const explosionAudio = new Audio({
       uri: "audio/sfx/damage/explode.mp3",
       loop: false,
@@ -160,6 +191,8 @@ export class ArcadeAudioEffects {
    * @param position - Position to play sound at
    */
   playSpeedBoostSound(position: Vector3Like): void {
+    if (!this.canPlaySound("speed_boost")) return;
+
     const whooshAudio = new Audio({
       uri: "audio/sfx/ui/portal-travel-woosh.mp3",
       loop: false,
@@ -186,6 +219,8 @@ export class ArcadeAudioEffects {
    * @param position - Position to play sound at
    */
   playShieldSound(position: Vector3Like): void {
+    if (!this.canPlaySound("shield")) return;
+
     const shieldAudio = new Audio({
       uri: "audio/sfx/damage/hit-metal-3.mp3",
       loop: false,
@@ -213,6 +248,8 @@ export class ArcadeAudioEffects {
    * @param powerUpType - Type of power-up
    */
   playChargingSound(player: SoccerPlayerEntity, powerUpType: string): void {
+    if (!this.canPlaySound(`charge_${powerUpType}`)) return;
+
     const chargeSounds: Record<string, string> = {
       'freeze_blast': 'audio/sfx/liquid/large-splash-2.mp3',
       'fireball': 'audio/sfx/fire/fire-ignite-2.mp3',

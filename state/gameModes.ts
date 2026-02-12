@@ -180,8 +180,8 @@ export const PENALTY_SHOOTOUT_CONFIG = {
 // Current game mode (defaults to FIFA for safety)
 let currentGameMode: GameMode = GameMode.FIFA;
 
-// Track if a match is currently in progress (prevents mode changes mid-game)
-let matchInProgress: boolean = false;
+// Track which rooms have matches in progress (prevents mode changes mid-game per-room)
+const roomsInProgress = new Set<string>();
 
 // Safe getter for current mode
 export const getCurrentGameMode = (): GameMode => currentGameMode;
@@ -202,11 +202,15 @@ export const getCurrentModeConfig = () => {
   }
 };
 
-// Safe mode switching function - now with match protection
-export const setGameMode = (mode: GameMode): boolean => {
-  // CRITICAL FIX: Prevent mode changes while a match is in progress
-  if (matchInProgress) {
-    console.warn(`⚠️ Cannot change game mode to ${mode} - match already in progress with ${currentGameMode} mode`);
+// Safe mode switching function - now with per-room match protection
+export const setGameMode = (mode: GameMode, roomId?: string): boolean => {
+  // CRITICAL FIX: Prevent mode changes while a match is in progress in the specified room
+  if (roomId && roomsInProgress.has(roomId)) {
+    console.warn(`⚠️ Cannot change game mode to ${mode} - match already in progress in room ${roomId}`);
+    return false;
+  }
+  if (!roomId && roomsInProgress.size > 0) {
+    console.warn(`⚠️ Cannot change game mode to ${mode} - matches in progress in ${roomsInProgress.size} room(s)`);
     return false;
   }
 
@@ -216,19 +220,22 @@ export const setGameMode = (mode: GameMode): boolean => {
 };
 
 // Lock game mode when match starts (call from gameState.ts when game begins)
-export const lockGameMode = (): void => {
-  matchInProgress = true;
-  console.log(`🔒 Game mode LOCKED to ${currentGameMode} - no changes allowed until match ends`);
+export const lockGameMode = (roomId: string = 'default'): void => {
+  roomsInProgress.add(roomId);
+  console.log(`🔒 Game mode LOCKED for room ${roomId} to ${currentGameMode} - no changes allowed until match ends`);
 };
 
 // Unlock game mode when match ends (call from gameState.ts when game finishes/resets)
-export const unlockGameMode = (): void => {
-  matchInProgress = false;
-  console.log(`🔓 Game mode UNLOCKED - players can now select a new mode`);
+export const unlockGameMode = (roomId: string = 'default'): void => {
+  roomsInProgress.delete(roomId);
+  console.log(`🔓 Game mode UNLOCKED for room ${roomId} - players can now select a new mode`);
 };
 
-// Check if mode is currently locked
-export const isGameModeLocked = (): boolean => matchInProgress;
+// Check if mode is currently locked (optionally for a specific room)
+export const isGameModeLocked = (roomId?: string): boolean => {
+  if (roomId) return roomsInProgress.has(roomId);
+  return roomsInProgress.size > 0;
+};
 
 // Helper functions for mode checking (used throughout codebase)
 export const isFIFAMode = (): boolean => currentGameMode === GameMode.FIFA;

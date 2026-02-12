@@ -16,7 +16,7 @@
 
 import type { Vector3Like, Entity } from "hytopia";
 import {
-  SoccerAIRole,
+  type SoccerAIRole,
   ROLE_DEFINITIONS,
   getPursuitDistanceForRole,
   ROLE_PURSUIT_PROBABILITY,
@@ -48,6 +48,7 @@ export interface DecisionContext {
   shootBall: (targetPoint: Vector3Like, powerMultiplier: number) => boolean;
   passBall: () => boolean;
   tackleBall: () => void;
+  shouldPursueBasedOnTeamCoordination: (ballPosition: Vector3Like) => boolean;
 }
 
 export class AIDecisionMaker {

@@ -3,11 +3,14 @@
  *
  * Handles all server setup including:
  * - Map loading and lighting configuration
- * - Soccer ball creation
- * - Game system initialization (SoccerGame, managers, etc.)
+ * - Feature manager initialization
  * - Performance systems setup
  * - Audio system initialization
+ * - Physical lobby initialization
  * - Event handler registration
+ *
+ * Note: The lobby world does NOT create a SoccerGame or soccer ball.
+ * Each game room creates its own via RoomManager.createRoom().
  *
  * Extracted from index.ts (lines 1-362) to reduce file size and improve modularity.
  */
@@ -32,6 +35,7 @@ import { ChatCommandHandlers } from "../handlers/ChatCommandHandlers";
 import { GameEventHandlers } from "../handlers/GameEventHandlers";
 import AIPlayerEntity from "../../entities/AIPlayerEntity";
 import { spawnAIPlayers as spawnAIPlayersUtil } from "../../utils/aiSpawner";
+import { PhysicalLobby } from "../../lobby/PhysicalLobby";
 
 /**
  * Return type for initialized server systems
@@ -63,6 +67,9 @@ export interface ServerSystems {
   aiPlayers: AIPlayerEntity[];
   musicStarted: { value: boolean };
 
+  // Physical lobby system
+  physicalLobby: PhysicalLobby;
+
   // Room system dependencies (exported for RoomManager)
   SoccerGameClass: typeof SoccerGame;
   createSoccerBallFn: typeof createSoccerBall;
@@ -81,7 +88,7 @@ export class ServerInitializer {
    * Initialize all server systems and return them
    */
   initialize(): ServerSystems {
-    logger.info("<� Starting soccer server initialization...");
+    logger.info("Starting soccer server initialization...");
 
     // ========================================
     // STEP 1: Load Map and Configure Lighting
@@ -89,44 +96,35 @@ export class ServerInitializer {
     this.setupMapAndLighting();
 
     // ========================================
-    // STEP 2: Create Soccer Ball
+    // STEP 2: Initialize Core Systems (lobby has no game/ball)
     // ========================================
-    logger.info("� Creating soccer ball...");
-    const soccerBall = createSoccerBall(this.world);
-    logger.info(" Soccer ball created and spawned");
-
-    // ========================================
-    // STEP 3: Initialize Core Systems
-    // ========================================
-    // sharedState is imported as a singleton from state/sharedState
+    // Lobby world does not need a SoccerGame or soccer ball.
+    // Each game room creates its own via RoomManager.createRoom().
+    const game: SoccerGame | null = null;
     const aiPlayers: AIPlayerEntity[] = [];
-    const game = new SoccerGame(this.world, soccerBall, aiPlayers);
+    logger.info("Lobby mode: no game ball or SoccerGame created");
 
     // Initialize audio manager
     const audioManager = new AudioManager(this.world);
 
     // ========================================
-    // STEP 4: Initialize Feature Managers
+    // STEP 3: Initialize Feature Managers
     // ========================================
     const arcadeManager = new ArcadeEnhancementManager(this.world);
     (this.world as any)._arcadeManager = arcadeManager;
-    game.setArcadeManager(arcadeManager);
 
     const pickupManager = new PickupGameManager(this.world);
     (this.world as any)._pickupManager = pickupManager;
-    game.setPickupManager(pickupManager);
 
     const tournamentManager = new TournamentManager(this.world);
     (this.world as any)._tournamentManager = tournamentManager;
-    game.setTournamentManager(tournamentManager);
 
     const fifaCrowdManager = new FIFACrowdManager(this.world);
-    game.setFIFACrowdManager(fifaCrowdManager);
 
     // spectatorMode is already imported as a singleton from utils/observerMode
 
     // ========================================
-    // STEP 5: Initialize Performance Systems
+    // STEP 4: Initialize Performance Systems
     // ========================================
     const performanceProfiler = new PerformanceProfiler(this.world, {
       enabled: true, // Enable for GPU memory monitoring
@@ -138,23 +136,30 @@ export class ServerInitializer {
     (this.world as any)._performanceProfiler = performanceProfiler;
     performanceProfiler.start(); // Start profiling immediately
 
-    const performanceOptimizer = new PerformanceOptimizer("HIGH_PERFORMANCE"); // Start with high performance mode
+    const performanceOptimizer = new PerformanceOptimizer("HIGH_PERFORMANCE");
     logger.info(
-      "=� Performance optimizer initialized in HIGH_PERFORMANCE mode for GPU memory conservation"
+      "Performance optimizer initialized in HIGH_PERFORMANCE mode"
     );
 
     // ========================================
-    // STEP 6: Server Memory Management
+    // STEP 5: Server Memory Management
     // ========================================
     this.setupServerMemoryManagement();
 
-    logger.info(" Game initialized successfully with GPU memory optimizations!");
+    logger.info("Lobby initialized successfully with GPU memory optimizations!");
 
     // ========================================
-    // STEP 7: Music System
+    // STEP 6: Music System
     // ========================================
-    logger.info("<� Audio system initialized and ready");
+    logger.info("Audio system initialized and ready");
     const musicStarted = { value: false }; // Wrapped in object for mutability
+
+    // ========================================
+    // STEP 7: Initialize Physical Lobby
+    // ========================================
+    const physicalLobby = new PhysicalLobby(this.world);
+    physicalLobby.initialize();
+    logger.info("Physical lobby initialized with portals");
 
     // ========================================
     // STEP 8: Initialize Event Handlers
@@ -192,6 +197,7 @@ export class ServerInitializer {
       pickupManager,
       uiEventHandlers,
       musicStarted,
+      physicalLobby,
     });
 
     // Create chat command handlers
@@ -221,13 +227,13 @@ export class ServerInitializer {
     chatCommandHandlers.registerAll();
     gameEventHandlers.registerAll();
 
-    logger.info(" Server initialization complete!");
+    logger.info("Server initialization complete!");
 
     // ========================================
     // Return all initialized systems
     // ========================================
     return {
-      game, // This is the lobby game instance
+      game, // null in lobby mode
       audioManager,
       sharedState,
       arcadeManager,
@@ -243,6 +249,7 @@ export class ServerInitializer {
       gameEventHandlers,
       aiPlayers,
       musicStarted,
+      physicalLobby,
 
       // Export dependencies for RoomManager to create room instances
       SoccerGameClass: SoccerGame,
@@ -256,9 +263,9 @@ export class ServerInitializer {
    * Load map and configure stadium lighting
    */
   private setupMapAndLighting(): void {
-    logger.info("<� Loading soccer stadium...");
+    logger.info("Loading soccer stadium...");
     this.world.loadMap(worldMap);
-    logger.info(" Soccer map loaded");
+    logger.info("Soccer map loaded");
 
     // Set up enhanced lighting for the stadium
     this.world.setDirectionalLightIntensity(0.6);
@@ -266,7 +273,7 @@ export class ServerInitializer {
     this.world.setDirectionalLightColor({ r: 255, g: 248, b: 235 });
     this.world.setAmbientLightIntensity(1.2);
     this.world.setAmbientLightColor({ r: 250, g: 250, b: 255 });
-    logger.info(" Enhanced stadium lighting configured");
+    logger.info("Enhanced stadium lighting configured");
   }
 
   /**
@@ -277,10 +284,10 @@ export class ServerInitializer {
     setInterval(() => {
       if (typeof global.gc === "function") {
         global.gc();
-        logger.debug(">� Forced server garbage collection to free memory");
+        logger.debug("Forced server garbage collection to free memory");
       }
     }, 30000);
 
-    logger.info("=� Server memory management enabled");
+    logger.info("Server memory management enabled");
   }
 }

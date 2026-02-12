@@ -409,11 +409,8 @@
                    (window.hytopia && window.hytopia.isMobile);
 
   if (!isMobile) {
-    console.log('[Mobile Controls] Desktop detected, skipping mobile control setup');
     return;
   }
-
-  console.log('[Mobile Controls] Initializing SDK-compliant mobile controls...');
 
   // ===== BUTTON CONFIGURATION =====
   // Maps button IDs to Hytopia SDK input names
@@ -451,7 +448,6 @@
       // Use Hytopia SDK to send input
       if (window.hytopia && typeof window.hytopia.pressInput === 'function') {
         window.hytopia.pressInput(config.input, true);
-        console.log(`[Mobile] ${config.name} PRESSED (${config.input})`);
       }
 
       // For 'tap' behavior, auto-release after short delay
@@ -475,7 +471,6 @@
       // Use Hytopia SDK to release input
       if (window.hytopia && typeof window.hytopia.pressInput === 'function') {
         window.hytopia.pressInput(config.input, false);
-        console.log(`[Mobile] ${config.name} RELEASED (${config.input})`);
       }
     }
 
@@ -531,7 +526,6 @@
       e.preventDefault();
     });
 
-    console.log(`[Mobile Controls] Setup complete: ${buttonId} -> ${config.input}`);
   }
 
   // ===== INITIALIZE ALL BUTTONS =====
@@ -539,42 +533,68 @@
     for (const [buttonId, config] of Object.entries(BUTTON_CONFIG)) {
       setupMobileButton(buttonId, config);
     }
-    console.log('[Mobile Controls] All buttons initialized successfully');
   }
 
   // ===== TUTORIAL HANDLER =====
+  // Safe localStorage helper to guard against race conditions and missing storage (Issue #65)
+  function safeLSGet(key) {
+    try {
+      var val = localStorage.getItem(key);
+      return (val !== null && val !== undefined) ? val : null;
+    } catch (e) {
+      // localStorage may be unavailable (private browsing, storage full, etc.)
+      console.warn('[Mobile Controls] localStorage read failed:', e);
+      return null;
+    }
+  }
+
+  function safeLSSet(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn('[Mobile Controls] localStorage write failed:', e);
+    }
+  }
+
   function setupTutorial() {
     const tutorial = document.getElementById('mobile-tutorial');
     const dismissBtn = document.getElementById('tutorial-dismiss-btn');
 
     if (!tutorial || !dismissBtn) return;
 
-    // Check if tutorial was already shown
-    const tutorialShown = localStorage.getItem('gnarly-soccer-tutorial-shown');
+    // Check if tutorial was already shown (with safe read)
+    const tutorialShown = safeLSGet('gnarly-soccer-tutorial-shown');
 
-    if (tutorialShown) {
+    if (tutorialShown === 'true') {
       tutorial.classList.add('hidden');
       return;
+    }
+
+    let tutorialDismissed = false;
+
+    function dismissTutorial() {
+      // Guard against double-dismiss race condition
+      if (tutorialDismissed) return;
+      tutorialDismissed = true;
+      tutorial.classList.add('hidden');
+      safeLSSet('gnarly-soccer-tutorial-shown', 'true');
     }
 
     // Setup dismiss button
     dismissBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      tutorial.classList.add('hidden');
-      localStorage.setItem('gnarly-soccer-tutorial-shown', 'true');
+      dismissTutorial();
     }, { passive: false });
 
     dismissBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      tutorial.classList.add('hidden');
-      localStorage.setItem('gnarly-soccer-tutorial-shown', 'true');
+      dismissTutorial();
     });
 
     // Auto-hide after 8 seconds if not dismissed
     setTimeout(() => {
       if (!tutorial.classList.contains('hidden')) {
-        tutorial.classList.add('hidden');
-        localStorage.setItem('gnarly-soccer-tutorial-shown', 'true');
+        dismissTutorial();
       }
     }, 8000);
   }
@@ -585,7 +605,6 @@
     setTimeout(() => {
       initializeControls();
       setupTutorial();
-      console.log('[Mobile Controls] Initialization complete');
     }, 100);
   }
 

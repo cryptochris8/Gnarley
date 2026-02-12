@@ -36,7 +36,7 @@ import { BehaviorNode, createBehaviorTree } from './BehaviorTree';
 
 // Import AI modules
 import {
-  SoccerAIRole,
+  type SoccerAIRole,
   ROLE_DEFINITIONS,
   SHOT_ARC_FACTOR,
   PASS_ARC_FACTOR,
@@ -46,6 +46,11 @@ import {
   TEAMMATE_REPULSION_STRENGTH,
   POSITION_DISCIPLINE_FACTOR,
   ROLE_PURSUIT_PROBABILITY,
+  POSITION_RECOVERY_MULTIPLIER,
+  GOALKEEPER_PURSUIT_DISTANCE,
+  DEFENDER_PURSUIT_DISTANCE,
+  MIDFIELDER_PURSUIT_DISTANCE,
+  STRIKER_PURSUIT_DISTANCE,
   getPursuitDistanceForRole
 } from './ai/AIRoleDefinitions';
 import { AIStaminaManager } from './ai/AIStaminaManager';
@@ -60,6 +65,7 @@ const BALL_ANTICIPATION_FACTOR = 1.5;
 const KICKOFF_SPACING_MULTIPLIER = 2.0;
 const RESTART_FORMATION_DISCIPLINE = 0.9;
 const CENTER_AVOIDANCE_RADIUS = 12.0;
+const penaltyAreaRadius = 18;
 
 /**
  * AI-controlled soccer player entity
@@ -87,13 +93,17 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
   private _lastRotationUpdateTime: number | null = null;
   // Track ball possession time for all players
   private ballPossessionStartTime: number | null = null;
-  private readonly GOALKEEPER_MAX_POSSESSION_TIME = 1500; // 1.5 seconds - reduced for faster distribution after saves
-  private readonly DEFENDER_MAX_POSSESSION_TIME = 4000; // 4 seconds for defenders
-  private readonly MIDFIELDER_MAX_POSSESSION_TIME = 5000; // 5 seconds for midfielders
-  private readonly STRIKER_MAX_POSSESSION_TIME = 4000; // 4 seconds for strikers
+  private readonly GOALKEEPER_MAX_POSSESSION_TIME = 3000; // 3 seconds - enough time for distribution passes
+  private readonly DEFENDER_MAX_POSSESSION_TIME = 8000; // 8 seconds for defenders to build play
+  private readonly MIDFIELDER_MAX_POSSESSION_TIME = 10000; // 10 seconds for midfielders to orchestrate
+  private readonly STRIKER_MAX_POSSESSION_TIME = 6000; // 6 seconds for strikers to find shots
 
   // Restart behavior type to determine how AI behaves after ball resets
   private restartBehavior: 'pass-to-teammates' | 'normal' | null = null;
+
+  // Per-decision-cycle cache for ball stationary status (avoids redundant calls to RoomSharedState)
+  private _cachedBallStationary: boolean = false;
+  private _cachedBallStationaryDuration: number = 0;
 
   // FIFA-like stop-and-pass state machine
   private passingState: 'none' | 'stopping' | 'ready' | 'passed' = 'none';
@@ -104,6 +114,7 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
   // Pass reception tracking - helps AI move to receive incoming passes
   private incomingPassTarget: Vector3Like | null = null; // Where the pass is aimed
   private incomingPassTime: number | null = null; // When the pass was made
+  private incomingPassCleanupTimer: Timer | null = null; // Proactive cleanup timer
   private readonly PASS_RECEPTION_TIMEOUT = 3000; // Clear after 3 seconds
   private readonly PASS_RECEPTION_PRIORITY_DISTANCE = 15; // Within this distance, prioritize receiving
 
@@ -116,7 +127,7 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
 
   // Room-specific shared state (for multi-room support)
   // If null, falls back to global sharedState singleton (backward compatibility)
-  private roomSharedState: RoomSharedState | null = null;
+  // roomSharedState inherited from SoccerPlayerEntity (protected)
 
   /**
    * Create a new AI player entity
@@ -159,7 +170,7 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     
     // Call parent constructor with mock player, team, and role
     // This initializes the base SoccerPlayerEntity with the SDK's Entity systems
-    super(aiPlayer, team, role);
+    super(aiPlayer, team, role as any);
     this.aiRole = role;
 
     // Store room-specific shared state for multi-room support
@@ -173,13 +184,8 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
       this.decisionInterval = 150; // 3x faster than field players for quick shot reactions
     }
     
-    // Create controller instance but don't attach it immediately
-    // This avoids the stopModelAnimations error when the entity isn't spawned yet
-    const controller = new PlayerEntityController({
-      runVelocity: 5.5, 
-      walkVelocity: 3.5
-    });
-    
+    // Controller is now set via SoccerPlayerEntity constructor options (SDK 0.14.55+)
+
     // Initialize AI systems
     this.agent = new SoccerAgent(this);
     this.behaviorTree = createBehaviorTree(this);
@@ -210,14 +216,6 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     // Set the initial actual position using SDK teleport
     this.setPosition(this.targetPosition);
 
-    // Only set controller when the entity is spawned
-    this.on(EntityEvent.SPAWN, () => {
-      // Set controller using SDK's controller system after the entity is spawned
-      // This prevents the stopModelAnimations error
-      this.setController(controller);
-      console.log(`AI ${this.player.username} controller set after spawn`);
-    });
-    
     // Setup tick handler using SDK's entity event system
     // This will run every frame to handle movement and animations
     this.on(EntityEvent.TICK, ({ entity, tickDeltaMs }) => {
@@ -225,29 +223,7 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     });
   }
 
-  /**
-   * Get the shared state for this AI player
-   * Returns room-specific state if available, otherwise falls back to global singleton
-   * This enables both multi-room and single-room (backward compatible) operation
-   */
-  protected getSharedState(): RoomSharedState | typeof sharedState {
-    return this.roomSharedState || sharedState;
-  }
-
-  /**
-   * Get the room shared state (may be null for legacy single-room mode)
-   */
-  public getRoomSharedState(): RoomSharedState | null {
-    return this.roomSharedState;
-  }
-
-  /**
-   * Set the room shared state (for late binding when AI is spawned into a room)
-   */
-  public setRoomSharedState(roomState: RoomSharedState): void {
-    this.roomSharedState = roomState;
-    console.log(`🤖 AI ${this.player.username} assigned to room: ${roomState.getRoomId()}`);
-  }
+  // getSharedState(), getRoomSharedState(), setRoomSharedState() inherited from SoccerPlayerEntity
 
   /**
    * Notify this player that a pass is coming to them
@@ -258,6 +234,17 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     this.incomingPassTarget = { ...targetPosition };
     this.incomingPassTime = Date.now();
     console.log(`📨 ${this.player.username} notified of incoming pass to (${targetPosition.x.toFixed(1)}, ${targetPosition.z.toFixed(1)})`);
+
+    // Proactive cleanup: guarantee the pass notification expires even if getIncomingPassTarget() is never called
+    if (this.incomingPassCleanupTimer) {
+      clearTimeout(this.incomingPassCleanupTimer);
+    }
+    this.incomingPassCleanupTimer = setTimeout(() => {
+      if (this.incomingPassTarget) {
+        console.log(`⏰ ${this.player.username} pass notification expired (proactive cleanup after ${this.PASS_RECEPTION_TIMEOUT}ms)`);
+        this.clearIncomingPass();
+      }
+    }, this.PASS_RECEPTION_TIMEOUT);
   }
 
   /**
@@ -295,6 +282,10 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     }
     this.incomingPassTarget = null;
     this.incomingPassTime = null;
+    if (this.incomingPassCleanupTimer) {
+      clearTimeout(this.incomingPassCleanupTimer);
+      this.incomingPassCleanupTimer = null;
+    }
   }
 
   /**
@@ -371,13 +362,17 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
       clearTimeout(this.updateInterval); // Now using setTimeout, so clearTimeout
       this.updateInterval = null;
     }
-    
+
+    // Clean up pass notification timer
+    this.clearIncomingPass();
+
     // Reset all state variables
     this.isKickoffActive = false;
     this.lastAIPosition = null;
     this.currentAnimState = null;
     this.hasRotationBeenSetThisTick = false;
-    
+    this.ballPossessionStartTime = null;
+
     // Clear any pending animations
     if (this.isSpawned) {
       this.stopModelAnimations(["idle", "walk", "run", "wind_up", "kick"]);
@@ -407,6 +402,10 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     // Get ball position and check if this player has the ball
     const ballPosition = ball.position;
     const hasBall = this.getSharedState().getAttachedPlayer() === this;
+
+    // Cache ball stationary status once per decision cycle to avoid redundant calls
+    this._cachedBallStationary = this.getSharedState().isBallStationary();
+    this._cachedBallStationaryDuration = this.getSharedState().getBallStationaryDuration();
 
     // Clear incoming pass notification if we've received the ball
     if (hasBall && this.incomingPassTarget) {
@@ -850,15 +849,17 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     const ballVelocity = ball ? ball.linearVelocity : { x: 0, y: 0, z: 0 };
     const ballSpeed = Math.sqrt(ballVelocity.x * ballVelocity.x + ballVelocity.z * ballVelocity.z);
     
-    // Define goal width and penalty area radius
+    // Define goal width and penalty area dimensions
     const goalWidth = 10;
-    const penaltyAreaRadius = 18; // Increased from 15 for better coverage
+    const penaltyAreaDepth = 18; // Distance from goal line
+    const penaltyAreaHalfWidth = 20; // Half-width of penalty area (Z direction)
 
     // Get distance from goal line to ball
     const distanceFromGoalToBall = Math.abs(ballPosition.x - goalLineX);
-    
-    // Check if the ball is in the penalty area
-    const ballInPenaltyArea = distanceFromGoalToBall < penaltyAreaRadius;
+
+    // Check if the ball is in the penalty area (2D rectangle: X depth + Z width)
+    const ballInPenaltyArea = distanceFromGoalToBall < penaltyAreaDepth &&
+      Math.abs(ballPosition.z - AI_FIELD_CENTER_Z) < penaltyAreaHalfWidth;
     
     // Distance from goalkeeper to ball
     const distanceToBall = this.distanceBetween(ballPosition, myPosition);
@@ -1024,9 +1025,9 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
       
       if (hasTeammates) {
         // PRIORITY 1: Try specialized goalkeeper distribution from SoccerAgent (if available)
-        if (this.soccerAgent) {
+        if (this.agent) {
           console.log(`Goalkeeper ${this.player.username} using SoccerAgent distribution logic`);
-          const agentDistribution = this.soccerAgent.goalkeeperDistribution();
+          const agentDistribution = this.agent.goalkeeperDistribution();
           if (agentDistribution) {
             // Distribution successful, reset timer and return
             this.ballPossessionStartTime = null;
@@ -1744,7 +1745,9 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
           z: opponentGoal.z + ((Math.random() * 4) - 2) // Random offset for goal placement
         };
         
-        this.shootBall(shootTarget, 1.2); // Increased power multiplier for effective midfielder shooting
+        // Scale shot power with distance - close range is faster, long range needs more power
+        const shotPower = distanceToGoal < 12 ? 1.0 : 1.0 + ((distanceToGoal - 12) / 12) * 0.4; // 1.0 to 1.4
+        this.shootBall(shootTarget, shotPower);
         targetPos = { x: opponentGoal.x, y: myPosition.y, z: myPosition.z };
       } 
       // Otherwise, look to pass or dribble forward
@@ -2001,8 +2004,10 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
           
           // Reduce pursuit probability if far from formation position
           let formationPenalty = 0;
-          if (distanceFromFormation > 15) {
-            formationPenalty = 0.3 * disciplineFactor; // Higher discipline = more penalty
+          if (distanceFromFormation > 10) {
+            formationPenalty = 0.6 * disciplineFactor; // Stronger penalty keeps midfielders in position
+          } else if (distanceFromFormation > 15) {
+            formationPenalty = 0.9 * disciplineFactor; // Very strong penalty when far out of position
           }
           
           // Conditions that increase pursuit probability:
@@ -2351,8 +2356,8 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
         const estimatedBallSpeed = 7.0; // More realistic estimate
         const passTravelTime = Math.min(passDist / estimatedBallSpeed, 1.5); // Cap at 1.5 seconds
 
-        // Apply conservative leading - only 60% of predicted movement
-        const leadMultiplier = 0.6;
+        // Apply moderate leading - 80% of predicted movement
+        const leadMultiplier = 0.8;
         const predictedX = bestTargetPlayer.position.x + (teammateVelocity.x * passTravelTime * leadMultiplier);
         const predictedZ = bestTargetPlayer.position.z + (teammateVelocity.z * passTravelTime * leadMultiplier);
 
@@ -3076,10 +3081,12 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
           // Central attack - stay slightly ahead of the ball
           const forwardDistance = this.team === 'red' ? 6 : -6;
           
-          targetPos = { 
-            x: Math.min(opponentGoalLineX + (this.team === 'red' ? -3 : 3), ballPosition.x + forwardDistance), 
-            y: myPosition.y, 
-            z: AI_FIELD_CENTER_Z + (Math.random() > 0.5 ? 3 : -3) // Slightly off-center randomly
+          // Track ball's Z position with offset for cross positioning
+          const zOffset = ballPosition.z > AI_FIELD_CENTER_Z ? -4 : 4; // Position opposite side for crosses
+          targetPos = {
+            x: Math.min(opponentGoalLineX + (this.team === 'red' ? -3 : 3), ballPosition.x + forwardDistance),
+            y: myPosition.y,
+            z: ballPosition.z + zOffset
           };
         }
       }
@@ -3511,7 +3518,7 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     
     // Apply FIFA mode speed multipliers to match human players
     const currentModeConfig = getCurrentModeConfig();
-    const speedMultiplier = currentModeConfig.sprintMultiplier || 1.0; // Default to 1.0 if not defined
+    const speedMultiplier = (currentModeConfig as any).sprintMultiplier || 1.0; // Default to 1.0 if not defined
     let maxSpeed = baseMaxSpeed * speedMultiplier;
     
     // Apply stamina-based speed penalty (same as human players)
@@ -3937,12 +3944,12 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     }
     
     // **ENHANCED STATIONARY BALL LOGIC**
-    // Be more aggressive when ball is stationary
-    const isBallStationary = this.getSharedState().isBallStationary();
-    const stationaryDuration = this.getSharedState().getBallStationaryDuration();
+    // Be more aggressive when ball is stationary (uses per-cycle cached values)
+    const isBallStationary = this._cachedBallStationary;
+    const stationaryDuration = this._cachedBallStationaryDuration;
     
     // Adjust pursuit limits based on ball stationary status
-    let maxSimultaneousPursuers = 2; // Default
+    let maxSimultaneousPursuers = 3; // Default
     if (isBallStationary) {
       if (stationaryDuration > 10000) { // 10+ seconds
         maxSimultaneousPursuers = 4; // Very aggressive team response
@@ -3953,44 +3960,64 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
       }
     }
     
-    // Always allow pursuit if we're the closest teammate to the ball
-    if (this.isClosestTeammateToPosition(ballPosition)) {
-      return true;
-    }
-    
-    // Check how many teammates are already pursuing
-    const teammates = this.getSharedState().getAITeammates(this);
-    let pursuingCount = 0;
-    
-    // Calculate my distance to ball
-    const myDistanceToBall = this.distanceBetween(this.position, ballPosition);
+    // Use cached pursuit coordination data from RoomSharedState to avoid O(n^2) checks
+    const state = this.getSharedState();
     let myPursuitRank = 1; // Default rank (lower is better)
-    
-    // Find teammates who are already pursuing and closer than me
-    for (const teammate of teammates) {
-      if (!teammate.isSpawned) continue;
-      
-      // Skip non-AIPlayerEntity teammates
-      if (!(teammate instanceof AIPlayerEntity)) continue;
-      
-      const teammatePos = teammate.position;
-      const teammateToBall = this.distanceBetween(teammatePos, ballPosition);
-      
-      // Is this teammate pursuing?
-      const distanceToTarget = teammate.targetPosition ? 
-        this.distanceBetween(teammate.targetPosition, ballPosition) : 999;
-        
-      // Consider a teammate to be pursuing if their target is close to the ball
-      if (distanceToTarget < 3) {
-        pursuingCount++;
-        
-        // Count how many teammates are closer to the ball than me
-        if (teammateToBall < myDistanceToBall) {
-          myPursuitRank++;
+    let pursuingCount = 0;
+
+    if (state instanceof RoomSharedState) {
+      const cache = state.getPursuitCoordinationCache(this.team, ballPosition);
+      const myDistanceToBall = this.distanceBetween(this.position, ballPosition);
+
+      // Check if we're the closest teammate (rank 1 in cache means closest overall, but we need our rank among teammates)
+      let isClosest = true;
+      for (const entry of cache.rankedPlayers) {
+        if (entry.player === this) continue;
+        if (entry.distanceToBall < myDistanceToBall) {
+          isClosest = false;
+          break;
+        }
+      }
+      if (isClosest) {
+        return true;
+      }
+
+      // Calculate pursuit rank and count from cached data
+      for (const entry of cache.rankedPlayers) {
+        if (entry.player === this) continue;
+        if (entry.isPursuing) {
+          pursuingCount++;
+          if (entry.distanceToBall < myDistanceToBall) {
+            myPursuitRank++;
+          }
+        }
+      }
+    } else {
+      // Fallback for legacy single-room mode without RoomSharedState
+      if (this.isClosestTeammateToPosition(ballPosition)) {
+        return true;
+      }
+
+      const teammates = state.getAITeammates(this);
+      const myDistanceToBall = this.distanceBetween(this.position, ballPosition);
+
+      for (const teammate of teammates) {
+        if (!teammate.isSpawned) continue;
+        if (!(teammate instanceof AIPlayerEntity)) continue;
+
+        const teammateToBall = this.distanceBetween(teammate.position, ballPosition);
+        const distanceToTarget = teammate.targetPosition ?
+          this.distanceBetween(teammate.targetPosition, ballPosition) : 999;
+
+        if (distanceToTarget < 3) {
+          pursuingCount++;
+          if (teammateToBall < myDistanceToBall) {
+            myPursuitRank++;
+          }
         }
       }
     }
-    
+
     // Only allow pursuit if we're within the pursuit limit by rank
     const shouldPursue = myPursuitRank <= maxSimultaneousPursuers;
     
@@ -4026,9 +4053,9 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     // At this point we've verified the ball is truly loose (not possessed by anyone)
     
     // **ENHANCED STATIONARY BALL DETECTION**
-    // Check if ball is stationary anywhere on the field (not just boundaries)
-    const isBallStationary = this.getSharedState().isBallStationary();
-    const stationaryDuration = this.getSharedState().getBallStationaryDuration();
+    // Check if ball is stationary anywhere on the field (uses per-cycle cached values)
+    const isBallStationary = this._cachedBallStationary;
+    const stationaryDuration = this._cachedBallStationaryDuration;
     
     if (isBallStationary) {
       const distanceToBall = this.distanceBetween(this.position, ballPosition);
@@ -4128,10 +4155,10 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
       case 'striker': maxPursuitDistance = STRIKER_PURSUIT_DISTANCE; break;
     }
     
-    // **ENHANCED: Increase pursuit distance for stationary balls**
-    const ballIsStationary = this.getSharedState().isBallStationary();
+    // **ENHANCED: Increase pursuit distance for stationary balls (uses per-cycle cached values)**
+    const ballIsStationary = this._cachedBallStationary;
     if (ballIsStationary) {
-      const stationaryDuration = this.getSharedState().getBallStationaryDuration();
+      const stationaryDuration = this._cachedBallStationaryDuration;
       if (stationaryDuration > 7000) { // 7+ seconds
         maxPursuitDistance *= 2.5; // Very extended range
       } else {
@@ -4173,10 +4200,10 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
       case 'striker': maxPursuitDistance = STRIKER_PURSUIT_DISTANCE; break;
     }
     
-    // **ENHANCED: Increase pursuit distance for stationary balls in chase calculations**
-    const ballStationaryStatus = this.getSharedState().isBallStationary();
+    // **ENHANCED: Increase pursuit distance for stationary balls in chase calculations (uses per-cycle cached values)**
+    const ballStationaryStatus = this._cachedBallStationary;
     if (ballStationaryStatus) {
-      const stationaryDuration = this.getSharedState().getBallStationaryDuration();
+      const stationaryDuration = this._cachedBallStationaryDuration;
       if (stationaryDuration > 7000) { // 7+ seconds
         maxPursuitDistance *= 2.5; // Very extended range
       } else {

@@ -56,15 +56,21 @@ const mockPlayer = {
 
 const mockAIContext: AIContext = {
   player: mockPlayer,
-  ball: mockWorld.ball,
+  ball: mockWorld.ball as any,
   teammates: [],
   opponents: [],
   gameState: {
+    mode: 'fifa',
     isActive: true,
+    isPaused: false,
     currentHalf: 1,
+    totalHalves: 2,
     timeRemaining: 45000,
-    score: { team1: 0, team2: 0 }
-  }
+    isHalftime: false,
+    score: { team1: 0, team2: 0 },
+    teamStats: { team1: {} as any, team2: {} as any }
+  },
+  deltaTime: 0.016
 };
 
 describe('Integration Tests - AI Caching System', () => {
@@ -76,7 +82,7 @@ describe('Integration Tests - AI Caching System', () => {
       maxCacheSize: 100,
       defaultTTL: 1000
     });
-    cachedAgent = new CachedSoccerAgent('midfielder');
+    cachedAgent = new CachedSoccerAgent('central-midfielder-1');
   });
 
   afterEach(() => {
@@ -122,7 +128,7 @@ describe('Integration Tests - AI Caching System', () => {
       defaultTTL: 50 // 50ms
     });
     
-    const agent = new CachedSoccerAgent('forward');
+    const agent = new CachedSoccerAgent('striker');
     
     // Make initial decision
     agent.makeDecision(mockAIContext);
@@ -253,7 +259,7 @@ describe('Integration Tests - Timer Management', () => {
   let timerManager: TimerManager;
 
   beforeEach(() => {
-    timerManager = new TimerManager();
+    timerManager = TimerManager.getInstance();
   });
 
   afterEach(() => {
@@ -296,7 +302,7 @@ describe('Integration Tests - Error Handling', () => {
   let errorHandler: ErrorHandler;
 
   beforeEach(() => {
-    errorHandler = new ErrorHandler();
+    errorHandler = ErrorHandler.getInstance();
   });
 
   it('should log and categorize errors correctly', () => {
@@ -368,7 +374,7 @@ describe('Integration Tests - End-to-End Game Scenarios', () => {
     dashboard.start();
     
     // Simulate game activity
-    const agent = new CachedSoccerAgent('midfielder');
+    const agent = new CachedSoccerAgent('central-midfielder-1');
     
     // Make many AI decisions to test performance
     const decisions: AIDecision[] = [];
@@ -378,7 +384,7 @@ describe('Integration Tests - End-to-End Game Scenarios', () => {
         ball: {
           ...mockAIContext.ball,
           position: { x: i, y: 0, z: i % 10 }
-        }
+        } as any
       });
       decisions.push(decision);
     }
@@ -398,7 +404,7 @@ describe('Integration Tests - End-to-End Game Scenarios', () => {
     mobileOptimizer.start();
     
     // Create AI agent
-    const agent = new CachedSoccerAgent('forward');
+    const agent = new CachedSoccerAgent('striker');
     
     // Test integration between systems
     const initialMetrics = dashboard.getLatestMetrics();
@@ -454,7 +460,7 @@ describe('Integration Tests - End-to-End Game Scenarios', () => {
 
 describe('Integration Tests - Memory and Resource Management', () => {
   it('should not have memory leaks in timer system', () => {
-    const timerManager = new TimerManager();
+    const timerManager = TimerManager.getInstance();
     
     // Create many timers
     const timerIds: string[] = [];
@@ -480,7 +486,7 @@ describe('Integration Tests - Memory and Resource Management', () => {
       maxCacheSize: 10
     });
     
-    const agent = new CachedSoccerAgent('midfielder');
+    const agent = new CachedSoccerAgent('central-midfielder-1');
     
     // Fill cache beyond capacity
     for (let i = 0; i < 20; i++) {
@@ -489,7 +495,7 @@ describe('Integration Tests - Memory and Resource Management', () => {
         ball: {
           ...mockAIContext.ball,
           position: { x: i, y: 0, z: i }
-        }
+        } as any
       });
     }
     

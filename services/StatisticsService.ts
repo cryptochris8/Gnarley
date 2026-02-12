@@ -325,8 +325,8 @@ export class StatisticsService {
    * @param data - Data to send
    */
   private sendDataToAllPlayers(data: any): void {
-    this.world.entityManager.getAllPlayerEntities().forEach((player) => {
-      player.sendData(data);
+    this.world.entityManager.getAllPlayerEntities().forEach((playerEntity) => {
+      playerEntity.player.ui.sendData(data);
     });
   }
 

@@ -16,6 +16,7 @@ import type { FIFACrowdManager } from "../../utils/fifaCrowdManager";
 import type { PickupGameManager } from "../../state/pickupGameManager";
 import type { AudioManager } from "../core/AudioManager";
 import { logger } from "../../utils/GameLogger";
+import { getCurrentGameMode } from "../../state/gameModes";
 import sharedState from "../../state/sharedState";
 import spectatorMode from "../../utils/observerMode";
 
@@ -208,7 +209,7 @@ export class ChatCommandHandlers {
           );
         }
       } else if (musicType === "gameplay") {
-        const mode = this.deps.game?.getCurrentMode() || "fifa";
+        const mode = getCurrentGameMode() || "fifa";
         if (this.deps.audioManager.playGameplayMusic(mode as any)) {
           this.deps.world.chatManager.sendPlayerMessage(
             player,
@@ -251,11 +252,11 @@ export class ChatCommandHandlers {
           this.deps.world.chatManager.sendPlayerMessage(player, " Crowd atmosphere stopped");
           break;
         case "cheer":
-          this.deps.fifaCrowdManager.playRandomCheer();
+          this.deps.fifaCrowdManager.playApplause();
           this.deps.world.chatManager.sendPlayerMessage(player, " Crowd cheering");
           break;
         case "goal":
-          this.deps.fifaCrowdManager.playGoalCelebration();
+          this.deps.fifaCrowdManager.playGoalReaction();
           this.deps.world.chatManager.sendPlayerMessage(player, " Goal celebration");
           break;
         default:
@@ -289,15 +290,11 @@ export class ChatCommandHandlers {
 
   private registerAgentToggleCommand(): void {
     this.deps.world.chatManager.registerCommand("/agenttoggle", (player, message) => {
-      this.deps.aiPlayers.forEach(ai => {
-        if (ai.agent) {
-          ai.agent.toggleLogging();
-        }
-      });
-
+      // TODO: SoccerAgent.toggleLogging() is not implemented and agent is private on AIPlayerEntity.
+      // To enable this, add a public toggleAgentLogging() method to AIPlayerEntity that delegates to SoccerAgent.
       this.deps.world.chatManager.sendPlayerMessage(
         player,
-        "Toggled AI agent logging for all AI players"
+        "AI agent logging toggle is not yet implemented"
       );
     });
   }
@@ -365,16 +362,17 @@ export class ChatCommandHandlers {
 
   private registerDebugPickupsCommand(): void {
     this.deps.world.chatManager.registerCommand("/debugpickups", (player, args) => {
-      // Get pickup debug info from pickup manager
-      const pickupInfo = this.deps.pickupManager.getDebugInfo();
+      // Use available methods on PickupGameManager
+      const activeCount = this.deps.pickupManager.getActivePickupCount();
+      const isActive = this.deps.pickupManager.isPickupSystemActive();
 
       this.deps.world.chatManager.sendPlayerMessage(
         player,
-        `=� Active Pickups: ${pickupInfo.activeCount}`
+        `Active Pickups: ${activeCount}`
       );
       this.deps.world.chatManager.sendPlayerMessage(
         player,
-        `<� Spawn Points: ${pickupInfo.spawnPoints}`
+        `Pickup System Active: ${isActive}`
       );
     });
   }
@@ -393,43 +391,45 @@ export class ChatCommandHandlers {
 
   private registerNextPlayerCommand(): void {
     this.deps.world.chatManager.registerCommand("/nextplayer", (player, message) => {
-      spectatorMode.nextPlayer(player, this.deps.world);
+      spectatorMode.nextPlayer(player);
     });
   }
 
   private registerPrevPlayerCommand(): void {
     this.deps.world.chatManager.registerCommand("/prevplayer", (player, message) => {
-      spectatorMode.previousPlayer(player, this.deps.world);
+      // SpectatorMode only supports cycling forward; use cycleNextTarget as fallback
+      spectatorMode.cycleNextTarget(player);
     });
   }
 
   private registerNextCameraCommand(): void {
     this.deps.world.chatManager.registerCommand("/nextcamera", (player, message) => {
-      spectatorMode.nextCameraAngle(player, this.deps.world);
+      spectatorMode.cycleCameraMode(player);
     });
   }
 
   private registerPrevCameraCommand(): void {
     this.deps.world.chatManager.registerCommand("/prevcamera", (player, message) => {
-      spectatorMode.previousCameraAngle(player, this.deps.world);
+      // SpectatorMode only supports cycling forward; use cycleCameraMode as fallback
+      spectatorMode.cycleCameraMode(player);
     });
   }
 
   private registerBallCamCommand(): void {
     this.deps.world.chatManager.registerCommand("/ballcam", (player, message) => {
-      spectatorMode.setBallCam(player, this.deps.world);
+      spectatorMode.switchToBallCam(player);
     });
   }
 
   private registerStadiumCommand(): void {
     this.deps.world.chatManager.registerCommand("/stadium", (player, message) => {
-      spectatorMode.setStadiumView(player, this.deps.world);
+      spectatorMode.switchToStadiumView(player);
     });
   }
 
   private registerLeaveSpectatorCommand(): void {
     this.deps.world.chatManager.registerCommand("/leavespectator", (player, message) => {
-      spectatorMode.leaveSpectatorMode(player, this.deps.world);
+      spectatorMode.removeSpectator(player);
       this.deps.world.chatManager.sendPlayerMessage(
         player,
         " Left spectator mode"
@@ -591,7 +591,7 @@ export class ChatCommandHandlers {
       const state = this.deps.game.getState();
       this.deps.world.chatManager.sendPlayerMessage(
         player,
-        `� Score: Red ${state.redScore} - ${state.blueScore} Blue`
+        `Score: Red ${state.score.red} - ${state.score.blue} Blue`
       );
     });
   }

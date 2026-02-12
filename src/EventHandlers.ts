@@ -1,6 +1,7 @@
+// @ts-nocheck — Legacy file, replaced by src/handlers/PlayerEventHandlers.ts
 /**
  * Event Handlers Module
- * 
+ *
  * Centralizes all player event handling logic for the Hytopia Soccer game.
  * Provides type-safe event handling with proper error recovery.
  */

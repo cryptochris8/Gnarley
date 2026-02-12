@@ -2,6 +2,7 @@ import { World, Entity, type Vector3Like } from 'hytopia';
 import { AbilityConsumable } from '../abilities/AbilityConsumable';
 import { ALL_POWERUP_OPTIONS } from '../abilities/itemTypes';
 import { ABILITY_PICKUP_POSITIONS, ABILITY_RESPAWN_TIME } from './gameConfig';
+import { isArcadeMode } from './gameModes';
 
 // Timer type for Node.js compatibility
 type Timer = ReturnType<typeof setTimeout>;

@@ -129,6 +129,38 @@ export const GAME_MODE_CONFIGS: Record<string, GameModeConfig> = {
       commentaryEnabled: true,
       crowdReactionsEnabled: true
     }
+  },
+  pickup: {
+    realisticPhysics: true,
+    enhancedAbilities: false,
+    aiEnabled: true,
+    powerUpsEnabled: false,
+    tournamentMode: false,
+    ballPhysics: BALL_PHYSICS_CONFIGS.fifa, // Pickup uses FIFA-like physics with AI teammates
+    audioConfig: {
+      masterVolume: 1.0,
+      musicVolume: 0.7,
+      sfxVolume: 0.8,
+      crowdVolume: 0.5,
+      commentaryEnabled: false,
+      crowdReactionsEnabled: true
+    }
+  },
+  spectator: {
+    realisticPhysics: true,
+    enhancedAbilities: false,
+    aiEnabled: false,
+    powerUpsEnabled: false,
+    tournamentMode: false,
+    ballPhysics: BALL_PHYSICS_CONFIGS.fifa, // Spectators observe default physics
+    audioConfig: {
+      masterVolume: 0.8,
+      musicVolume: 0.4,
+      sfxVolume: 0.6,
+      crowdVolume: 1.0,
+      commentaryEnabled: true,
+      crowdReactionsEnabled: true
+    }
   }
 };
 
@@ -160,7 +192,7 @@ export const PERFORMANCE_TARGETS: Record<OptimizationLevel, PerformanceTarget> =
     targetFrameTime: 33.33,    // 30 FPS for mobile
     maxAIDecisionTime: 40,     // 40ms per AI decision
     maxPhysicsTime: 20,        // 20ms per physics step
-    maxMemoryUsage: 256 * 1024 * 1024, // 256MB for mobile
+    maxMemoryUsage: 128 * 1024 * 1024, // 128MB for mobile
     maxEntityCount: 150
   }
 };

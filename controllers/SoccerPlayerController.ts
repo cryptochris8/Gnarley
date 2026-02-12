@@ -57,9 +57,9 @@ const TACKLE_FORCE = 12;
 const TACKLE_DURATION = 600;
 
 // Add constants for ball reset
-const BALL_VELOCITY_THRESHOLD = 0.1; // Minimum velocity to consider ball moving
-const BALL_STUCK_CHECK_INTERVAL = 2000; // Check every 2 seconds
-const BALL_STUCK_TIME_THRESHOLD = 3000; // Consider ball stuck after 3 seconds
+const BALL_VELOCITY_THRESHOLD = 0.15; // Minimum velocity to consider ball moving (slightly raised for quicker detection)
+const BALL_STUCK_CHECK_INTERVAL = 1000; // Check every 1 second for faster detection
+const BALL_STUCK_TIME_THRESHOLD = 2000; // Consider ball stuck after 2 seconds
 
 // Add constants for goalkeeper header mechanics
 const GOALKEEPER_HEADER_RANGE = 3.5; // Range for goalkeeper headers
@@ -288,7 +288,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
     // Start ball stuck detection when first entity spawns
     if (!CustomSoccerPlayer._ballStuckCheckInterval) {
       CustomSoccerPlayer._ballStuckCheckInterval = setInterval(() => {
-        this.checkForStuckBall(entity.world as World);
+        this.checkForStuckBall(entity.world as World, entity);
       }, BALL_STUCK_CHECK_INTERVAL);
     }
   }
@@ -663,7 +663,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         
         // Apply game mode speed enhancements
         const currentModeConfig = getCurrentModeConfig();
-        const baseSpeedMultiplier = isRunning ? currentModeConfig.sprintMultiplier : currentModeConfig.playerSpeed;
+        const baseSpeedMultiplier = isRunning ? (currentModeConfig as any).sprintMultiplier ?? 1.0 : (currentModeConfig as any).playerSpeed ?? 1.0;
         velocity *= baseSpeedMultiplier;
 
         // Apply time slow effects (enhanced power-up)
@@ -948,9 +948,9 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         });
 
         entity.applyImpulse({
-          x: direction.x * -8,
+          x: direction.x * 8,
           y: 5,
-          z: direction.z * -8,
+          z: direction.z * 8,
         });
 
         entity.isTackling = true;
@@ -1172,6 +1172,9 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       }
 
       // 3. Clear all intervals and timers
+      // Note: clearChargeInterval is already called inside _clearPowerChargeIfNeeded,
+      // but we call it here unconditionally as a safety net in case the charge cleanup
+      // path was skipped (e.g., _holdingQ was null but interval was somehow lingering)
       this.clearChargeInterval();
 
       if (CustomSoccerPlayer._ballStuckCheckInterval) {
@@ -1187,7 +1190,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       // 4. Clear audio
       if (this._stepAudio) {
         try {
-          this._stepAudio.stop();
+          this._stepAudio.pause();
           this._stepAudio = undefined;
         } catch (error) {
           console.log("Step audio cleanup error:", error);
@@ -1226,43 +1229,37 @@ export default class CustomSoccerPlayer extends BaseEntityController {
     }
   }
 
-  private checkForStuckBall(world: World) {
+  private checkForStuckBall(world: World, sourceEntity?: Entity) {
     try {
-      const soccerBall = sharedState.getSoccerBall();
+      // Use per-entity shared state (room or global) instead of global singleton
+      // This ensures multi-room support works correctly
+      const entityState = sourceEntity ?
+        ((sourceEntity as any).getSharedState ? (sourceEntity as any).getSharedState() : sharedState) :
+        sharedState;
+
+      const soccerBall = entityState.getSoccerBall();
       if (!soccerBall?.isSpawned) {
-        CustomSoccerPlayer._ballStuckStartTime = 0; 
+        CustomSoccerPlayer._ballStuckStartTime = 0;
         return;
       }
 
       const currentTime = Date.now();
 
-      if (CustomSoccerPlayer._ballStuckCheckInterval === null && typeof setInterval === 'function') {
-        // Initialize the interval if it hasn't been, and if setInterval is available (node environment)
-        // This static interval might be better handled outside or passed in, but for now, let's try to make it work.
-        // @ts-ignore: setInterval might not be available in all Hytopia environments directly on CustomSoccerPlayer static side.
-        CustomSoccerPlayer._ballStuckCheckInterval = setInterval(() => {
-            // This function will be called by the interval, 
-            // but the main logic is outside. This interval setup is likely flawed for a static method.
-            // The original call to checkForStuckBall should be driven by a game loop or tick.
-            // For now, the check below `currentTime - CustomSoccerPlayer._lastBallCheckTime` manages frequency.
-        }, BALL_STUCK_CHECK_INTERVAL);
-      }
-
       if (currentTime - CustomSoccerPlayer._lastBallCheckTime < BALL_STUCK_CHECK_INTERVAL) {
           return;
       }
       CustomSoccerPlayer._lastBallCheckTime = currentTime;
-      
+
       const currentPosition = soccerBall.position;
-      const currentVelocity = soccerBall.linearVelocity; 
+      const currentVelocity = soccerBall.linearVelocity;
 
       if (!currentVelocity) {
         CustomSoccerPlayer._ballStuckStartTime = 0;
         return;
       }
       // This threshold should be validated against actual goal trigger zone X boundaries.
-      const isInGoalArea = Math.abs(currentPosition.x) > 35; 
-      const isAboveGoalHeight = currentPosition.y > 3; 
+      const isInGoalArea = Math.abs(currentPosition.x) > 35;
+      const isAboveGoalHeight = currentPosition.y > 3;
 
       const isEffectivelyStationary =
         Math.abs(currentVelocity.x) < BALL_VELOCITY_THRESHOLD &&
@@ -1274,15 +1271,15 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       if (isPotentiallyStuck) {
         if (CustomSoccerPlayer._ballStuckStartTime === 0) {
           CustomSoccerPlayer._ballStuckStartTime = currentTime;
-        } else if (currentTime - CustomSoccerPlayer._ballStuckStartTime > BALL_STUCK_TIME_THRESHOLD) { 
+        } else if (currentTime - CustomSoccerPlayer._ballStuckStartTime > BALL_STUCK_TIME_THRESHOLD) {
           console.log("Ball stuck detected - resetting position to global spawn.");
           soccerBall.despawn();
-          entityState.setAttachedPlayer(null); 
-          soccerBall.spawn(world, GLOBAL_BALL_SPAWN_POSITION); 
+          entityState.setAttachedPlayer(null);
+          soccerBall.spawn(world, GLOBAL_BALL_SPAWN_POSITION);
           soccerBall.setLinearVelocity({ x: 0, y: 0, z: 0 });
           soccerBall.setAngularVelocity({ x: 0, y: 0, z: 0 });
-          CustomSoccerPlayer._ballStuckStartTime = 0; 
-          
+          CustomSoccerPlayer._ballStuckStartTime = 0;
+
           new Audio({
             uri: "audio/sfx/soccer/whistle.mp3",
             loop: false,
@@ -1290,16 +1287,17 @@ export default class CustomSoccerPlayer extends BaseEntityController {
           }).play(world);
         }
       } else {
-        CustomSoccerPlayer._ballStuckStartTime = 0; 
+        CustomSoccerPlayer._ballStuckStartTime = 0;
       }
 
       CustomSoccerPlayer._lastBallPosition = { ...currentPosition };
 
     } catch (error) {
       console.warn("Error in checkForStuckBall:", error);
-      CustomSoccerPlayer._ballStuckStartTime = 0; 
+      CustomSoccerPlayer._ballStuckStartTime = 0;
     }
   }
+
 
   /**
    * Find the best teammate to pass to based on camera direction and field positioning
@@ -1337,7 +1335,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       const distanceToTeammate = Math.sqrt(toTeammate.x * toTeammate.x + toTeammate.z * toTeammate.z);
       
       // Skip teammates that are too far away
-      if (distanceToTeammate > 35 || distanceToTeammate < 2) continue;
+      if (distanceToTeammate > 25 || distanceToTeammate < 2) continue;
       
       // Normalize direction to teammate
       const normalizedToTeammate = {
@@ -1369,9 +1367,9 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         AI_GOAL_LINE_X_BLUE : 
         AI_GOAL_LINE_X_RED;
       
-      const forwardProgress = (entity as any).team === 'red' ? 
-        teammate.position.x - entity.position.x : 
-        entity.position.x - teammate.position.x;
+      const forwardProgress = (entity as any).team === 'red' ?
+        entity.position.x - teammate.position.x :
+        teammate.position.x - entity.position.x;
       
       if (forwardProgress > 0) {
         score += Math.min(20, forwardProgress * 2);
@@ -1612,8 +1610,8 @@ export default class CustomSoccerPlayer extends BaseEntityController {
   private performGoalkeeperHeader(entity: PlayerEntity, ball: any, direction: { x: number; z: number }) {
     const currentTime = Date.now();
     
-    // Prevent header spam - minimum 500ms between headers
-    if (currentTime - this._lastHeaderTime < 500) {
+    // Prevent header spam - minimum 1500ms between headers
+    if (currentTime - this._lastHeaderTime < 1500) {
       return;
     }
     

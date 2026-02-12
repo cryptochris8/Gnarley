@@ -12,7 +12,7 @@ import {
 import sharedState from "../state/sharedState";
 import { RoomSharedState } from "../state/RoomSharedState";
 import { getDirectionFromRotation } from "./direction";
-import { BALL_CONFIG, BALL_SPAWN_POSITION, FIELD_MIN_Y, GAME_CONFIG } from "../state/gameConfig";
+import { BALL_CONFIG, BALL_SPAWN_POSITION, FIELD_MIN_Y, GAME_CONFIG, GOAL_WIDTH } from "../state/gameConfig";
 import { soccerMap } from "../state/map";
 import type { BoundaryInfo } from "../state/map";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
@@ -160,8 +160,8 @@ function handleGoalSensorTrigger(scoringTeam: 'red' | 'blue', ballEntity: Entity
   const ballPos = ballEntity.position;
 
   // Goal dimensions - use generous margins to avoid rejecting valid goals
-  const GOAL_WIDTH = 10; // Total width of goal
-  const GOAL_HEIGHT = 4.5; // Allow up to 4.5 for margin (goal height is 4 blocks)
+  // GOAL_WIDTH imported from gameConfig.ts
+  const GOAL_HEIGHT_MARGIN = 4.5; // Allow up to 4.5 for margin (goal height is 4 blocks)
 
   // Generous boundaries - if sensor triggered, ball is likely in valid position
   const GOAL_MIN_Z = GAME_CONFIG.AI_FIELD_CENTER_Z - (GOAL_WIDTH / 2) - 1; // -9 (extra margin)
@@ -179,8 +179,8 @@ function handleGoalSensorTrigger(scoringTeam: 'red' | 'blue', ballEntity: Entity
   }
 
   // Only reject if ball is way above crossbar or underground
-  if (ballPos.y < -0.5 || ballPos.y > GOAL_HEIGHT) {
-    console.log(`🚫 GOAL REJECTED: Ball height Y=${ballPos.y.toFixed(2)} is ${ballPos.y > GOAL_HEIGHT ? 'over crossbar' : 'underground'} (valid: -0.5 to ${GOAL_HEIGHT})`);
+  if (ballPos.y < -0.5 || ballPos.y > GOAL_HEIGHT_MARGIN) {
+    console.log(`🚫 GOAL REJECTED: Ball height Y=${ballPos.y.toFixed(2)} is ${ballPos.y > GOAL_HEIGHT_MARGIN ? 'over crossbar' : 'underground'} (valid: -0.5 to ${GOAL_HEIGHT_MARGIN})`);
     // Ball will be reset - set lockout to prevent false goal on respawn
     ballResetLockout = currentTime;
     return;
@@ -223,7 +223,7 @@ function handleGoalSensorTrigger(scoringTeam: 'red' | 'blue', ballEntity: Entity
     } else {
       console.error('❌ Cannot respawn ball: worldRef is null');
     }
-  }, 3000);
+  }, 1500);
 }
 
 /**
@@ -246,14 +246,14 @@ export function setPenaltyShootoutManager(manager: any) {
 
 /**
  * Throttled stationary status updater
- * Only updates ball stationary status once every 100ms instead of every tick
+ * Only updates ball stationary status once every 50ms instead of every tick
  * Reduces CPU usage for non-critical tracking
  */
 const throttledStationaryUpdate = EventThrottler.throttle(
   (currentPos: { x: number; y: number; z: number }) => {
     sharedState.updateBallStationaryStatus(currentPos);
   },
-  100 // Update at most 10 times per second
+  50 // Update at most 20 times per second for faster AI reaction
 );
 
 /**
@@ -378,12 +378,13 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
       const dz = currentPos.z - lastPosition.z;
       const positionChange = Math.sqrt(dx*dx + dy*dy + dz*dz);
       
-      // Use more subtle position correction only for extreme cases
-      if (positionChange > 5.0) {
+      // Use gradual lerp correction only for extreme teleport-like jumps
+      if (positionChange > 10.0) {
+        // Lerp 85% toward the new position to soften the snap
         entity.setPosition({
-          x: lastPosition.x + dx * 0.7,
-          y: lastPosition.y + dy * 0.7,
-          z: lastPosition.z + dz * 0.7
+          x: lastPosition.x + dx * 0.85,
+          y: lastPosition.y + dy * 0.85,
+          z: lastPosition.z + dz * 0.85
         });
       }
       
@@ -393,7 +394,7 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
     // **BALL STATIONARY DETECTION SYSTEM**
     // Update stationary tracking for AI pursuit logic
     // This ensures balls that sit idle get retrieved by AI players
-    // PERFORMANCE: Throttled to 100ms intervals instead of every tick
+    // PERFORMANCE: Throttled to 50ms intervals instead of every tick
     const currentPos = { ...entity.position };
     throttledStationaryUpdate(currentPos);
     
@@ -527,9 +528,11 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
       if (ballSpeed < MAX_BALL_SPEED_FOR_PROXIMITY) {
         // Get all player entities in the world
         const allPlayerEntities = world.entityManager.getAllPlayerEntities();
-        let closestPlayer: SoccerPlayerEntity | null = null;
-        let closestDistance = Infinity;
-        let isPassTargetReception = false; // Track if this is a magnetic pass reception
+        // Track pass targets and normal players separately so targets always have priority
+        let closestPassTarget: SoccerPlayerEntity | null = null;
+        let closestPassTargetDistance = Infinity;
+        let closestNormalPlayer: SoccerPlayerEntity | null = null;
+        let closestNormalDistance = Infinity;
 
         for (const playerEntity of allPlayerEntities) {
           if (playerEntity instanceof SoccerPlayerEntity && playerEntity.isSpawned && !playerEntity.isStunned) {
@@ -539,35 +542,30 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
             );
 
             // MAGNETIC PASS RECEPTION: Check if this player is expecting a pass (AI only)
-            // Use duck typing to check for getIncomingPassTarget method
             const playerAny = playerEntity as any;
             const isExpectingPass = playerAny.getIncomingPassTarget &&
                                     typeof playerAny.getIncomingPassTarget === 'function' &&
                                     playerAny.getIncomingPassTarget() !== null;
 
-            // If player is expecting a pass, use larger magnetic reception radius
+            // Pass targets use larger magnetic reception radius and are tracked separately
             if (isExpectingPass && distance < PASS_TARGET_MAGNETIC_DISTANCE) {
-              // This player is the intended pass target - give them priority!
-              if (distance < closestDistance) {
-                closestDistance = distance;
-                closestPlayer = playerEntity;
-                isPassTargetReception = true;
+              if (distance < closestPassTargetDistance) {
+                closestPassTargetDistance = distance;
+                closestPassTarget = playerEntity;
                 console.log(`🧲 MAGNETIC RECEPTION: ${playerEntity.player.username} catching pass (dist: ${distance.toFixed(1)})`);
               }
-              continue; // Skip normal distance checks for pass targets
+              continue;
             }
 
             // ENHANCED RECEPTION: Additional assistance for balls moving toward the player
             let effectiveDistance = distance;
             if (ballSpeed > 1.0) {
-              // Calculate if ball is moving toward this player
               const ballDirection = { x: ballVelocity.x, z: ballVelocity.z };
               const ballToPlayer = {
                 x: playerEntity.position.x - ballPosition.x,
                 z: playerEntity.position.z - ballPosition.z
               };
 
-              // Normalize vectors for dot product calculation
               const ballDirLength = Math.sqrt(ballDirection.x * ballDirection.x + ballDirection.z * ballDirection.z);
               const ballToPlayerLength = Math.sqrt(ballToPlayer.x * ballToPlayer.x + ballToPlayer.z * ballToPlayer.z);
 
@@ -575,25 +573,26 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
                 const dotProduct = (ballDirection.x * ballToPlayer.x + ballDirection.z * ballToPlayer.z) /
                                   (ballDirLength * ballToPlayerLength);
 
-                // IMPROVED: More forgiving angle threshold (was 0.5, now 0.3) and stronger assistance
-                if (dotProduct > 0.3) { // Accept wider angles (was 0.5)
-                  // Scale assistance based on how directly ball is coming toward player
-                  const assistanceFactor = 0.5 + (dotProduct * 0.3); // Range: 0.5 to 0.8
-                  effectiveDistance = distance * assistanceFactor; // Up to 50% easier reception!
-
-                  // PERFORMANCE: Use throttled logging to prevent spam
+                // Tightened angle threshold for more skillful passing (was 0.3, now 0.5)
+                if (dotProduct > 0.5) {
+                  const assistanceFactor = 0.5 + (dotProduct * 0.3);
+                  effectiveDistance = distance * assistanceFactor;
                   throttledReceptionLog(playerEntity.player.username, dotProduct, assistanceFactor);
                 }
               }
             }
 
-            // Only update closest if not already found a pass target (pass targets have priority)
-            if (!isPassTargetReception && effectiveDistance < PROXIMITY_POSSESSION_DISTANCE && effectiveDistance < closestDistance) {
-              closestDistance = effectiveDistance;
-              closestPlayer = playerEntity;
+            if (effectiveDistance < PROXIMITY_POSSESSION_DISTANCE && effectiveDistance < closestNormalDistance) {
+              closestNormalDistance = effectiveDistance;
+              closestNormalPlayer = playerEntity;
             }
           }
         }
+
+        // Pass targets always have priority over normal proximity players
+        const closestPlayer = closestPassTarget || closestNormalPlayer;
+        const isPassTargetReception = closestPassTarget !== null;
+        const closestDistance = isPassTargetReception ? closestPassTargetDistance : closestNormalDistance;
 
         // Automatically attach ball to closest player if within range
         if (closestPlayer) {
@@ -742,8 +741,9 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
         y: Math.abs(velocity.y) * 0.6, // Bounce up with reduced height
         z: velocity.z * dampingFactor, // Keep lateral momentum, just reduce speed
       });
-      // Reset angular velocity to prevent unwanted spinning from collision
-      entity.setAngularVelocity({ x: 0, y: 0, z: 0 });
+      // Preserve some spin on bounce for more natural ball behavior
+      const angVel = entity.angularVelocity;
+      entity.setAngularVelocity({ x: angVel.x * 0.4, y: angVel.y * 0.4, z: angVel.z * 0.4 });
     }
   });
 

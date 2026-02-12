@@ -1,5 +1,6 @@
 import { Entity, PlayerEntity, World, EntityEvent, EntityManager, type Vector3Like } from "hytopia";
-import AIPlayerEntity, { type SoccerAIRole } from "./AIPlayerEntity";
+import AIPlayerEntity from "./AIPlayerEntity";
+import type { SoccerAIRole } from "./ai/AIRoleDefinitions";
 import { ROLE_DEFINITIONS, type RoleDefinition } from "./ai/AIRoleDefinitions";
 import SoccerPlayerEntity from './SoccerPlayerEntity';
 import sharedState from "../state/sharedState";

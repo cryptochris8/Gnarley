@@ -21,6 +21,7 @@ import { FIFACrowdManager } from "../../utils/fifaCrowdManager";
 import { PickupGameManager } from "../../state/pickupGameManager";
 import { UIEventHandlers } from "./UIEventHandlers";
 import { RoomManager } from "../../state/RoomManager";
+import { PhysicalLobby } from "../../lobby/PhysicalLobby";
 
 export interface PlayerEventDependencies {
   world: World;
@@ -33,6 +34,7 @@ export interface PlayerEventDependencies {
   pickupManager: PickupGameManager;
   uiEventHandlers: UIEventHandlers;
   musicStarted: { value: boolean }; // Wrapped in object for mutability
+  physicalLobby: PhysicalLobby;
 }
 
 export class PlayerEventHandlers {
@@ -61,22 +63,22 @@ export class PlayerEventHandlers {
       // Check if this is the lobby world or a game room
       const isLobby = RoomManager.isInitialized() && RoomManager.isLobbyWorld(this.deps.world);
 
-      // Welcome message for new players
+      if (isLobby) {
+        // Physical lobby handles: entity spawn, ball, UI, pointer lock, room count, welcome message
+        this.deps.physicalLobby.onPlayerJoin(player);
+        // Still register UI handler so room events (quick-play, create-room, etc.) work
+        this.deps.uiEventHandlers.registerPlayerUIHandler(player);
+        logger.info(`Player ${player.username} entered physical lobby`);
+        return;
+      }
+
+      // Game room flow - welcome message only for direct game room joins
       this.deps.world.chatManager.sendPlayerMessage(
         player,
-        isLobby
-          ? "🏠 Welcome to Hytopia Soccer! Create or join a room to play."
-          : "⚽ Welcome to Hytopia Soccer! Use /spectate to watch games when teams are full."
+        "Welcome to Hytopia Soccer! Use /spectate to watch games when teams are full."
       );
-
-      // Load appropriate UI based on world type
-      if (isLobby) {
-        player.ui.load("ui/lobby.html");
-        logger.info(`🏠 Loaded lobby UI for ${player.username}`);
-      } else {
-        player.ui.load("ui/index.html");
-        logger.info(`⚽ Loaded game UI for ${player.username}`);
-      }
+      player.ui.load("ui/index.html");
+      logger.info(`⚽ Loaded game UI for ${player.username}`);
 
       // CRITICAL: Unlock pointer for UI interactions (Hytopia-compliant approach)
       player.ui.lockPointer(false);
@@ -120,6 +122,14 @@ export class PlayerEventHandlers {
   private registerPlayerLeftHandler(): void {
     this.deps.world.on(PlayerEvent.LEFT_WORLD, ({ player }) => {
       logger.info(`Player ${player.username} left world - checking if game reset needed`);
+
+      // If this is the lobby world, clean up lobby state and return early
+      const isLobby = RoomManager.isInitialized() && RoomManager.isLobbyWorld(this.deps.world);
+      if (isLobby) {
+        this.deps.physicalLobby.onPlayerLeave(player);
+        logger.info(`🏠 Player ${player.username} left physical lobby`);
+        return;
+      }
 
       if (this.deps.game) {
         const playerTeam = this.deps.game.getTeamOfPlayer(player.username);

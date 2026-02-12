@@ -1,7 +1,8 @@
 import { PlayerCameraMode, type Player, type Vector3Like, type World } from "hytopia";
 import sharedState from "../state/sharedState";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
-import AIPlayerEntity, { type SoccerAIRole } from "../entities/AIPlayerEntity";
+import AIPlayerEntity from "../entities/AIPlayerEntity";
+import type { SoccerAIRole } from "../entities/ai/AIRoleDefinitions";
 import { AI_GOAL_LINE_X_RED, AI_GOAL_LINE_X_BLUE, AI_FIELD_CENTER_X, AI_FIELD_CENTER_Z, AI_DEFENSIVE_OFFSET_X, AI_MIDFIELD_OFFSET_X, AI_FORWARD_OFFSET_X, AI_WIDE_Z_BOUNDARY_MAX, AI_WIDE_Z_BOUNDARY_MIN, SAFE_SPAWN_Y } from "../state/gameConfig";
 
 /**
@@ -56,7 +57,7 @@ class SpectatorMode {
                     player.camera.setAttachedToEntity(entity);
                     player.camera.setOffset({ x: 0, y: 0.6, z: 0 }); // Eye level
                     player.camera.setForwardOffset(0.1);
-                    player.camera.setModelHiddenNodes(['head']); // Hide head to avoid view obstruction
+                    player.camera.setViewModelHiddenNodes(['head']); // Hide head to avoid view obstruction
                 }
             },
             {
@@ -92,7 +93,7 @@ class SpectatorMode {
                     // Track the ball if available
                     const ball = sharedState.getSoccerBall();
                     if (ball) {
-                        player.camera.setTrackedEntity(ball);
+                        player.camera.setTargetEntity(ball);
                     }
                     player.camera.setZoom(4.0);
                 }

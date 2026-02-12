@@ -429,7 +429,7 @@ export class AIOffensiveBehavior {
     const opponentGoalLineX = team === 'red' ? AI_GOAL_LINE_X_BLUE : AI_GOAL_LINE_X_RED;
 
     for (const teammate of teammates) {
-      if (teammate === entity) continue;
+      if (teammate === (entity as unknown)) continue;
 
       // Check if teammate is ahead and moving forward
       const isAhead = team === 'red'

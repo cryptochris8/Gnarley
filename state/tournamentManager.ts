@@ -85,6 +85,7 @@ export class TournamentManager {
   private activeTournaments: Map<string, Tournament> = new Map();
   private playerReadyCheckTimers: Map<string, NodeJS.Timeout> = new Map();
   private matchSchedulingTimers: Map<string, NodeJS.Timeout> = new Map();
+  private statusMonitorInterval: NodeJS.Timeout | null = null;
 
   constructor(world: World) {
     this.world = world;
@@ -598,7 +599,14 @@ export class TournamentManager {
   // ===== PLAYER MANAGEMENT & MONITORING =====
 
   private startPlayerStatusMonitoring(): void {
-    setInterval(() => {
+    if (this.statusMonitorInterval) return;
+    this.statusMonitorInterval = setInterval(() => {
+      // Stop monitoring if no active tournaments remain
+      if (this.activeTournaments.size === 0 && this.statusMonitorInterval) {
+        clearInterval(this.statusMonitorInterval);
+        this.statusMonitorInterval = null;
+        return;
+      }
       this.updatePlayerOnlineStatus();
     }, 30000); // Check every 30 seconds
   }
@@ -893,10 +901,11 @@ export class TournamentManager {
 
   // ===== DATA PERSISTENCE =====
 
-  private loadTournamentsFromPersistence(): void {
+  private async loadTournamentsFromPersistence(): Promise<void> {
     try {
-      const savedTournaments = PersistenceManager.instance.getGlobalData<{ [id: string]: Tournament }>("tournaments");
-      if (savedTournaments) {
+      const globalData = await PersistenceManager.instance.getGlobalData("tournaments");
+      if (globalData) {
+        const savedTournaments = globalData as { [id: string]: Tournament };
         Object.values(savedTournaments).forEach(tournament => {
           if (tournament.status === TournamentStatus.IN_PROGRESS || tournament.status === TournamentStatus.READY_CHECK) {
             this.activeTournaments.set(tournament.id, tournament);
@@ -909,11 +918,12 @@ export class TournamentManager {
     }
   }
 
-  private saveTournamentToPersistence(tournament: Tournament): void {
+  private async saveTournamentToPersistence(tournament: Tournament): Promise<void> {
     try {
-      const savedTournaments = PersistenceManager.instance.getGlobalData<{ [id: string]: Tournament }>("tournaments") || {};
+      const globalData = await PersistenceManager.instance.getGlobalData("tournaments");
+      const savedTournaments = (globalData || {}) as { [id: string]: Tournament };
       savedTournaments[tournament.id] = tournament;
-      PersistenceManager.instance.setGlobalData("tournaments", savedTournaments);
+      await PersistenceManager.instance.setGlobalData("tournaments", savedTournaments as unknown as Record<string, unknown>);
     } catch (error) {
       console.error("Error saving tournament to persistence:", error);
     }
@@ -923,8 +933,9 @@ export class TournamentManager {
     try {
       const player = PlayerManager.instance.getConnectedPlayerByUsername(username);
       if (player) {
-        const stats = player.getPersistedData<any>("tournamentStats") || { wins: 0, losses: 0, matchesPlayed: 0, goals: 0 };
-        
+        const persistedData = player.getPersistedData() || {};
+        const stats = (persistedData.tournamentStats as { wins: number; losses: number; matchesPlayed: number; goals: number }) || { wins: 0, losses: 0, matchesPlayed: 0, goals: 0 };
+
         if (won) {
           stats.wins++;
         } else {
@@ -933,7 +944,7 @@ export class TournamentManager {
         stats.matchesPlayed++;
         stats.goals += totalGoals;
 
-        player.setPersistedData("tournamentStats", stats);
+        player.setPersistedData({ tournamentStats: stats });
       }
     } catch (error) {
       console.error("Error updating player stats:", error);
@@ -944,14 +955,15 @@ export class TournamentManager {
     try {
       const player = PlayerManager.instance.getConnectedPlayerByUsername(username);
       if (player) {
-        const history = player.getPersistedData<any>("tournamentHistory") || { tournamentsWon: 0, tournamentsPlayed: 0 };
-        
+        const persistedData = player.getPersistedData() || {};
+        const history = (persistedData.tournamentHistory as { tournamentsWon: number; tournamentsPlayed: number }) || { tournamentsWon: 0, tournamentsPlayed: 0 };
+
         if (won) {
           history.tournamentsWon++;
         }
         history.tournamentsPlayed++;
 
-        player.setPersistedData("tournamentHistory", history);
+        player.setPersistedData({ tournamentHistory: history });
       }
     } catch (error) {
       console.error("Error updating player tournament history:", error);
@@ -962,7 +974,8 @@ export class TournamentManager {
     try {
       const player = PlayerManager.instance.getConnectedPlayerByUsername(username);
       if (player) {
-        return player.getPersistedData<any>("tournamentStats") || { wins: 0, losses: 0, matchesPlayed: 0, goals: 0 };
+        const persistedData = player.getPersistedData() || {};
+        return (persistedData.tournamentStats as Record<string, unknown>) || { wins: 0, losses: 0, matchesPlayed: 0, goals: 0 };
       }
     } catch (error) {
       console.error("Error getting player tournament history:", error);

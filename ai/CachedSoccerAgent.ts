@@ -6,7 +6,7 @@
  * significant performance improvements through decision caching.
  */
 
-import type { SoccerAIRole } from '../entities/AIPlayerEntity';
+import type { SoccerAIRole } from '../entities/ai/AIRoleDefinitions';
 import type { 
   AIDecision, 
   AIContext, 
@@ -128,13 +128,15 @@ export class CachedSoccerAgent {
       case 'goalkeeper':
         return this.makeGoalkeeperDecision(context, distanceToBall);
       
-      case 'defender':
+      case 'left-back':
+      case 'right-back':
         return this.makeDefenderDecision(context, distanceToBall);
-      
-      case 'midfielder':
+
+      case 'central-midfielder-1':
+      case 'central-midfielder-2':
         return this.makeMidfielderDecision(context, distanceToBall);
-      
-      case 'forward':
+
+      case 'striker':
         return this.makeForwardDecision(context, distanceToBall);
       
       default:

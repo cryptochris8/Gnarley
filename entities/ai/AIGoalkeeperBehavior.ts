@@ -11,7 +11,7 @@
  */
 
 import type { Vector3Like, Entity } from "hytopia";
-import { SoccerAIRole, ROLE_DEFINITIONS } from "./AIRoleDefinitions";
+import { type SoccerAIRole, ROLE_DEFINITIONS } from "./AIRoleDefinitions";
 import {
   AI_FIELD_CENTER_X,
   AI_FIELD_CENTER_Z,
@@ -111,9 +111,9 @@ export class AIGoalkeeperBehavior {
     const predictionTime = 0.3;
     const predictedZ = ballPosition.z + ballVelocity.z * predictionTime;
 
-    // Expanded goal range for better coverage
-    const goalZMin = goalCenterZ - 12;
-    const goalZMax = goalCenterZ + 12;
+    // Goal range - tightened to avoid reacting to shots going wide
+    const goalZMin = goalCenterZ - 7;
+    const goalZMax = goalCenterZ + 7;
     const isInGoalZRange = predictedZ >= goalZMin && predictedZ <= goalZMax;
 
     return isMovingTowardsGoalX && isInGoalZRange;
@@ -133,6 +133,10 @@ export class AIGoalkeeperBehavior {
 
     // Ball trajectory prediction - calculate where ball will cross goal line
     const goalLineX = goalCenterX;
+
+    // Guard against zero/near-zero X velocity to prevent Infinity
+    if (Math.abs(ballVelocity.x) < 0.1) return null;
+
     const timeToGoalLine = Math.abs((goalLineX - ballPosition.x) / ballVelocity.x);
 
     // Ignore unrealistic trajectories - don't chase balls going away or too slow
@@ -213,13 +217,13 @@ export class AIGoalkeeperBehavior {
             `>E GOALKEEPER DIVE: ${context.username} diving to intercept (speed: ${urgentSpeed.toFixed(1)})`
           );
 
-          // Goalkeeper save animation
+          // Goalkeeper save animation - dodge-roll for diving saves
           if (context.isSpawned) {
-            context.startModelOneshotAnimations(["kick"]); // Using kick as diving animation
+            context.startModelOneshotAnimations(["dodge-roll"]);
 
             setTimeout(() => {
               if (context.isSpawned) {
-                context.stopModelAnimations(["kick"]);
+                context.stopModelAnimations(["dodge-roll"]);
               }
             }, 800);
           }
@@ -281,7 +285,7 @@ export class AIGoalkeeperBehavior {
         context.position
       );
       if (interceptionPoint) {
-        console.log(`<¯ INTERCEPTION: ${context.username} moving to intercept ball`);
+        console.log(`<ï¿½ INTERCEPTION: ${context.username} moving to intercept ball`);
         return interceptionPoint;
       }
     }
@@ -305,7 +309,7 @@ export class AIGoalkeeperBehavior {
 
       if (hasBall) {
         // Clear from corner
-        const teammates = context.getVisibleTeammates().filter((t) => t !== context);
+        const teammates = context.getVisibleTeammates().filter((t) => t !== (context as unknown));
         let bestTarget: SoccerPlayerEntity | null = null;
         let bestScore = -Infinity;
 
@@ -378,7 +382,7 @@ export class AIGoalkeeperBehavior {
       }
 
       // Immediate distribution
-      const teammates = context.getVisibleTeammates().filter((t) => t !== context);
+      const teammates = context.getVisibleTeammates().filter((t) => t !== (context as unknown));
 
       if (teammates.length > 0) {
         // Try to pass - implementation would go here

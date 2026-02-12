@@ -61,7 +61,7 @@ export class PenaltyShootoutManager {
   private roomState: RoomSharedState | null = null;
 
   /** Get the correct shared state (room or global) */
-  private getState() {
+  private getSharedState() {
     return this.roomState || sharedState;
   }
 
@@ -323,7 +323,7 @@ export class PenaltyShootoutManager {
     this.currentShooter.setPosition(shooterPos);
     this.currentShooter.setLinearVelocity({ x: 0, y: 0, z: 0 });
     this.currentShooter.setAngularVelocity({ x: 0, y: 0, z: 0 });
-    this.currentShooter.unfreeze(); // Shooter can move and shoot
+    this.currentShooter.setTickWithPlayerInputEnabled(true); // Shooter can move and shoot
 
     // Set shooter rotation to face goal
     if (shootingTeam === 'red') {
@@ -336,7 +336,7 @@ export class PenaltyShootoutManager {
     this.currentGoalkeeper.setPosition(goalkeeperPos);
     this.currentGoalkeeper.setLinearVelocity({ x: 0, y: 0, z: 0 });
     this.currentGoalkeeper.setAngularVelocity({ x: 0, y: 0, z: 0 });
-    this.currentGoalkeeper.unfreeze(); // Goalkeeper can dive
+    this.currentGoalkeeper.setTickWithPlayerInputEnabled(true); // Goalkeeper can dive
 
     // Set goalkeeper rotation to face shooter
     if (shootingTeam === 'red') {
@@ -359,7 +359,7 @@ export class PenaltyShootoutManager {
     if (this.soccerBall.isSpawned) {
       this.soccerBall.despawn();
     }
-    this.getState().setAttachedPlayer(null);
+    this.getSharedState().setAttachedPlayer(null);
 
     const ballPos: Vector3Like = {
       x: penaltySpotX,
@@ -700,7 +700,7 @@ export class PenaltyShootoutManager {
     // Unfreeze all players
     this.world.entityManager.getAllPlayerEntities().forEach((entity) => {
       if (entity instanceof SoccerPlayerEntity && entity.isSpawned) {
-        entity.unfreeze();
+        entity.setTickWithPlayerInputEnabled(true);
       }
     });
 

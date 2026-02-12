@@ -29,6 +29,8 @@ import {
   FIELD_MIN_Z,
   FIELD_MAX_Z,
   AI_FIELD_CENTER_Z,
+  GOAL_WIDTH,
+  GOAL_HEIGHT,
 } from "./gameConfig";
 
 export class SoccerMap {
@@ -36,9 +38,9 @@ export class SoccerMap {
     // FIXED: Goal detection should only trigger INSIDE the goal, not in front
     // Standard soccer goal: 8 yards (24 feet) wide x 8 feet (2.4m) high
     // In Minecraft blocks: ~8-10 blocks wide x 3-4 blocks high
-    const GOAL_WIDTH = 10; // Realistic goal width (5 blocks each side of center)
+    // GOAL_WIDTH and GOAL_HEIGHT imported from gameConfig.ts
     const GOAL_HEIGHT_MIN = 0; // Ground level (no below-ground goals)
-    const GOAL_HEIGHT_MAX = 4; // Realistic goal height (4 blocks high)
+    const GOAL_HEIGHT_MAX = GOAL_HEIGHT; // Realistic goal height from config
 
     // Field boundaries: X from -37 (AI_GOAL_LINE_X_BLUE) to 52 (AI_GOAL_LINE_X_RED)
     // Red goal is at X=52 - goal extends BEYOND the field (X > 52)
@@ -107,10 +109,15 @@ export class SoccerMap {
   public checkBoundaryDetails(position: { x: number; y: number; z: number }): BoundaryInfo {
     const boundary = this.getBoundary();
     
-    // Skip boundary check if position is clearly below the field - likely a physics issue
+    // Ball below ground level is out of bounds (physics glitch or tunneling)
     if (position.y < boundary.y.min - 1) {
-      console.log(`Position below field at Y=${position.y}, ignoring boundary check`);
-      return { isOutOfBounds: false };
+      console.log(`Ball below field at Y=${position.y}, marking as out of bounds`);
+      return {
+        isOutOfBounds: true,
+        boundaryType: 'sideline', // Treat as general out of bounds for reset
+        side: 'min-z' as any, // Generic side since this is a vertical issue
+        position: { ...position }
+      };
     }
 
     // Check if ball is in goal area first (goals are not out of bounds)

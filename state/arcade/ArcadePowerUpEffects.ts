@@ -5,7 +5,7 @@ import { isArcadeMode } from "../gameModes";
 import SoccerPlayerEntity from "../../entities/SoccerPlayerEntity";
 import { ArcadeTimerManager } from "./ArcadeTimerManager";
 import { ArcadeAudioEffects } from "./ArcadeAudioEffects";
-import { ArcadePlayerEnhancements, EnhancementType } from "./ArcadePlayerEnhancements";
+import { ArcadePlayerEnhancements, type EnhancementType } from "./ArcadePlayerEnhancements";
 
 export class ArcadePowerUpEffects {
   private world: World;
