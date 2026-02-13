@@ -1,6 +1,6 @@
 // Individual power-up effect implementations for arcade mode
 
-import { World, Entity, Audio, RigidBodyType, ColliderShape, CollisionGroup, BlockType, EntityEvent, type Vector3Like } from "hytopia";
+import { World, Entity, Audio, RigidBodyType, ColliderShape, CollisionGroup, BlockType, EntityEvent, type Vector3Like, EntityModelAnimationLoopMode } from "hytopia";
 import { isArcadeMode } from "../gameModes";
 import SoccerPlayerEntity from "../../entities/SoccerPlayerEntity";
 import { ArcadeTimerManager } from "./ArcadeTimerManager";
@@ -747,8 +747,6 @@ export class ArcadePowerUpEffects {
       name: 'shuriken-projectile',
       modelUri: 'models/projectiles/shuriken.gltf',
       modelScale: 0.4,
-      modelAnimationsPlaybackRate: 2.8,
-      modelLoopedAnimations: ["spin"],
       rigidBodyOptions: {
         type: RigidBodyType.DYNAMIC,
         gravityScale: 0,
@@ -762,6 +760,12 @@ export class ArcadePowerUpEffects {
     };
 
     shuriken.spawn(this.world, spawnPosition);
+    const spinAnim = shuriken.getModelAnimation("spin");
+    if (spinAnim) {
+      spinAnim.setLoopMode(EntityModelAnimationLoopMode.LOOP);
+      spinAnim.setPlaybackRate(2.8);
+      spinAnim.play();
+    }
     shuriken.setLinearVelocity({ x: direction.x * 12, y: 0, z: direction.z * 12 });
     shuriken.setAngularVelocity({ x: 0, y: 20, z: 0 });
 

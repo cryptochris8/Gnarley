@@ -1,4 +1,4 @@
-import { Entity, type World, type Vector3Like, Audio, RigidBodyType, type BlockType, ColliderShape, CollisionGroup } from 'hytopia';
+import { Entity, type World, type Vector3Like, Audio, RigidBodyType, type BlockType, ColliderShape, CollisionGroup, EntityModelAnimationLoopMode } from 'hytopia';
 import { ItemThrowAbility } from './ItemThrowAbility';
 import type { ItemAbilityOptions } from './itemTypes';
 import { ALL_POWERUP_OPTIONS } from './itemTypes';
@@ -40,8 +40,7 @@ export class AbilityConsumable {
         const entity = new Entity({
             name: `${this.abilityOptions.name}Pickup`,
             modelUri: this.abilityOptions.modelUri,
-            modelScale: this.abilityOptions.modelScale * 3, // Increased scale for better visibility 
-            modelLoopedAnimations: [this.abilityOptions.idleAnimation],
+            modelScale: this.abilityOptions.modelScale * 3, // Increased scale for better visibility
             rigidBodyOptions: {
                 type: RigidBodyType.KINEMATIC_POSITION,
                 colliders: [
@@ -260,6 +259,13 @@ export class AbilityConsumable {
             // Create fresh entity each time to ensure collision properties are restored
             this.entity = this.createConsumableEntity();
             this.entity.spawn(this.world, this.originalPosition);
+
+            // Start idle animation after spawn (modelLoopedAnimations removed in SDK 0.15.1)
+            const idleAnim = this.entity.getModelAnimation(this.abilityOptions.idleAnimation);
+            if (idleAnim) {
+              idleAnim.setLoopMode(EntityModelAnimationLoopMode.LOOP);
+              idleAnim.play();
+            }
         }
     }
 

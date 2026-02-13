@@ -847,7 +847,7 @@ export class RoomManager {
     // Freeze player initially (game logic will unfreeze at match start)
     playerEntity.freeze();
 
-    // Spawn AI for single player mode
+    // Spawn AI and start game based on mode
     if (data.singlePlayerMode) {
       await this.spawnRoomAI(room, team);
 
@@ -857,22 +857,7 @@ export class RoomManager {
       logger.info(`[Room ${room.config.id}] Single player game started! (success: ${gameStarted})`);
 
       // Start room-specific audio based on game mode
-      room.audioManager.playGameplayMusic(room.config.gameMode);
-      logger.info(`[Room ${room.config.id}] 🎵 Started ${room.config.gameMode} gameplay music`);
-
-      // Start FIFA crowd atmosphere if in FIFA mode
-      if (room.config.gameMode === GameMode.FIFA || room.config.gameMode === GameMode.TOURNAMENT) {
-        room.fifaCrowdManager.start();
-        room.fifaCrowdManager.playGameStart();
-        logger.info(`[Room ${room.config.id}] 🏟️ Started FIFA crowd atmosphere`);
-      }
-
-      // Activate Arcade mode systems
-      if (room.config.gameMode === GameMode.ARCADE) {
-        room.pickupManager.activate();
-        room.arcadeManager.setRoomArcadeMode(true);
-        logger.info(`[Room ${room.config.id}] 🎯 Activated pickup system and arcade manager for Arcade mode`);
-      }
+      this.startRoomGameSystems(room);
 
       // Unfreeze player after short delay (like the original handler does)
       setTimeout(() => {
@@ -890,6 +875,24 @@ export class RoomManager {
           type: "loading-complete",
         });
       }, 500);
+    } else {
+      // Multiplayer path
+      // Check if both teams now have human players
+      const redHumans = room.game.getPlayerCountOnTeam("red");
+      const blueHumans = room.game.getPlayerCountOnTeam("blue");
+
+      if (redHumans >= 1 && blueHumans >= 1) {
+        // Both teams have human players - spawn AI to fill remaining slots
+        await this.spawnMultiplayerRoomAI(room);
+
+        // Start room-specific audio and game mode systems
+        this.startRoomGameSystems(room);
+
+        room.status = "playing";
+        logger.info(`[Room ${room.config.id}] Multiplayer game starting with ${redHumans} red + ${blueHumans} blue humans`);
+      }
+      // If only one team has players, wait for more players
+      // joinTeam() auto-start handles the countdown; beginMatch() handles unfreezing
     }
 
     // Notify player
@@ -925,7 +928,72 @@ export class RoomManager {
   }
 
   /**
-   * Spawn AI players for a room
+   * Start room-specific audio and game mode systems
+   */
+  private startRoomGameSystems(room: Room): void {
+    room.audioManager.playGameplayMusic(room.config.gameMode);
+    logger.info(`[Room ${room.config.id}] 🎵 Started ${room.config.gameMode} gameplay music`);
+
+    if (room.config.gameMode === GameMode.FIFA || room.config.gameMode === GameMode.TOURNAMENT) {
+      room.fifaCrowdManager.start();
+      room.fifaCrowdManager.playGameStart();
+      logger.info(`[Room ${room.config.id}] 🏟️ Started FIFA crowd atmosphere`);
+    }
+
+    if (room.config.gameMode === GameMode.ARCADE) {
+      room.pickupManager.activate();
+      room.arcadeManager.setRoomArcadeMode(true);
+      logger.info(`[Room ${room.config.id}] 🎯 Activated pickup and arcade systems`);
+    }
+  }
+
+  /**
+   * Spawn AI players for multiplayer mode (humans on both teams)
+   * Spawns 5 AI per team, leaving central-midfielder-1 for the human player
+   */
+  private async spawnMultiplayerRoomAI(room: Room): Promise<void> {
+    // Clear existing AI
+    for (const ai of room.aiPlayers) {
+      if (ai.isSpawned) {
+        ai.despawn();
+      }
+    }
+    room.aiPlayers.length = 0;
+
+    const { getStartPosition } = await import("../utils/positions");
+
+    // AI fills all roles except central-midfielder-1 (occupied by human)
+    const aiRoles = [
+      "goalkeeper",
+      "left-back",
+      "right-back",
+      "central-midfielder-2",
+      "striker",
+    ] as const;
+
+    const roomState = room.sharedState;
+
+    // Spawn AI for both teams (5 per team)
+    for (const team of ["red", "blue"] as const) {
+      for (const role of aiRoles) {
+        const ai = new AIPlayerEntity(room.world, team, role, roomState);
+        const pos = getStartPosition(team, role);
+        ai.spawn(room.world, pos);
+        room.aiPlayers.push(ai);
+        roomState.addAIToTeam(ai, team);
+      }
+    }
+
+    // Activate all AI
+    for (const ai of room.aiPlayers) {
+      ai.activate();
+    }
+
+    logger.info(`🤖 Spawned ${room.aiPlayers.length} AI players for multiplayer in room ${room.config.id}`);
+  }
+
+  /**
+   * Spawn AI players for a room (single-player mode)
    */
   private async spawnRoomAI(room: Room, playerTeam: "red" | "blue"): Promise<void> {
     if (!spawnAIPlayersFn) {

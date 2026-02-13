@@ -1,4 +1,4 @@
-import { Entity, Vector3, RigidBodyType, ColliderShape, CollisionGroup, BlockType, type Vector3Like, type QuaternionLike, PlayerEntity, Quaternion, EntityEvent } from 'hytopia';
+import { Entity, Vector3, RigidBodyType, ColliderShape, CollisionGroup, BlockType, type Vector3Like, type QuaternionLike, PlayerEntity, Quaternion, EntityEvent, EntityModelAnimationLoopMode } from 'hytopia';
 import SoccerPlayerEntity from '../entities/SoccerPlayerEntity';
 import type { Ability } from './Ability';
 import type { ItemAbilityOptions } from './itemTypes';
@@ -72,16 +72,21 @@ export class ItemThrowAbility implements Ability {
                 name: this.options.name,
                 modelUri: this.options.modelUri,
                 modelScale: this.options.modelScale,
-                modelAnimationsPlaybackRate: 2.8,
-                modelLoopedAnimations: ["spin"],
                 rigidBodyOptions: {
                     type: RigidBodyType.DYNAMIC,
                     gravityScale: 0,
                 },
             });
-            
+
             // Spawn and launch the new projectile from the calculated position
             throwProjectile.spawn(source.world, spawnPosition);
+            // Start spin animation after spawn (modelLoopedAnimations removed in SDK 0.15.1)
+            const spinAnim = throwProjectile.getModelAnimation("spin");
+            if (spinAnim) {
+              spinAnim.setLoopMode(EntityModelAnimationLoopMode.LOOP);
+              spinAnim.setPlaybackRate(2.8);
+              spinAnim.play();
+            }
             this.launchProjectile(throwProjectile, direction, source);
            
         }, 500);

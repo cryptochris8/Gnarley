@@ -1,7 +1,7 @@
 // Arcade Enhancement System - Only Active in Arcade Mode
 // This system enhances existing gameplay without modifying FIFA mode
 
-import { World, Audio, Entity, RigidBodyType, ColliderShape, CollisionGroup, BlockType, EntityEvent, type Vector3Like } from "hytopia";
+import { World, Audio, Entity, RigidBodyType, ColliderShape, CollisionGroup, BlockType, EntityEvent, type Vector3Like, EntityModelAnimationLoopMode } from "hytopia";
 import { isArcadeMode, ARCADE_PHYSICS_MULTIPLIERS } from "./gameModes";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
 
@@ -1911,8 +1911,6 @@ export class ArcadeEnhancementManager {
       name: 'shuriken-projectile',
       modelUri: 'models/projectiles/shuriken.gltf',
       modelScale: 0.4,
-      modelAnimationsPlaybackRate: 2.8,
-      modelLoopedAnimations: ["spin"],
       rigidBodyOptions: {
         type: RigidBodyType.DYNAMIC,
         gravityScale: 0,
@@ -1928,6 +1926,12 @@ export class ArcadeEnhancementManager {
 
     // Spawn shuriken at calculated position
     shuriken.spawn(this.world, spawnPosition);
+    const spinAnim = shuriken.getModelAnimation("spin");
+    if (spinAnim) {
+      spinAnim.setLoopMode(EntityModelAnimationLoopMode.LOOP);
+      spinAnim.setPlaybackRate(2.8);
+      spinAnim.play();
+    }
 
     // Launch shuriken with velocity
     const velocity = {

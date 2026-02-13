@@ -1,6 +1,6 @@
 import type { Ability } from "./Ability";
 import type { ItemAbilityOptions } from "./itemTypes";
-import { type Vector3Like, Entity, Audio } from "hytopia";
+import { type Vector3Like, Entity, Audio, EntityModelAnimationLoopMode } from "hytopia";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
 import { isArcadeModeForPlayer } from "../state/gameModes";
 
@@ -229,7 +229,6 @@ export class StaminaAbility implements Ability {
                 name: 'stamina-effect',
                 modelUri: this.options.modelUri, // "projectiles/energy-orb-projectile.gltf"
                 modelScale: this.options.modelScale * 1.5, // Slightly larger for effect
-                modelLoopedAnimations: [this.options.idleAnimation],
                 rigidBodyOptions: {
                     type: 'KINEMATIC_POSITION' as any,
                     colliders: [], // No colliders for visual effect
@@ -244,6 +243,12 @@ export class StaminaAbility implements Ability {
             };
 
             effectEntity.spawn(player.world, effectPosition);
+            // Start idle animation after spawn (modelLoopedAnimations removed in SDK 0.15.1)
+            const idleAnim = effectEntity.getModelAnimation(this.options.idleAnimation);
+            if (idleAnim) {
+              idleAnim.setLoopMode(EntityModelAnimationLoopMode.LOOP);
+              idleAnim.play();
+            }
 
             // Animate the effect (floating upward and fading)
             this.animateStaminaEffect(effectEntity);

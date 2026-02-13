@@ -1,4 +1,4 @@
-import { Audio, Entity, Player, PlayerCameraMode, PlayerEntity, World, EntityEvent, type Vector3Like, CollisionGroup } from "hytopia";
+import { Audio, Entity, Player, PlayerCameraMode, PlayerEntity, World, EntityEvent, type Vector3Like, CollisionGroup, EntityModelAnimationLoopMode } from "hytopia";
 import CustomSoccerPlayer from "../controllers/SoccerPlayerController";
 import sharedState from "../state/sharedState";
 import { RoomSharedState } from "../state/RoomSharedState";
@@ -90,7 +90,6 @@ export default class SoccerPlayerEntity extends PlayerEntity {
       player,
       name: "Player",
       modelUri: `models/players/player-${team}.gltf`,
-      modelLoopedAnimations: ["idle"],
       modelScale: 0.5,
       controller,
     });
@@ -179,6 +178,32 @@ export default class SoccerPlayerEntity extends PlayerEntity {
         useAbility: () => false,
         clearAbility: () => {}
       } as any;
+    }
+  }
+
+  /**
+   * SDK 0.15.1 compatibility: start looped animations using the new per-animation API.
+   * Replaces the removed PlayerEntity.startModelLoopedAnimations().
+   */
+  public startModelLoopedAnimations(names: string[]): void {
+    for (const name of names) {
+      const anim = this.getModelAnimation(name);
+      if (!anim) continue;
+      anim.setLoopMode(EntityModelAnimationLoopMode.LOOP);
+      anim.play();
+    }
+  }
+
+  /**
+   * SDK 0.15.1 compatibility: start oneshot animations using the new per-animation API.
+   * Replaces the removed PlayerEntity.startModelOneshotAnimations().
+   */
+  public startModelOneshotAnimations(names: string[]): void {
+    for (const name of names) {
+      const anim = this.getModelAnimation(name);
+      if (!anim) continue;
+      anim.setLoopMode(EntityModelAnimationLoopMode.ONCE);
+      anim.restart();
     }
   }
 
@@ -376,7 +401,7 @@ export default class SoccerPlayerEntity extends PlayerEntity {
         // Large stadium mode - realistic soccer without visual effects
         // No stars or special effects in large stadium mode
 
-        this.stopModelAnimations(Array.from(this.modelLoopedAnimations).filter(v => v !== 'dizzy'));
+        this.stopModelAnimations(["idle_upper", "idle_lower", "walk_upper", "walk_lower", "run_upper", "run_lower", "wind_up"]);
         this.startModelOneshotAnimations(["dizzy"]);
 
         // Apply knockback to the hit player (direction away from tackler)

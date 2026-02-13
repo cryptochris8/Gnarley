@@ -24,6 +24,8 @@ import {
   checkBallRespawn,
   updateBallFollow,
   isInPossessionRange,
+  getBallSpeed,
+  MAX_BALL_SPEED_FOR_PICKUP,
 } from "./LobbyBall";
 import {
   PORTAL_CONFIGS,
@@ -306,10 +308,12 @@ export class PhysicalLobby {
         // Ball follows player
         updateBallFollow(ball, playerEntity);
       } else {
-        // Ball is loose — check if player picks it up (with kick cooldown)
+        // Ball is loose — check if player picks it up (with kick cooldown + speed gate)
         const lastKick = this.kickTimestamps.get(username) ?? 0;
-        const kickCooldownExpired = Date.now() - lastKick > 800;
-        if (kickCooldownExpired && isInPossessionRange(ball, playerEntity)) {
+        const kickCooldownExpired = Date.now() - lastKick > 1500;
+        const ballSpeed = getBallSpeed(ball);
+        const ballSlowEnough = ballSpeed < MAX_BALL_SPEED_FOR_PICKUP;
+        if (kickCooldownExpired && ballSlowEnough && isInPossessionRange(ball, playerEntity)) {
           this.ballPossession.set(username, true);
         }
 
@@ -325,7 +329,8 @@ export class PhysicalLobby {
       if (this.ballPossession.get(username)) return; // already possessed
 
       const lastKick = this.kickTimestamps.get(username) ?? 0;
-      if (Date.now() - lastKick > 800) {
+      const ballSpeed = getBallSpeed(ball);
+      if (Date.now() - lastKick > 1500 && ballSpeed < MAX_BALL_SPEED_FOR_PICKUP) {
         this.ballPossession.set(username, true);
       }
     });
@@ -349,15 +354,27 @@ export class PhysicalLobby {
     const dirX = -Math.sin(yaw);
     const dirZ = -Math.cos(yaw);
 
-    // Release possession first, record kick time, then apply impulse
+    // Release possession first, record kick time
     this.releaseBall(username);
     this.kickTimestamps.set(username, Date.now());
 
-    // Reset spin before kick for clean trajectory (matches game ball)
+    // Offset ball forward in kick direction before applying impulse
+    // This prevents the ball from being immediately recaptured
+    const playerPos = this.playerEntities.get(username)?.position;
+    if (playerPos) {
+      ball.setPosition({
+        x: playerPos.x + dirX * 1.5,
+        y: playerPos.y + 0.3,
+        z: playerPos.z + dirZ * 1.5,
+      });
+    }
+
+    // Reset velocity and spin before kick for clean trajectory
+    ball.setLinearVelocity({ x: 0, y: 0, z: 0 });
     ball.setAngularVelocity({ x: 0, y: 0, z: 0 });
 
-    // Moderate kick force with a slight arc
-    ball.applyImpulse({ x: dirX * 8, y: 2, z: dirZ * 8 });
+    // Strong kick force with a slight arc
+    ball.applyImpulse({ x: dirX * 10, y: 2.5, z: dirZ * 10 });
 
     // Play kick sound effect
     const kickAudio = new Audio({

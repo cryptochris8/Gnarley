@@ -664,15 +664,22 @@ export class SoccerGame {
       if (entity instanceof SoccerPlayerEntity) {
         // Use the role-specific moveToSpawnPoint implementation
         entity.moveToSpawnPoint();
-        
+
         // If it's an AI player, ensure proper activation
         if (entity instanceof AIPlayerEntity) {
           // Deactivate first to clear any existing state
           entity.deactivate();
           // Then activate with fresh state
           entity.activate();
-          // Unfreeze the AI player to allow movement
-          entity.unfreeze();
+        }
+
+        // Unfreeze ALL players (human and AI) so they can move
+        entity.unfreeze();
+
+        // Lock pointer and clear loading UI for human players
+        if (!(entity instanceof AIPlayerEntity) && entity.player) {
+          entity.player.ui.lockPointer(true);
+          entity.player.ui.sendData({ type: "loading-complete" });
         }
       }
     });
@@ -1372,11 +1379,11 @@ export class SoccerGame {
     // Visual celebration effects for goal scorer
     if (lastPlayerWithBall && lastPlayerWithBall instanceof SoccerPlayerEntity && lastPlayerWithBall.isSpawned) {
       const scorerEntity = lastPlayerWithBall;
-      const teamColor = team === 'red' ? { r: 1, g: 0.2, b: 0.2 } : { r: 0.2, g: 0.4, b: 1 };
+      const teamColor = team === 'red' ? { r: 255, g: 50, b: 50 } : { r: 50, g: 100, b: 255 };
 
       // Gold outline for goal scorer visible to all players
       scorerEntity.setOutline({
-        color: { r: 1, g: 0.84, b: 0 },
+        color: { r: 255, g: 214, b: 0 },
         thickness: 0.05,
         colorIntensity: 3,
       });
@@ -1397,7 +1404,7 @@ export class SoccerGame {
 
     // Flash the ball with a golden glow
     if (this.soccerBall.isSpawned) {
-      this.soccerBall.setEmissiveColor({ r: 1, g: 0.84, b: 0 });
+      this.soccerBall.setEmissiveColor({ r: 255, g: 214, b: 0 });
       this.soccerBall.setEmissiveIntensity(3);
       setTimeout(() => {
         if (this.soccerBall.isSpawned) {
@@ -1438,9 +1445,9 @@ export class SoccerGame {
     confetti.burst(60);
     setTimeout(() => { confetti.despawn(); }, 4000);
 
-    // Camera shake effect for all players on goal
+    // Camera shake effect for human players only (AI players have mock cameras)
     this.world.entityManager.getAllPlayerEntities().forEach((entity) => {
-      if (entity instanceof PlayerEntity && entity.player?.camera) {
+      if (entity instanceof PlayerEntity && !(entity instanceof AIPlayerEntity) && entity.player?.camera) {
         const camera = entity.player.camera;
         const originalOffset = { x: 0, y: 0, z: 0 };
         let shakeCount = 0;

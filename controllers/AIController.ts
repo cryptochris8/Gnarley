@@ -6,7 +6,8 @@ import {
   ColliderShape,
   CoefficientCombineRule,
   CollisionGroup,
-  type BlockType
+  type BlockType,
+  EntityModelAnimationLoopMode,
 } from "hytopia";
 import SoccerPlayerEntity from "../entities/SoccerPlayerEntity";
 import sharedState from "../state/sharedState";
@@ -273,7 +274,11 @@ export default class AIController extends BaseEntityController {
         this._groundContactCount += started ? 1 : -1;
 
         if (!this._groundContactCount) {
-          entity.startModelOneshotAnimations(["jump_loop"]);
+          const jumpAnim = entity.getModelAnimation("jump_loop");
+          if (jumpAnim) {
+            jumpAnim.setLoopMode(EntityModelAnimationLoopMode.ONCE);
+            jumpAnim.restart();
+          }
         } else {
           entity.stopModelAnimations(["jump_loop"]);
         }

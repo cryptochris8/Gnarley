@@ -10,6 +10,7 @@ import {
   EntityEvent,
   RigidBodyType,
   ColliderShape,
+  CollisionGroup,
   World,
 } from "hytopia";
 import { BALL_CONFIG } from "../state/gameConfig";
@@ -23,6 +24,9 @@ import { LOBBY_BALL_MIN_Y, LOBBY_BALL_RESPAWN_DISTANCE } from "./lobbyConfig";
  * but the lobby ball only needs stationary pickup since there are no passes.
  */
 const POSSESSION_DISTANCE = 2.5;
+
+/** Max ball speed for proximity re-possession (prevents picking up fast-moving balls) */
+export const MAX_BALL_SPEED_FOR_PICKUP = 3.0;
 
 /** Ball offset in front of player when possessed */
 const BALL_FOLLOW_OFFSET = 0.7;
@@ -49,8 +53,8 @@ export function createLobbyBall(
           radius: BALL_CONFIG.RADIUS,
           friction: BALL_CONFIG.FRICTION,
           collisionGroups: {
-            belongsTo: [1],
-            collidesWith: [1, 2],
+            belongsTo: [CollisionGroup.ENTITY],
+            collidesWith: [CollisionGroup.BLOCK, CollisionGroup.ENTITY, CollisionGroup.ENTITY_SENSOR],
           },
         },
       ],
@@ -164,4 +168,13 @@ export function isInPossessionRange(
   const dz = ball.position.z - playerEntity.position.z;
   const dist = Math.sqrt(dx * dx + dz * dz);
   return dist < POSSESSION_DISTANCE;
+}
+
+/**
+ * Get the current speed of the ball (horizontal magnitude).
+ * Used by possession checks to avoid picking up fast-moving balls.
+ */
+export function getBallSpeed(ball: Entity): number {
+  const vel = ball.linearVelocity;
+  return Math.sqrt(vel.x * vel.x + vel.z * vel.z);
 }

@@ -13,6 +13,7 @@ import {
   World,
   type Vector3Like,
   BaseEntityControllerEvent,
+  EntityModelAnimationLoopMode,
 } from "hytopia";
 import sharedState from "../state/sharedState";
 import {
@@ -50,6 +51,15 @@ export interface PlayerEntityControllerOptions {
   /** The normalized horizontal velocity applied to the entity when it walks. */
   walkVelocity?: number;
 }
+
+// All looped animation names used by the controller.
+// Used to explicitly stop animations since entity.modelLoopedAnimations was removed in SDK 0.15.1.
+const ALL_LOOPED_ANIMATIONS = [
+  "idle_upper", "idle_lower",
+  "walk_upper", "walk_lower",
+  "run_upper", "run_lower",
+  "wind_up", "dizzy",
+];
 
 // Constants for player movement and actions
 const SHOT_FORCE = 8;
@@ -255,7 +265,11 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         }
 
         if (!this._groundContactCount) {
-          entity.startModelOneshotAnimations(["jump_loop"]);
+          const jumpAnim = entity.getModelAnimation("jump_loop");
+          if (jumpAnim) {
+            jumpAnim.setLoopMode(EntityModelAnimationLoopMode.ONCE);
+            jumpAnim.restart();
+          }
         } else {
           entity.stopModelAnimations(["jump_loop"]);
         }
@@ -330,7 +344,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       this._clearPowerChargeIfNeeded(entity);
       
       // Stop wind-up animation if it's playing
-      if (entity.modelLoopedAnimations.has("wind_up")) {
+      if (entity.getModelAnimation("wind_up")?.isPlaying) {
         entity.stopModelAnimations(["wind_up"]);
       }
     }
@@ -409,7 +423,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         if (isRunning) {
           const runAnimations = ["run_upper", "run_lower"];
           entity.stopModelAnimations(
-            Array.from(entity.modelLoopedAnimations).filter(
+            ALL_LOOPED_ANIMATIONS.filter(
               (v) => !runAnimations.includes(v)
             )
           );
@@ -418,7 +432,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         } else {
           const walkAnimations = ["walk_upper", "walk_lower"];
           entity.stopModelAnimations(
-            Array.from(entity.modelLoopedAnimations).filter(
+            ALL_LOOPED_ANIMATIONS.filter(
               (v) => !walkAnimations.includes(v)
             )
           );
@@ -432,7 +446,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         this._stepAudio?.pause();
         const idleAnimations = ["idle_upper", "idle_lower"];
         entity.stopModelAnimations(
-          Array.from(entity.modelLoopedAnimations).filter(
+          ALL_LOOPED_ANIMATIONS.filter(
             (v) => !idleAnimations.includes(v)
           )
         );
@@ -1017,7 +1031,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         const rotation = getDirectionFromRotation(entity.rotation);
         const isGoingRight = rotation.x * side > 0;
         entity.stopModelAnimations(
-          Array.from(entity.modelLoopedAnimations).filter((v) => v !== "dizzy")
+          ALL_LOOPED_ANIMATIONS.filter((v) => v !== "dizzy")
         );
 
         entity.startModelOneshotAnimations([
@@ -1142,7 +1156,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
     this._chargeStartTime = null;
     
     // Stop wind-up animation if it's playing
-    if (player instanceof SoccerPlayerEntity && player.modelLoopedAnimations.has("wind_up")) {
+    if (player instanceof SoccerPlayerEntity && player.getModelAnimation("wind_up")?.isPlaying) {
       try {
         player.stopModelAnimations(["wind_up"]);
         console.log(`🔧 SHOT METER CLEANUP: Stopped wind_up animation for ${player.player?.username || 'unknown'}`);
@@ -1165,7 +1179,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       // 2. Clear any pending animations
       if (entity instanceof SoccerPlayerEntity) {
         try {
-          entity.stopModelAnimations(Array.from(entity.modelLoopedAnimations));
+          entity.stopModelAnimations(ALL_LOOPED_ANIMATIONS);
         } catch (error) {
           console.log("Animation cleanup error:", error);
         }
