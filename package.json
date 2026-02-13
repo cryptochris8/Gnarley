@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@gltf-transform/cli": "^4.2.1",
-    "hytopia": "^0.14.55",
+    "hytopia": "^0.15.2",
     "mediasoup": "^3.18.0"
   },
   "trustedDependencies": [
