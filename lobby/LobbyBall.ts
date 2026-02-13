@@ -7,11 +7,10 @@
 
 import {
   Entity,
+  EntityEvent,
   RigidBodyType,
   ColliderShape,
-  EntityEvent,
   World,
-  Audio,
 } from "hytopia";
 import { BALL_CONFIG } from "../state/gameConfig";
 import { getDirectionFromRotation } from "../utils/direction";
@@ -56,6 +55,25 @@ export function createLobbyBall(
         },
       ],
     },
+  });
+
+  // Tuned block collision bounce matching game ball (utils/ball.ts)
+  ball.on(EntityEvent.BLOCK_COLLISION, ({ entity, blockType, started }) => {
+    if (started) {
+      const velocity = entity.linearVelocity;
+      const dampingFactor = 0.85;
+      entity.setLinearVelocity({
+        x: velocity.x * dampingFactor,
+        y: Math.abs(velocity.y) * 0.6,
+        z: velocity.z * dampingFactor,
+      });
+      const angVel = entity.angularVelocity;
+      entity.setAngularVelocity({
+        x: angVel.x * 0.4,
+        y: angVel.y * 0.4,
+        z: angVel.z * 0.4,
+      });
+    }
   });
 
   return ball;

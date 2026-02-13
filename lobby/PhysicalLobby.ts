@@ -108,12 +108,12 @@ export class PhysicalLobby {
       logger.info("Lobby ambient music started");
     }
 
-    // Create player entity (DefaultPlayerEntity scaled to match soccer field)
+    // Create player entity (DefaultPlayerEntity at default scale)
+    // No modelLoopedAnimations — let DefaultPlayerEntityController handle all
+    // animation switching automatically (walk-upper/lower, run-upper/lower, etc.)
     const playerEntity = new DefaultPlayerEntity({
       player,
       name: player.username,
-      modelScale: 0.5,
-      modelLoopedAnimations: ["idle-upper", "idle-lower"],
     });
     playerEntity.spawn(this.world, LOBBY_SPAWN_POSITION);
     this.playerEntities.set(player.username, playerEntity);
@@ -295,14 +295,8 @@ export class PhysicalLobby {
     ball: Entity,
     playerEntity: DefaultPlayerEntity
   ): void {
-    let tickCounter = 0;
-
     ball.on(EntityEvent.TICK, () => {
-      // Only process every 2nd tick for performance
-      tickCounter++;
-      if (tickCounter % 2 !== 0) return;
-
-      // Make sure both are still valid
+      // Run every tick (matching game ball behavior for smooth follow)
       if (!ball.isSpawned || !playerEntity.isSpawned) return;
       if (!this.playerBalls.has(username)) return;
 
@@ -314,7 +308,7 @@ export class PhysicalLobby {
       } else {
         // Ball is loose — check if player picks it up (with kick cooldown)
         const lastKick = this.kickTimestamps.get(username) ?? 0;
-        const kickCooldownExpired = Date.now() - lastKick > 800; // 800ms before re-possession
+        const kickCooldownExpired = Date.now() - lastKick > 800;
         if (kickCooldownExpired && isInPossessionRange(ball, playerEntity)) {
           this.ballPossession.set(username, true);
         }
@@ -324,13 +318,16 @@ export class PhysicalLobby {
       }
     });
 
-    // Handle kick: when ball gets an impulse (collision with player while possessed),
-    // release possession
+    // Collision-based possession pickup (backup to proximity, matches game ball)
     ball.on(EntityEvent.ENTITY_COLLISION, ({ entity, otherEntity, started }) => {
       if (!started) return;
-      // If ball collides with its owner's player entity while possessed, that's normal
-      // (the follow logic handles it). We detect "kick" via the player controller's
-      // right-mouse input which applies an impulse and calls releaseBall.
+      if (otherEntity !== playerEntity) return;
+      if (this.ballPossession.get(username)) return; // already possessed
+
+      const lastKick = this.kickTimestamps.get(username) ?? 0;
+      if (Date.now() - lastKick > 800) {
+        this.ballPossession.set(username, true);
+      }
     });
   }
 
@@ -355,6 +352,9 @@ export class PhysicalLobby {
     // Release possession first, record kick time, then apply impulse
     this.releaseBall(username);
     this.kickTimestamps.set(username, Date.now());
+
+    // Reset spin before kick for clean trajectory (matches game ball)
+    ball.setAngularVelocity({ x: 0, y: 0, z: 0 });
 
     // Moderate kick force with a slight arc
     ball.applyImpulse({ x: dirX * 8, y: 2, z: dirZ * 8 });
