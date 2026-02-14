@@ -82,7 +82,7 @@ export class RoomSharedState {
 
     constructor(roomId: string = 'default') {
         this.roomId = roomId;
-        console.log(`🏠 RoomSharedState created for room: ${roomId}`);
+        // console.log(`🏠 RoomSharedState created for room: ${roomId}`);
     }
 
     public getRoomId(): string {
@@ -203,7 +203,7 @@ export class RoomSharedState {
     // --- AI System Management ---
     public setAISystem(system: AISystem) {
         this._aiSystem = system;
-        console.log(`[Room ${this.roomId}] AI system set to: ${system}`);
+        // console.log(`[Room ${this.roomId}] AI system set to: ${system}`);
     }
 
     public getAISystem(): AISystem {
@@ -263,7 +263,7 @@ export class RoomSharedState {
             if (this.ballStationaryTracker.stationaryDuration >= this.STATIONARY_TIME_LIMIT) {
                 if (!this.ballStationaryTracker.isStationary) {
                     this.ballStationaryTracker.isStationary = true;
-                    console.log(`[Room ${this.roomId}] Ball stationary for ${this.ballStationaryTracker.stationaryDuration}ms at (${ballPosition.x.toFixed(1)}, ${ballPosition.z.toFixed(1)})`);
+                    // console.log(`[Room ${this.roomId}] Ball stationary for ${this.ballStationaryTracker.stationaryDuration}ms at (${ballPosition.x.toFixed(1)}, ${ballPosition.z.toFixed(1)})`);
                 }
             }
         }
@@ -361,7 +361,7 @@ export class RoomSharedState {
      * Clean up all state when room is destroyed
      */
     public cleanup(): void {
-        console.log(`🧹 Cleaning up RoomSharedState for room: ${this.roomId}`);
+        // console.log(`🧹 Cleaning up RoomSharedState for room: ${this.roomId}`);
 
         this.attachedPlayer = null;
         this.soccerBall = null;

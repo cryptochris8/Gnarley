@@ -175,6 +175,12 @@ export class UIEventHandlers {
           this.handleSpectatorLeave(player, data);
           break;
 
+        // ===== UI SOUNDS =====
+        case "play-ui-sound":
+        case "play-goal-celebration":
+          // Client-side UI sound requests — handled by the client, no server action needed
+          break;
+
         // ===== MOBILE INPUT =====
         // NOTE: Disabled custom mobile handlers - Hytopia SDK handles movement/camera automatically
         // Only keeping mobile-mode-enabled for tracking mobile players
@@ -194,7 +200,7 @@ export class UIEventHandlers {
   // ============================================================================
 
   private async handleMobileAutoStartFIFA(player: Player, data: any): Promise<void> {
-    logger.info(`ðŸ“± Mobile auto-start requested by: ${player.username}`);
+    logger.debug(`ðŸ“± Mobile auto-start requested by: ${player.username}`);
 
     // Mark player as mobile
     setMobilePlayer(player, true);
@@ -203,7 +209,7 @@ export class UIEventHandlers {
     // If so, join the existing game with its current mode instead of forcing FIFA
     if (isGameModeLocked() || this.deps.game?.inProgress()) {
       const currentMode = getCurrentGameMode();
-      logger.info(`ðŸ“± Game already in progress with ${currentMode} mode - mobile player will join existing match`);
+      logger.debug(`ðŸ“± Game already in progress with ${currentMode} mode - mobile player will join existing match`);
 
       // Notify player they're joining an existing game
       player.ui.sendData({
@@ -234,7 +240,7 @@ export class UIEventHandlers {
     // No game in progress - set to FIFA mode (default for mobile quick-start)
     const modeSet = setGameMode(GameMode.FIFA);
     if (modeSet) {
-      logger.info("ðŸŽ® Game mode set to FIFA Mode (mobile auto-start)");
+      logger.debug("ðŸŽ® Game mode set to FIFA Mode (mobile auto-start)");
     } else {
       logger.warn("âš ï¸ Could not set FIFA mode - using current mode");
     }
@@ -261,26 +267,26 @@ export class UIEventHandlers {
     if (this.deps.game) {
       this.deps.game.joinGame(player.username, player.username);
       this.deps.game.joinTeam(player.username, autoTeam);
-      logger.info(`ðŸ“± Mobile player auto-joined team: ${autoTeam}`);
+      logger.debug(`ðŸ“± Mobile player auto-joined team: ${autoTeam}`);
     }
 
     // Create player entity
     const humanPlayerRole = "central-midfielder-1";
     const playerEntity = new SoccerPlayerEntity(player, autoTeam, humanPlayerRole);
-    logger.info(`ðŸ“± Creating mobile player entity for team ${autoTeam} as ${humanPlayerRole}`);
+    logger.debug(`ðŸ“± Creating mobile player entity for team ${autoTeam} as ${humanPlayerRole}`);
 
     // Add spawn event listener
     playerEntity.on(EntityEvent.SPAWN, () => {
-      logger.info(`ðŸ“± Mobile player entity ${playerEntity.id} successfully spawned`);
+      logger.debug(`ðŸ“± Mobile player entity ${playerEntity.id} successfully spawned`);
     });
 
     // Get spawn position
     const spawnPosition = getStartPosition(autoTeam, humanPlayerRole);
-    logger.info(`ðŸ“± Mobile spawn position: X=${spawnPosition.x.toFixed(2)}, Y=${spawnPosition.y.toFixed(2)}, Z=${spawnPosition.z.toFixed(2)}`);
+    logger.debug(`ðŸ“± Mobile spawn position: X=${spawnPosition.x.toFixed(2)}, Y=${spawnPosition.y.toFixed(2)}, Z=${spawnPosition.z.toFixed(2)}`);
 
     // Spawn player entity
     playerEntity.spawn(this.deps.world, spawnPosition);
-    logger.info(`ðŸ“± Mobile player entity spawned as ${humanPlayerRole}`);
+    logger.debug(`ðŸ“± Mobile player entity spawned as ${humanPlayerRole}`);
 
     // Freeze player initially
     playerEntity.freeze();
@@ -295,18 +301,18 @@ export class UIEventHandlers {
     // Start gameplay music based on actual mode
     const gameMode = getCurrentGameMode();
     this.deps.audioManager.playGameplayMusic(gameMode);
-    logger.info(`ðŸŽµ Music started for ${actualMode} mode (mobile)`);
+    logger.debug(`ðŸŽµ Music started for ${actualMode} mode (mobile)`);
 
     // Spawn AI players
-    logger.info("ðŸ“± Spawning AI players for mobile single-player mode...");
+    logger.debug("ðŸ“± Spawning AI players for mobile single-player mode...");
     await this.deps.spawnAIPlayers(autoTeam);
 
     // Start the game
-    logger.info("ðŸ“± Starting game with AI for mobile player...");
+    logger.debug("ðŸ“± Starting game with AI for mobile player...");
     const gameStarted = this.deps.game && this.deps.game.startGame();
 
     if (gameStarted) {
-      logger.info(`ðŸ“± Mobile ${actualMode} game started successfully!`);
+      logger.debug(`ðŸ“± Mobile ${actualMode} game started successfully!`);
 
       // Send chat message to player
       this.deps.world.chatManager.sendPlayerMessage(
@@ -318,12 +324,12 @@ export class UIEventHandlers {
       setTimeout(() => {
         if (playerEntity && typeof playerEntity.unfreeze === "function") {
           playerEntity.unfreeze();
-          logger.info("ðŸ“± Mobile player unfrozen - game active!");
+          logger.debug("ðŸ“± Mobile player unfrozen - game active!");
         }
 
         // Lock pointer for gameplay
         player.ui.lockPointer(true);
-        logger.info(`ðŸ“± Pointer locked for mobile player ${player.username} - Game controls enabled`);
+        logger.debug(`ðŸ“± Pointer locked for mobile player ${player.username} - Game controls enabled`);
       }, 500);
 
     } else {
@@ -340,7 +346,7 @@ export class UIEventHandlers {
   // ============================================================================
 
   private handleGameModeSelection(player: Player, data: any): void {
-    logger.info(`Player ${player.username} selected game mode: ${data.mode}`);
+    logger.debug(`Player ${player.username} selected game mode: ${data.mode}`);
 
     // CRITICAL FIX: Check if game mode is locked (match in progress)
     if (isGameModeLocked()) {
@@ -363,7 +369,7 @@ export class UIEventHandlers {
         wasLocked: true,
       });
 
-      logger.info(`ðŸ“± Player ${player.username} will join existing ${currentMode} match`);
+      logger.debug(`ðŸ“± Player ${player.username} will join existing ${currentMode} match`);
       return;
     }
 
@@ -371,22 +377,22 @@ export class UIEventHandlers {
     // This is after a user gesture, so browser will allow audio playback
     if (!this.deps.game?.inProgress()) {
       this.deps.audioManager.playOpeningMusic();
-      logger.info("ðŸŽµ Opening music started after user interaction");
+      logger.debug("ðŸŽµ Opening music started after user interaction");
     }
 
     // Set the game mode using the imported functions
     let modeSet = false;
     if (data.mode === "fifa") {
       modeSet = setGameMode(GameMode.FIFA);
-      if (modeSet) logger.info("ðŸŽ® Game mode set to FIFA Mode");
+      if (modeSet) logger.debug("ðŸŽ® Game mode set to FIFA Mode");
     } else if (data.mode === "arcade") {
       modeSet = setGameMode(GameMode.ARCADE);
-      if (modeSet) logger.info("ðŸŽ® Game mode set to Arcade Mode");
+      if (modeSet) logger.debug("ðŸŽ® Game mode set to Arcade Mode");
     } else if (data.mode === "penalty" || data.mode === "penalty_shootout") {
       // Penalty shootout uses FIFA as base mode, then triggers shootout after team selection
       modeSet = setGameMode(GameMode.FIFA);
       if (modeSet) {
-        logger.info("ðŸŽ® Game mode set to Penalty Shootout (FIFA base)");
+        logger.debug("ðŸŽ® Game mode set to Penalty Shootout (FIFA base)");
         // Flag that penalty shootout should start instead of normal match
         (this.deps as any)._pendingPenaltyShootout = true;
       }
@@ -403,11 +409,11 @@ export class UIEventHandlers {
       config: getCurrentModeConfig(),
     });
 
-    logger.info("ðŸŽ® Game mode selected - ready for team selection");
+    logger.debug("ðŸŽ® Game mode selected - ready for team selection");
   }
 
   private handleSinglePlayerSelection(player: Player, data: any): void {
-    logger.info(`Player ${player.username} selected single player mode`);
+    logger.debug(`Player ${player.username} selected single player mode`);
 
     // Send confirmation - game is ready
     player.ui.sendData({
@@ -421,11 +427,11 @@ export class UIEventHandlers {
   // ============================================================================
 
   private async handleTeamSelection(player: Player, data: any): Promise<void> {
-    logger.info(`Player ${player.username} selected team: ${data.team}`);
+    logger.debug(`Player ${player.username} selected team: ${data.team}`);
 
     // Check if player already on a team
     if (this.deps.game && this.deps.game.getTeamOfPlayer(player.username) !== null) {
-      logger.info("Player already on a team");
+      logger.debug("Player already on a team");
       return;
     }
 
@@ -449,7 +455,7 @@ export class UIEventHandlers {
       );
       existingEntities.forEach((entity) => {
         if (entity.isSpawned) {
-          logger.info(`Despawning existing entity: ${entity.id}`);
+          logger.debug(`Despawning existing entity: ${entity.id}`);
           entity.despawn();
         }
       });
@@ -464,29 +470,29 @@ export class UIEventHandlers {
     // Create player entity with the assigned role
     const humanPlayerRole = "central-midfielder-1"; // Human player is now a midfielder
     const playerEntity = new SoccerPlayerEntity(player, data.team, humanPlayerRole);
-    logger.info(`Creating player entity for team ${data.team} as ${humanPlayerRole}`);
+    logger.debug(`Creating player entity for team ${data.team} as ${humanPlayerRole}`);
 
     // Add spawn event listener to verify when entity is actually spawned
     playerEntity.on(EntityEvent.SPAWN, () => {
-      logger.info(`Player entity ${playerEntity.id} successfully spawned with camera attachment`);
+      logger.debug(`Player entity ${playerEntity.id} successfully spawned with camera attachment`);
     });
 
     // Get correct spawn position for large stadium
     const spawnPosition = getStartPosition(data.team, humanPlayerRole);
-    logger.info(
+    logger.debug(
       `Using role-based spawn position for large stadium: X=${spawnPosition.x.toFixed(2)}, Y=${spawnPosition.y.toFixed(2)}, Z=${spawnPosition.z.toFixed(2)}`
     );
 
     // Spawn player entity immediately at calculated position
-    logger.info(
+    logger.debug(
       `Spawning player entity at X=${spawnPosition.x.toFixed(2)}, Y=${spawnPosition.y.toFixed(2)}, Z=${spawnPosition.z.toFixed(2)}`
     );
     playerEntity.spawn(this.deps.world, spawnPosition);
-    logger.info(`Player entity ${playerEntity.id} spawn command issued as ${humanPlayerRole}.`);
+    logger.debug(`Player entity ${playerEntity.id} spawn command issued as ${humanPlayerRole}.`);
 
     // Show mobile controls after spawn if player is on mobile
     if ((player as any)._isMobilePlayer) {
-      logger.info(`ðŸ“± Showing mobile controls for ${player.username} after spawn`);
+      logger.debug(`ðŸ“± Showing mobile controls for ${player.username} after spawn`);
       player.ui.sendData({
         type: "show-mobile-controls",
         message: "Player spawned - showing mobile controls",
@@ -503,7 +509,7 @@ export class UIEventHandlers {
     if (this.deps.game) {
       const currentMode = getCurrentGameMode();
       this.deps.audioManager.playGameplayMusic(currentMode);
-      logger.info(`ðŸŽµ Music transitioned to gameplay (${currentMode} mode)`);
+      logger.debug(`ðŸŽµ Music transitioned to gameplay (${currentMode} mode)`);
     }
 
     // Start FIFA crowd atmosphere if in FIFA mode
@@ -527,27 +533,27 @@ export class UIEventHandlers {
     team: string,
     playerEntity: SoccerPlayerEntity
   ): Promise<void> {
-    logger.info(`Starting single player mode for team ${team}`);
+    logger.debug(`Starting single player mode for team ${team}`);
 
     try {
       // Spawn AI players
-      logger.info("Spawning AI players...");
+      logger.debug("Spawning AI players...");
       await this.deps.spawnAIPlayers(team);
 
       // Start the game
-      logger.info("Starting game with AI...");
+      logger.debug("Starting game with AI...");
       const gameStarted = this.deps.game && this.deps.game.startGame();
       if (gameStarted) {
-        logger.info(" Game started successfully with AI!");
+        logger.debug(" Game started successfully with AI!");
 
         // DEBUG: Log current game mode at game start
         const currentModeCheck = getCurrentGameMode();
-        logger.info(`ðŸŽ® GAME START DEBUG: Current game mode is: ${currentModeCheck}`);
-        logger.info(`ðŸŽ® GAME START DEBUG: isArcadeMode() returns: ${isArcadeMode()}`);
+        logger.debug(`ðŸŽ® GAME START DEBUG: Current game mode is: ${currentModeCheck}`);
+        logger.debug(`ðŸŽ® GAME START DEBUG: isArcadeMode() returns: ${isArcadeMode()}`);
 
         // Activate pickup system if in arcade mode
         if (isArcadeMode()) {
-          logger.info(`<ï¿½ Activating pickup system for Arcade Mode`);
+          logger.debug(`<ï¿½ Activating pickup system for Arcade Mode`);
           this.deps.pickupManager.activate();
         }
 
@@ -555,12 +561,12 @@ export class UIEventHandlers {
         setTimeout(() => {
           if (playerEntity && typeof playerEntity.unfreeze === "function") {
             playerEntity.unfreeze();
-            logger.info("Player unfrozen - game active!");
+            logger.debug("Player unfrozen - game active!");
           }
 
           // CRITICAL: Lock pointer for gameplay (Hytopia-compliant approach)
           player.ui.lockPointer(true);
-          logger.info(`<ï¿½ Pointer locked for ${player.username} - Game controls enabled`);
+          logger.debug(`<ï¿½ Pointer locked for ${player.username} - Game controls enabled`);
 
           // Clear loading UI
           player.ui.sendData({
@@ -588,15 +594,15 @@ export class UIEventHandlers {
     team: string,
     playerEntity: SoccerPlayerEntity
   ): Promise<void> {
-    logger.info(`Multiplayer mode: Player ${player.username} joined team ${team}`);
+    logger.debug(`Multiplayer mode: Player ${player.username} joined team ${team}`);
 
     // Check how many human players are currently in the game
     const humanPlayers = PlayerManager.instance.getConnectedPlayers();
-    logger.info(`Current human players in game: ${humanPlayers.length}`);
+    logger.debug(`Current human players in game: ${humanPlayers.length}`);
 
     if (humanPlayers.length === 1) {
       // First player - wait for second player
-      logger.info("First player in multiplayer lobby - waiting for second player");
+      logger.debug("First player in multiplayer lobby - waiting for second player");
       player.ui.sendData({
         type: "multiplayer-waiting",
         message: "Waiting for second player to join...",
@@ -605,7 +611,7 @@ export class UIEventHandlers {
       });
     } else if (humanPlayers.length === 2) {
       // Second player joined - start multiplayer game
-      logger.info("Second player joined - starting multiplayer 1v1 match");
+      logger.debug("Second player joined - starting multiplayer 1v1 match");
 
       // Assign players to different teams automatically
       const firstPlayer = humanPlayers.find((p) => p.username !== player.username);
@@ -615,7 +621,7 @@ export class UIEventHandlers {
       const firstPlayerTeam = team === "red" ? "blue" : "red";
       const secondPlayerTeam = team;
 
-      logger.info(
+      logger.debug(
         `Team assignment: ${firstPlayer?.username} -> ${firstPlayerTeam}, ${secondPlayer.username} -> ${secondPlayerTeam}`
       );
 
@@ -646,7 +652,7 @@ export class UIEventHandlers {
       });
 
       // Spawn AI players for both teams (4 AI per team since 1 human per team)
-      logger.info("Spawning AI players for multiplayer 1v1 match");
+      logger.debug("Spawning AI players for multiplayer 1v1 match");
       await this.deps.spawnAIPlayers("red"); // This will spawn for both teams
 
       // Update loading progress
@@ -665,7 +671,7 @@ export class UIEventHandlers {
       // Start the multiplayer game
       const gameStarted = this.deps.game && this.deps.game.startGame();
       if (gameStarted) {
-        logger.info(" Multiplayer 1v1 game started successfully!");
+        logger.debug(" Multiplayer 1v1 game started successfully!");
 
         // Notify both players
         [firstPlayer, secondPlayer].forEach((p) => {
@@ -693,7 +699,7 @@ export class UIEventHandlers {
           allPlayerEntities.forEach((entity) => {
             if (entity instanceof SoccerPlayerEntity && typeof entity.unfreeze === "function") {
               entity.unfreeze();
-              logger.info(`Player ${entity.player.username} unfrozen - multiplayer game active!`);
+              logger.debug(`Player ${entity.player.username} unfrozen - multiplayer game active!`);
             }
           });
         }, 1000);
@@ -712,7 +718,7 @@ export class UIEventHandlers {
   }
 
   private handleJoinMultiplayerLobby(player: Player, data: any): void {
-    logger.info(`Player ${player.username} wants to join multiplayer lobby`);
+    logger.debug(`Player ${player.username} wants to join multiplayer lobby`);
     // For now, we'll handle this in the team-selected handler
     // In a more complex implementation, this could manage a separate lobby system
     player.ui.sendData({
@@ -723,7 +729,7 @@ export class UIEventHandlers {
 
   private async handleMobileTeamSelection(player: Player, data: any): Promise<void> {
     const selectedTeam = data.team;
-    logger.info(`=ï¿½ Mobile team selection: ${player.username} chose ${selectedTeam}`);
+    logger.debug(`=ï¿½ Mobile team selection: ${player.username} chose ${selectedTeam}`);
 
     // Send immediate mobile confirmation
     player.ui.sendData({
@@ -736,7 +742,7 @@ export class UIEventHandlers {
     // This ensures mobile players get properly spawned into the game
     await this.handleTeamSelection(player, data);
 
-    logger.info(`=ï¿½ Mobile team selection complete for ${player.username} on ${selectedTeam} team`);
+    logger.debug(`=ï¿½ Mobile team selection complete for ${player.username} on ${selectedTeam} team`);
   }
 
   // ============================================================================
@@ -744,7 +750,7 @@ export class UIEventHandlers {
   // ============================================================================
 
   private handleCoinTossChoice(player: Player, data: any): void {
-    logger.info(`Player ${player.username} chose ${data.choice} for coin toss`);
+    logger.debug(`Player ${player.username} chose ${data.choice} for coin toss`);
 
     // Process coin toss only if game is in starting state
     if (this.deps.game && this.deps.game.getState().status === "starting") {
@@ -756,7 +762,7 @@ export class UIEventHandlers {
   }
 
   private handleForcePass(player: Player, data: any): void {
-    logger.info(`<ï¿½ SERVER: Received force-pass request from ${player.username}`);
+    logger.debug(`<ï¿½ SERVER: Received force-pass request from ${player.username}`);
 
     // Find the player's entity
     const playerEntity = this.deps.world.entityManager
@@ -794,7 +800,7 @@ export class UIEventHandlers {
             16 // 16ms delta time (roughly 60fps)
           );
 
-          logger.info(` SERVER: Force pass executed for ${player.username}`);
+          logger.debug(` SERVER: Force pass executed for ${player.username}`);
 
           // Send feedback to UI
           player.ui.sendData({
@@ -805,13 +811,9 @@ export class UIEventHandlers {
           });
         }
       } else {
-        logger.info(`L SERVER: ${player.username} doesn't have the ball`);
-        player.ui.sendData({
-          type: "action-feedback",
-          feedbackType: "warning",
-          title: "Pass Failed",
-          message: "You don't have the ball!",
-        });
+        // Player doesn't have ball - treat as request for AI teammate to pass to them
+        logger.debug(`⚽ SERVER: ${player.username} doesn't have ball, forwarding to request-pass`);
+        this.handleRequestPass(player, data);
       }
     }
   }
@@ -828,7 +830,7 @@ export class UIEventHandlers {
       playerWithBall instanceof AIPlayerEntity &&
       playerWithBall.team === requestingPlayerEntity.team
     ) {
-      logger.info(
+      logger.debug(
         `<ï¿½ HUMAN PLAYER REQUESTING PASS: AI ${playerWithBall.player.username} passing to ${requestingPlayerEntity.player.username}`
       );
 
@@ -865,7 +867,7 @@ export class UIEventHandlers {
       );
 
       if (passSuccess) {
-        logger.info(
+        logger.debug(
           ` GUARANTEED PASS: Successfully passed ball to human player ${requestingPlayerEntity.player.username}`
         );
 
@@ -888,7 +890,7 @@ export class UIEventHandlers {
         });
       }
     } else {
-      logger.info(
+      logger.debug(
         `L PASS REQUEST DENIED: No AI teammate has the ball or wrong team`
       );
 
@@ -902,13 +904,13 @@ export class UIEventHandlers {
   }
 
   private handleManualResetGame(player: Player, data: any): void {
-    logger.info(
+    logger.debug(
       `= Player ${player.username} requested manual game reset from game over screen`
     );
 
     // Only allow reset if game is finished
     if (this.deps.game && this.deps.game.getState().status === "finished") {
-      logger.info(" Game is finished, proceeding with manual reset");
+      logger.debug(" Game is finished, proceeding with manual reset");
 
       // Reset music back to opening music
       this.deps.audioManager.playOpeningMusic();
@@ -923,7 +925,7 @@ export class UIEventHandlers {
 
       // CRITICAL: Unlock pointer for UI interactions after manual reset (Hytopia-compliant approach)
       player.ui.lockPointer(false);
-      logger.info(
+      logger.debug(
         `<ï¿½ Pointer unlocked for ${player.username} after manual reset - UI interactions enabled`
       );
 
@@ -938,9 +940,9 @@ export class UIEventHandlers {
       this.deps.aiPlayers.length = 0; // Clear array
       this.deps.game.updateAIPlayersList([]);
 
-      logger.info(" Manual game reset complete - players can now select teams");
+      logger.debug(" Manual game reset complete - players can now select teams");
     } else {
-      logger.info(
+      logger.debug(
         `L Manual reset denied - game status is: ${this.deps.game ? this.deps.game.getState().status : "null"}`
       );
       player.ui.sendData({
@@ -951,18 +953,18 @@ export class UIEventHandlers {
   }
 
   private handleStartSecondHalf(player: Player, data: any): void {
-    logger.info(`=ï¿½ Player ${player.username} requested to start second half`);
+    logger.debug(`=ï¿½ Player ${player.username} requested to start second half`);
 
     // Only allow if game is in halftime
     if (this.deps.game && this.deps.game.getState().isHalftime) {
-      logger.info(" Game is in halftime, starting second half");
+      logger.debug(" Game is in halftime, starting second half");
 
       // Call the game's startSecondHalf method
       this.deps.game.startSecondHalf();
 
-      logger.info(" Second half started successfully");
+      logger.debug(" Second half started successfully");
     } else {
-      logger.info(
+      logger.debug(
         `L Start second half denied - game status is: ${this.deps.game ? this.deps.game.getState().status : "null"}, halftime: ${this.deps.game ? this.deps.game.getState().isHalftime : "null"}`
       );
       player.ui.sendData({
@@ -977,8 +979,8 @@ export class UIEventHandlers {
   // ============================================================================
 
   private handleTournamentCreate(player: Player, data: any): void {
-    logger.info(`<ï¿½ Player ${player.username} creating tournament:`, data);
-    logger.info(`<ï¿½ Tournament creation request details:`, {
+    logger.debug(`<ï¿½ Player ${player.username} creating tournament:`, data);
+    logger.debug(`<ï¿½ Tournament creation request details:`, {
       name: data.name,
       type: data.tournamentType,
       gameMode: data.gameMode,
@@ -997,7 +999,7 @@ export class UIEventHandlers {
         player.username
       );
 
-      logger.info(`<ï¿½ Tournament created successfully, sending response to ${player.username}`);
+      logger.debug(`<ï¿½ Tournament created successfully, sending response to ${player.username}`);
 
       const tournamentResponse = {
         type: "tournament-created",
@@ -1013,12 +1015,12 @@ export class UIEventHandlers {
         },
       };
 
-      logger.info(`<ï¿½ Sending tournament-created response:`, tournamentResponse);
+      logger.debug(`<ï¿½ Sending tournament-created response:`, tournamentResponse);
       player.ui.sendData(tournamentResponse);
 
       // Broadcast tournament creation to all players
       const allPlayers = PlayerManager.instance.getConnectedPlayers();
-      logger.info(`<ï¿½ Broadcasting tournament list to ${allPlayers.length} players`);
+      logger.debug(`<ï¿½ Broadcasting tournament list to ${allPlayers.length} players`);
 
       allPlayers.forEach((p) => {
         p.ui.sendData({
@@ -1035,7 +1037,7 @@ export class UIEventHandlers {
         });
       });
 
-      logger.info(` Tournament "${tournament.name}" created and broadcast successfully`);
+      logger.debug(` Tournament "${tournament.name}" created and broadcast successfully`);
     } catch (error: any) {
       logger.error("L Tournament creation error:", error);
       logger.error("L Error stack:", error.stack);
@@ -1045,13 +1047,13 @@ export class UIEventHandlers {
         message: `Failed to create tournament: ${error.message}`,
       };
 
-      logger.info(`<ï¿½ Sending tournament-error response:`, errorResponse);
+      logger.debug(`<ï¿½ Sending tournament-error response:`, errorResponse);
       player.ui.sendData(errorResponse);
     }
   }
 
   private handleTournamentJoin(player: Player, data: any): void {
-    logger.info(`<ï¿½ Player ${player.username} joining tournament: ${data.tournamentId}`);
+    logger.debug(`<ï¿½ Player ${player.username} joining tournament: ${data.tournamentId}`);
 
     try {
       const success = this.deps.tournamentManager.registerPlayer(
@@ -1096,7 +1098,7 @@ export class UIEventHandlers {
           });
         });
 
-        logger.info(` Player ${player.username} joined tournament successfully`);
+        logger.debug(` Player ${player.username} joined tournament successfully`);
       } else {
         player.ui.sendData({
           type: "tournament-error",
@@ -1113,7 +1115,7 @@ export class UIEventHandlers {
   }
 
   private handleTournamentLeave(player: Player, data: any): void {
-    logger.info(`<ï¿½ Player ${player.username} leaving tournament`);
+    logger.debug(`<ï¿½ Player ${player.username} leaving tournament`);
 
     const activeTournaments = this.deps.tournamentManager.getPlayerActiveTournaments(
       player.username
@@ -1148,7 +1150,7 @@ export class UIEventHandlers {
             });
           });
 
-          logger.info(` Player ${player.username} left tournament successfully`);
+          logger.debug(` Player ${player.username} left tournament successfully`);
         } else {
           player.ui.sendData({
             type: "tournament-error",
@@ -1171,7 +1173,7 @@ export class UIEventHandlers {
   }
 
   private handleTournamentReady(player: Player, data: any): void {
-    logger.info(`<ï¿½ Player ${player.username} marking ready for tournament match`);
+    logger.debug(`<ï¿½ Player ${player.username} marking ready for tournament match`);
 
     const match = this.deps.tournamentManager.getMatchForPlayer(player.username);
     if (match) {
@@ -1196,7 +1198,7 @@ export class UIEventHandlers {
               message: "Marked as ready for match!",
             });
 
-            logger.info(` Player ${player.username} marked as ready for match`);
+            logger.debug(` Player ${player.username} marked as ready for match`);
           } else {
             player.ui.sendData({
               type: "tournament-error",
@@ -1225,7 +1227,7 @@ export class UIEventHandlers {
   }
 
   private handleTournamentGetStatus(player: Player, data: any): void {
-    logger.info(`<ï¿½ Player ${player.username} requesting tournament status`);
+    logger.debug(`<ï¿½ Player ${player.username} requesting tournament status`);
 
     const activeTournaments = this.deps.tournamentManager.getPlayerActiveTournaments(
       player.username
@@ -1268,7 +1270,7 @@ export class UIEventHandlers {
   }
 
   private handleTournamentGetList(player: Player, data: any): void {
-    logger.info(`<ï¿½ Player ${player.username} requesting tournament list`);
+    logger.debug(`<ï¿½ Player ${player.username} requesting tournament list`);
 
     const tournaments = this.deps.tournamentManager.getActiveTournaments();
 
@@ -1293,17 +1295,17 @@ export class UIEventHandlers {
   // ============================================================================
 
   private handleSpectatorNextPlayer(player: Player, data: any): void {
-    logger.info(`<ï¿½ Spectator ${player.username} wants to switch to next player`);
+    logger.debug(`<ï¿½ Spectator ${player.username} wants to switch to next player`);
     this.deps.spectatorMode.nextPlayer(player);
   }
 
   private handleSpectatorNextCamera(player: Player, data: any): void {
-    logger.info(`<ï¿½ Spectator ${player.username} wants to switch camera mode`);
+    logger.debug(`<ï¿½ Spectator ${player.username} wants to switch camera mode`);
     this.deps.spectatorMode.nextCameraMode(player);
   }
 
   private handleSpectatorLeave(player: Player, data: any): void {
-    logger.info(`<ï¿½ Spectator ${player.username} wants to leave spectator mode`);
+    logger.debug(`<ï¿½ Spectator ${player.username} wants to leave spectator mode`);
     this.deps.spectatorMode.removeSpectator(player);
   }
 
@@ -1312,8 +1314,8 @@ export class UIEventHandlers {
   // ============================================================================
 
   private handleMobileModeEnabled(player: Player, data: any): void {
-    logger.info(`=ï¿½ Player ${player.username} enabled mobile mode`);
-    logger.info(`=ï¿½ Device info:`, data.deviceInfo);
+    logger.debug(`=ï¿½ Player ${player.username} enabled mobile mode`);
+    logger.debug(`=ï¿½ Device info:`, data.deviceInfo);
 
     // Store mobile mode preference for this player
     (player as any)._isMobilePlayer = true;
@@ -1328,7 +1330,7 @@ export class UIEventHandlers {
 
     // No need to notify other players - Hytopia SDK handles mobile detection automatically
 
-    logger.info(` Mobile mode enabled for ${player.username}`);
+    logger.debug(` Mobile mode enabled for ${player.username}`);
   }
 
   // ===== ROOM MANAGEMENT HANDLERS =====
@@ -1342,7 +1344,7 @@ export class UIEventHandlers {
                           data.gameMode === 'tournament' ? GameMode.TOURNAMENT :
                           getCurrentGameMode() || GameMode.FIFA;
 
-    logger.info(`âš¡ Quick Play requested by ${player.username} (preferred mode: ${preferredMode})`);
+    logger.debug(`âš¡ Quick Play requested by ${player.username} (preferred mode: ${preferredMode})`);
 
     if (!RoomManager.isInitialized()) {
       logger.warn("RoomManager not initialized - falling back to lobby game");
@@ -1357,11 +1359,11 @@ export class UIEventHandlers {
 
     if (availableRoom) {
       // Join existing room
-      logger.info(`Quick Play: Joining existing ${availableRoom.config.gameMode} room ${availableRoom.config.id}`);
+      logger.debug(`Quick Play: Joining existing ${availableRoom.config.gameMode} room ${availableRoom.config.id}`);
       await roomManager.joinRoom(availableRoom.config.id, player);
     } else {
       // Create new room with preferred mode
-      logger.info(`Quick Play: Creating new ${preferredMode} room for ${player.username}`);
+      logger.debug(`Quick Play: Creating new ${preferredMode} room for ${player.username}`);
       await roomManager.createRoom({
         name: `${player.username}'s Match`,
         gameMode: preferredMode,
@@ -1374,7 +1376,7 @@ export class UIEventHandlers {
    * Handle create room request
    */
   private async handleCreateRoom(player: Player, data: any): Promise<void> {
-    logger.info(`ðŸ  Create room requested by ${player.username}: ${data.name}`);
+    logger.debug(`ðŸ  Create room requested by ${player.username}: ${data.name}`);
 
     if (!RoomManager.isInitialized()) {
       player.ui.sendData({
@@ -1403,7 +1405,7 @@ export class UIEventHandlers {
    * Handle join room request
    */
   private async handleJoinRoom(player: Player, data: any): Promise<void> {
-    logger.info(`ðŸšª Join room requested by ${player.username}: ${data.roomId}`);
+    logger.debug(`ðŸšª Join room requested by ${player.username}: ${data.roomId}`);
 
     if (!RoomManager.isInitialized()) {
       player.ui.sendData({
@@ -1421,7 +1423,7 @@ export class UIEventHandlers {
    * Handle join room as spectator request
    */
   private async handleJoinRoomSpectate(player: Player, data: any): Promise<void> {
-    logger.info(`ðŸ‘ï¸ Spectate room requested by ${player.username}: ${data.roomId}`);
+    logger.debug(`ðŸ‘ï¸ Spectate room requested by ${player.username}: ${data.roomId}`);
 
     if (!RoomManager.isInitialized()) {
       player.ui.sendData({
@@ -1439,7 +1441,7 @@ export class UIEventHandlers {
    * Handle leave room request
    */
   private handleLeaveRoom(player: Player, data: any): void {
-    logger.info(`ðŸš¶ Leave room requested by ${player.username}`);
+    logger.debug(`ðŸš¶ Leave room requested by ${player.username}`);
 
     if (!RoomManager.isInitialized()) {
       return;

@@ -140,7 +140,7 @@ export class SoccerAgent {
     // FIFA: Only guaranteed shot from very close; Arcade: wider shot zone
     const primeShootDistance = fifaMode ? 12 : (arcadeMode ? 18 : 15);
     if (myDistanceToGoal < primeShootDistance && isCentralPosition) {
-      console.log(`${this.entity.player.username} in prime shooting position (${myDistanceToGoal.toFixed(1)} from goal) - NOT looking for pass`);
+      // console.log(`${this.entity.player.username} in prime shooting position (${myDistanceToGoal.toFixed(1)} from goal) - NOT looking for pass`);
       return false; // Don't pass, let the shooting logic handle it
     }
 
@@ -149,7 +149,7 @@ export class SoccerAgent {
     const shootBias = fifaMode ? 0.35 : (arcadeMode ? 0.75 : 0.6);
     if (myDistanceToGoal < closeGoalDistance && (this.entity.aiRole === 'striker' || this.entity.aiRole.includes('midfielder'))) {
       if (Math.random() < shootBias) {
-        console.log(`${this.entity.player.username} close to goal - biasing toward shot attempt`);
+        // console.log(`${this.entity.player.username} close to goal - biasing toward shot attempt`);
         return false;
       }
     }
@@ -229,7 +229,7 @@ export class SoccerAgent {
         // ONLY pass if teammate is SIGNIFICANTLY closer to goal (not just slightly)
         // This encourages shots when we're already in a good position
         if (teammateDistanceToGoal < myDistanceToGoal * 0.75) {
-          console.log(`${this.entity.player.username} passing to ${teammate.player.username} who is much closer to goal`);
+          // console.log(`${this.entity.player.username} passing to ${teammate.player.username} who is much closer to goal`);
           return true;
         }
 
@@ -352,7 +352,7 @@ export class SoccerAgent {
     if (success) {
         // console.log(`${this.entity.player.username} (${this.entity.aiRole}) attempting shot at (${goalPosition.x.toFixed(1)}, ${goalPosition.z.toFixed(1)})`);
     } else {
-        console.log(`${this.entity.player.username} (${this.entity.aiRole}) failed to execute shootBall command.`);
+        // console.log(`${this.entity.player.username} (${this.entity.aiRole}) failed to execute shootBall command.`);
     }
     return success;
   }
@@ -421,7 +421,7 @@ export class SoccerAgent {
       // HUMAN PLAYER PRIORITY: Give human players massive bonus to ensure they always receive passes
       if (!(teammate instanceof AIPlayerEntity)) {
         score += 100; // Huge bonus for human players - this ensures they're always prioritized
-        console.log(`${this.entity.player.username} (SoccerAgent) prioritizing human player ${teammate.player.username} for pass`);
+        // console.log(`${this.entity.player.username} (SoccerAgent) prioritizing human player ${teammate.player.username} for pass`);
       }
 
       if (isCounterAttackingContext) {
@@ -479,7 +479,7 @@ export class SoccerAgent {
           z: predictedZ + normDirZ * safetyMargin,
         };
 
-        console.log(`🎯 Pass: dist=${distToTeammate.toFixed(1)}m, margin=${safetyMargin.toFixed(1)}u, vel=(${teammateVelocity.x.toFixed(1)}, ${teammateVelocity.z.toFixed(1)})`);
+        // console.log(`🎯 Pass: dist=${distToTeammate.toFixed(1)}m, margin=${safetyMargin.toFixed(1)}u, vel=(${teammateVelocity.x.toFixed(1)}, ${teammateVelocity.z.toFixed(1)})`);
       } else {
         passToPoint = bestTeammate.position;
       }
@@ -496,9 +496,9 @@ export class SoccerAgent {
 
       const success = this.entity.forcePass(bestTeammate, passToPoint, passPowerMultiplier);
       if (success) {
-        console.log(`${this.entity.player.username} (${this.entity.aiRole}) attempting pass to ${bestTeammate.player.username} at (${passToPoint.x.toFixed(1)}, ${passToPoint.z.toFixed(1)})`);
+        // console.log(`${this.entity.player.username} (${this.entity.aiRole}) attempting pass to ${bestTeammate.player.username} at (${passToPoint.x.toFixed(1)}, ${passToPoint.z.toFixed(1)})`);
       } else {
-        console.log(`${this.entity.player.username} (${this.entity.aiRole}) failed to execute forcePass command to ${bestTeammate.player.username}.`);
+        // console.log(`${this.entity.player.username} (${this.entity.aiRole}) failed to execute forcePass command to ${bestTeammate.player.username}.`);
       }
       return success;
     }
@@ -509,7 +509,7 @@ export class SoccerAgent {
     // UPDATE: AIPlayerEntity.passBall() now finds its own target. If SoccerAgent doesn't find one, it means no strategic pass from agent level.
     // We can let AIPlayerEntity.passBall() make its own decision or return false if agent decides no good pass here.
     // For now, if agent doesn't find a specific target, let's return false, implying agent decided against a pass.
-    console.log(`${this.entity.player.username} (${this.entity.aiRole}) - SoccerAgent.passBall: No strategic teammate found by agent.`);
+    // console.log(`${this.entity.player.username} (${this.entity.aiRole}) - SoccerAgent.passBall: No strategic teammate found by agent.`);
     return false;
   }
 
@@ -546,7 +546,7 @@ export class SoccerAgent {
     let bestTeammate: SoccerPlayerEntity | null = null;
     let bestScore = -Infinity;
 
-    console.log(`🧤 Goalkeeper ${this.entity.player.username} looking for safe distribution target...`);
+    // console.log(`🧤 Goalkeeper ${this.entity.player.username} looking for safe distribution target...`);
 
     for (const teammate of allTeammates) {
       const distanceToTeammate = this.entity.distanceBetween(this.entity.position, teammate.position);
@@ -605,7 +605,7 @@ export class SoccerAgent {
       // PRIORITY 4: HUGE bonus for human players
       if (!(teammate instanceof AIPlayerEntity)) {
         score += 150; // Always prioritize passing to human players
-        console.log(`🧤 Goalkeeper prioritizing human player ${teammate.player.username} (score: ${score.toFixed(1)})`);
+        // console.log(`🧤 Goalkeeper prioritizing human player ${teammate.player.username} (score: ${score.toFixed(1)})`);
       }
 
       // Track best option
@@ -660,7 +660,7 @@ export class SoccerAgent {
       }
 
       const roleName = bestTeammate instanceof AIPlayerEntity ? bestTeammate.aiRole : 'human';
-      console.log(`🧤 Goalkeeper ${this.entity.player.username} distributing to ${roleName} ${bestTeammate.player.username} (dist: ${distToTeammate.toFixed(1)}m, score: ${bestScore.toFixed(1)})`);
+      // console.log(`🧤 Goalkeeper ${this.entity.player.username} distributing to ${roleName} ${bestTeammate.player.username} (dist: ${distToTeammate.toFixed(1)}m, score: ${bestScore.toFixed(1)})`);
 
       // Distance-based power for goalkeeper distribution
       let passPower = 0.9; // Slightly softer than regular passes for safety
@@ -672,7 +672,7 @@ export class SoccerAgent {
       return success;
     }
 
-    console.log(`🧤 Goalkeeper ${this.entity.player.username} found no safe distribution target (best score: ${bestScore.toFixed(1)})`);
+    // console.log(`🧤 Goalkeeper ${this.entity.player.username} found no safe distribution target (best score: ${bestScore.toFixed(1)})`);
     return false;
   }
 
@@ -916,7 +916,7 @@ export class SoccerAgent {
         if (isCounterAttackingRun) { // Midfielders also join counter more aggressively
             targetPos.x = ball.position.x + (this.entity.team === 'red' ? -20 : 20); // Push far forward quickly
             targetPos.z = ball.position.z + (side * 8); 
-            console.log(`${this.entity.player.username} (${this.entity.aiRole}) making counter-attack support run!`);
+            // console.log(`${this.entity.player.username} (${this.entity.aiRole}) making counter-attack support run!`);
         }
         break;
       case 'left-back':
@@ -926,7 +926,7 @@ export class SoccerAgent {
             let overlapX = ball.position.x + (this.entity.team === 'red' ? - (15 - roleDef.offensiveContribution) : (15 - roleDef.offensiveContribution) );
             if(isCounterAttackingRun) { // Fullbacks join counter less deeply but quickly provide width
                 overlapX = ball.position.x + (this.entity.team === 'red' ? -5 : 5); // Quick wide support
-                 console.log(`${this.entity.player.username} (${this.entity.aiRole}) making counter-attack width run!`);
+                 // console.log(`${this.entity.player.username} (${this.entity.aiRole}) making counter-attack width run!`);
             }
             targetPos = {
                 x: overlapX, 

@@ -72,7 +72,7 @@ export class ThreatAnalysisCache {
   private blueLastUpdate = 0;
 
   constructor() {
-    console.log('🛡️ ThreatAnalysisCache initialized');
+    // console.log('🛡️ ThreatAnalysisCache initialized');
   }
 
   /**

@@ -99,7 +99,7 @@ export class FIFACrowdManager {
 
   constructor(world: World) {
     this.world = world;
-    console.log("FIFA Crowd Manager initialized");
+    // console.log("FIFA Crowd Manager initialized");
     
     // Start the announcer queue processor
     this.startQueueProcessor();
@@ -111,17 +111,17 @@ export class FIFACrowdManager {
    */
   public start(): void {
     if (!isFIFAMode()) {
-      console.log("FIFA Crowd Manager: Not in FIFA mode, skipping activation");
+      // console.log("FIFA Crowd Manager: Not in FIFA mode, skipping activation");
       return;
     }
 
     if (this.isActive) {
-      console.log("FIFA Crowd Manager: Already active");
+      // console.log("FIFA Crowd Manager: Already active");
       return;
     }
 
     this.isActive = true;
-    console.log("🏟️ Starting FIFA stadium crowd atmosphere");
+    // console.log("🏟️ Starting FIFA stadium crowd atmosphere");
 
     // Restart queue processor if it was stopped
     if (!this.queueProcessorInterval) {
@@ -141,7 +141,7 @@ export class FIFACrowdManager {
   public stop(): void {
     if (!this.isActive) return;
 
-    console.log("🔇 Stopping FIFA stadium crowd atmosphere");
+    // console.log("🔇 Stopping FIFA stadium crowd atmosphere");
     this.isActive = false;
 
     // Stop ambient audio
@@ -191,7 +191,7 @@ export class FIFACrowdManager {
     });
     
     this.ambientAudio.play(this.world);
-    console.log(`🎵 Playing ambient crowd: ${randomAmbient.split('/').pop()}`);
+    // console.log(`🎵 Playing ambient crowd: ${randomAmbient.split('/').pop()}`);
   }
 
   /**
@@ -207,7 +207,7 @@ export class FIFACrowdManager {
       chantAudio.play(this.world);
       // Return to pool after estimated playback time
       setTimeout(() => this.returnToPool(chantAudio), 8000);
-      console.log(`📢 Playing crowd chant: ${randomChant.split('/').pop()}`);
+      // console.log(`📢 Playing crowd chant: ${randomChant.split('/').pop()}`);
     };
 
     // Play chants every 45-90 seconds for realistic intervals
@@ -231,7 +231,7 @@ export class FIFACrowdManager {
   public playGoalReaction(): void {
     if (!this.isActive || !isFIFAMode()) return;
 
-    console.log("🥅 Playing FIFA crowd goal reaction");
+    // console.log("🥅 Playing FIFA crowd goal reaction");
     
     // Play crowd cheer (immediate, no queue needed for crowd sounds)
     const goalCheer = this.getPooledAudio(this.crowdSounds.reactions.goalCheer, 0.9);
@@ -249,7 +249,7 @@ export class FIFACrowdManager {
   public playNearMissReaction(): void {
     if (!this.isActive || !isFIFAMode()) return;
 
-    console.log("😲 Playing FIFA crowd near miss reaction");
+    // console.log("😲 Playing FIFA crowd near miss reaction");
     
     // Play mixed reaction (gasps, applause)
     const reactionAudio = this.getPooledAudio(this.crowdSounds.reactions.mixedReaction, 0.65);
@@ -269,7 +269,7 @@ export class FIFACrowdManager {
   public playSaveReaction(): void {
     if (!this.isActive || !isFIFAMode()) return;
 
-    console.log("🥅 Playing FIFA save reaction");
+    // console.log("🥅 Playing FIFA save reaction");
     
     // Play applause for good save
     const applauseAudio = this.getPooledAudio(this.crowdSounds.reactions.applause, 0.65);
@@ -287,7 +287,7 @@ export class FIFACrowdManager {
   public playMomentumAnnouncement(): void {
     if (!this.isActive || !isFIFAMode()) return;
 
-    console.log("🔥 Playing FIFA momentum announcement");
+    // console.log("🔥 Playing FIFA momentum announcement");
     
     // Queue momentum commentary with high priority (but lower than goals)
     const randomAnnouncer = this.getRandomSound(this.crowdSounds.announcer.momentum);
@@ -300,7 +300,7 @@ export class FIFACrowdManager {
   public playRedCardAnnouncement(): void {
     if (!this.isActive || !isFIFAMode()) return;
 
-    console.log("🔴 Playing FIFA red card announcement");
+    // console.log("🔴 Playing FIFA red card announcement");
     
     // Play foul reaction first
     const foulAudio = this.getPooledAudio(this.crowdSounds.reactions.foulReaction, 0.75);
@@ -318,7 +318,7 @@ export class FIFACrowdManager {
   public playGameEndAnnouncement(): void {
     if (!this.isActive || !isFIFAMode()) return;
 
-    console.log("🏁 Playing FIFA game end announcement");
+    // console.log("🏁 Playing FIFA game end announcement");
     
     // Queue game end announcement with highest priority
     const randomAnnouncer = this.getRandomSound(this.crowdSounds.announcer.gameEnd);
@@ -331,7 +331,7 @@ export class FIFACrowdManager {
   public playFoulReaction(): void {
     if (!this.isActive || !isFIFAMode()) return;
 
-    console.log("😠 Playing FIFA crowd foul reaction");
+    // console.log("😠 Playing FIFA crowd foul reaction");
 
     const foulAudio2 = this.getPooledAudio(this.crowdSounds.reactions.foulReaction, 0.7);
     foulAudio2.play(this.world);
@@ -344,7 +344,7 @@ export class FIFACrowdManager {
   public playGameStart(): void {
     if (!this.isActive || !isFIFAMode()) return;
 
-    console.log("🏁 Playing FIFA game start announcement");
+    // console.log("🏁 Playing FIFA game start announcement");
     
     // Queue game start announcement with very high priority
     const randomAnnouncer = this.getRandomSound(this.crowdSounds.announcer.gameStart);
@@ -398,7 +398,7 @@ export class FIFACrowdManager {
    * Clear the announcer queue (for testing/debugging)
    */
   public clearAnnouncerQueue(): void {
-    console.log(`🎙️ Clearing announcer queue (${this.announcerQueue.length} items)`);
+    // console.log(`🎙️ Clearing announcer queue (${this.announcerQueue.length} items)`);
     this.announcerQueue = [];
     
     // Also stop current announcer if playing
@@ -406,7 +406,7 @@ export class FIFACrowdManager {
       this.currentAnnouncerAudio.pause();
       this.currentAnnouncerAudio = null;
       this.isAnnouncerSpeaking = false;
-      console.log(`🎙️ Stopped current announcer audio`);
+      // console.log(`🎙️ Stopped current announcer audio`);
     }
   }
 
@@ -440,7 +440,7 @@ export class FIFACrowdManager {
     const nextAnnouncement = this.announcerQueue.shift();
     if (!nextAnnouncement) return;
 
-    console.log(`🎙️ Playing queued announcer: ${nextAnnouncement.type} - ${nextAnnouncement.audioUri.split('/').pop()}`);
+    // console.log(`🎙️ Playing queued announcer: ${nextAnnouncement.type} - ${nextAnnouncement.audioUri.split('/').pop()}`);
 
     // Play the announcement with type-based duration estimate
     this.playAnnouncerAudio(nextAnnouncement.audioUri, nextAnnouncement.volume, nextAnnouncement.type);
@@ -463,7 +463,7 @@ export class FIFACrowdManager {
       volume
     });
 
-    console.log(`📋 Queued announcer: ${type} (Priority: ${priority}, Queue size: ${this.announcerQueue.length})`);
+    // console.log(`📋 Queued announcer: ${type} (Priority: ${priority}, Queue size: ${this.announcerQueue.length})`);
   }
 
   /**
@@ -489,7 +489,7 @@ export class FIFACrowdManager {
     setTimeout(() => {
       this.isAnnouncerSpeaking = false;
       this.currentAnnouncerAudio = null;
-      console.log(`🎙️ Announcer finished speaking`);
+      // console.log(`🎙️ Announcer finished speaking`);
     }, estimatedDuration);
   }
 

@@ -79,7 +79,7 @@ export class AIPassingBehavior {
     switch (this.passingState) {
       case 'none':
         // Start stopping to pass
-        console.log(`${entity.player.username} 🛑 starting stop-and-pass sequence`);
+        // console.log(`${entity.player.username} 🛑 starting stop-and-pass sequence`);
         this.passingState = 'stopping';
         this.passingStateStartTime = Date.now();
 
@@ -95,7 +95,7 @@ export class AIPassingBehavior {
         const stoppingTime = Date.now() - this.passingStateStartTime!;
 
         if (stoppingTime >= this.PASS_STOPPING_TIME) {
-          console.log(`${entity.player.username} ⚽ ready to pass (planted feet)`);
+          // console.log(`${entity.player.username} ⚽ ready to pass (planted feet)`);
           this.passingState = 'ready';
         }
 
@@ -108,7 +108,7 @@ export class AIPassingBehavior {
 
       case 'ready':
         // Execute the crisp pass
-        console.log(`${entity.player.username} ✅ executing FIFA-like crisp pass`);
+        // console.log(`${entity.player.username} ✅ executing FIFA-like crisp pass`);
         const passSuccess = this.executeBestPass(context);
 
         if (passSuccess) {
@@ -117,7 +117,7 @@ export class AIPassingBehavior {
           if (onPassSuccess) onPassSuccess();
         } else {
           // Pass failed, reset and try dribbling
-          console.log(`${entity.player.username} ❌ pass failed, resetting`);
+          // console.log(`${entity.player.username} ❌ pass failed, resetting`);
           this.resetPassingState();
         }
 
@@ -133,7 +133,7 @@ export class AIPassingBehavior {
         const timeSincePass = Date.now() - this.passingStateStartTime!;
 
         if (timeSincePass >= this.PASS_RECOVERY_TIME) {
-          console.log(`${entity.player.username} 🏃 moving to support position`);
+          // console.log(`${entity.player.username} 🏃 moving to support position`);
           this.resetPassingState();
         }
 
@@ -218,7 +218,7 @@ export class AIPassingBehavior {
 
         // Check if this pass direction is safe
         if (!this.isPassDirectionSafe(entity, currentPosition, passDirection, distanceToTeammate)) {
-          console.log(`${role} ${entity.player.username} skipping unsafe pass to ${teammate.player.username}`);
+          // console.log(`${role} ${entity.player.username} skipping unsafe pass to ${teammate.player.username}`);
           continue;
         }
       }
@@ -238,7 +238,7 @@ export class AIPassingBehavior {
       // HUMAN PLAYER PRIORITY: Give human players massive bonus
       if (!(teammate instanceof (entity.constructor as any))) {
         roleBonus = 50;
-        console.log(`${role} ${entity.player.username} prioritizing human player ${teammate.player.username} for pass`);
+        // console.log(`${role} ${entity.player.username} prioritizing human player ${teammate.player.username} for pass`);
       } else {
         // AI player role bonuses
         const teammateEntity = teammate as any;
@@ -277,11 +277,11 @@ export class AIPassingBehavior {
     // Determine the target position based on the best teammate
     if (bestTargetPlayer) {
       passTargetPosition = this.calculatePassTarget(entity, currentPosition, bestTargetPlayer);
-      console.log(`${role} ${entity.player.username} passing to ${bestTargetPlayer.player.username} with score ${bestScore.toFixed(1)}`);
+      // console.log(`${role} ${entity.player.username} passing to ${bestTargetPlayer.player.username} with score ${bestScore.toFixed(1)}`);
     } else {
       // No suitable teammate found, make a general forward pass
       passTargetPosition = this.calculateForwardPassTarget(entity, currentPosition, team);
-      console.log(`${role} ${entity.player.username} - no specific teammate target, making a general forward pass`);
+      // console.log(`${role} ${entity.player.username} - no specific teammate target, making a general forward pass`);
     }
 
     // Calculate power multiplier based on distance - BALANCED PASSES
@@ -309,7 +309,7 @@ export class AIPassingBehavior {
 
     if (distanceFromCenterX > fieldWidthX * 0.35 || distanceFromCenterZ > fieldWidthZ * 0.35) {
       powerMultiplier *= 0.85; // Slight reduction for edge passes
-      console.log(`${role} ${entity.player.username} reducing pass power for edge target`);
+      // console.log(`${role} ${entity.player.username} reducing pass power for edge target`);
     }
 
     // Execute the pass

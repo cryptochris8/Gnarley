@@ -16,7 +16,6 @@ import {
   World,
   Audio,
   SceneUI,
-  BlockType,
 } from "hytopia";
 import { GameMode } from "../state/gameModes";
 import {
@@ -27,7 +26,7 @@ import {
 import type { PhysicalLobby } from "./PhysicalLobby";
 
 /** Volume for the ambient portal hum sound */
-const PORTAL_AMBIENT_VOLUME = 0.15;
+const PORTAL_AMBIENT_VOLUME = 0.05;
 /** Volume for the portal activation woosh sound */
 const PORTAL_ACTIVATION_VOLUME = 0.4;
 
@@ -56,6 +55,9 @@ export class LobbyPortal {
     this.world = world;
 
     // --- Single portal entity: visible, FIXED, sensor-only collider (pass-through) ---
+    // NOTE: Only use EntityEvent.ENTITY_COLLISION (not onCollision callback) because
+    // the SDK's collision dispatch gives onCollision callbacks priority, which shadows
+    // the entity-level event. Using one mechanism avoids double-invocation issues.
     this.portalEntity = new Entity({
       name: `Portal_${this.config.gameMode}`,
       blockTextureUri: "blocks/grass.png",
@@ -68,11 +70,6 @@ export class LobbyPortal {
             shape: ColliderShape.BLOCK,
             halfExtents: PORTAL_SENSOR_HALF_EXTENTS,
             isSensor: true,
-            onCollision: (other: BlockType | Entity, started: boolean) => {
-              if (started && other instanceof Entity) {
-                this.onSensorCollision(other);
-              }
-            },
           },
         ],
       },
@@ -87,6 +84,8 @@ export class LobbyPortal {
 
     this.portalEntity.spawn(world, this.config.position);
     this.portalEntity.setTintColor(this.config.color);
+    this.portalEntity.setEmissiveColor(this.config.color);
+    this.portalEntity.setEmissiveIntensity(2);
 
     // --- Floating label above portal ---
     this.label = new SceneUI({
@@ -112,9 +111,7 @@ export class LobbyPortal {
     });
     this.ambientAudio.play(world);
 
-    console.log(
-      `Portal spawned: ${this.config.label} at (${this.config.position.x}, ${this.config.position.y}, ${this.config.position.z})`
-    );
+    // console.log(`Portal spawned: ${this.config.label} at (${this.config.position.x}, ${this.config.position.y}, ${this.config.position.z})`);
   }
 
   /**

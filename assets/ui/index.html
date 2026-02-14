@@ -8961,36 +8961,24 @@
     }
 
     if (data.type === "goal-scored") {
-      console.log("🥅 GOAL SCORED! Team:", data.team, "Score:", data.score);
-      
       // Update main scoreboard immediately when goal is scored
       const redScore = document.getElementById("red-score");
       const blueScore = document.getElementById("blue-score");
-      
+
       if (redScore && blueScore && data.score) {
-        console.log(`🥅 BEFORE GOAL UPDATE - Red: ${redScore.textContent}, Blue: ${blueScore.textContent}`);
         redScore.textContent = data.score.red;
         blueScore.textContent = data.score.blue;
-        console.log(`🥅 AFTER GOAL UPDATE - Red: ${redScore.textContent}, Blue: ${blueScore.textContent}`);
-        console.log("[OK] GOAL EVENT - Main scoreboard updated:", data.score.red, "vs", data.score.blue);
-        
-        // Add goal celebration animation
+
+        // Brief score highlight animation
         const scoringTeam = data.team === "red" ? redScore : blueScore;
         scoringTeam.style.animation = "scoreUpdate 1s ease-out";
-        setTimeout(() => {
+        setTimeout(function() {
           scoringTeam.style.animation = "";
         }, 1000);
-        
-        // Run animated score change for both teams
-        animateScoreChange("red", data.score.red);
-        animateScoreChange("blue", data.score.blue);
-      } else {
-        console.error("âŒ Could not find scoreboard elements or score data for goal update!");
       }
-      
-      // Show enhanced goal celebration and play sound
+
+      // Show goal text (lightweight CSS-only)
       showEnhancedGoal(data.team);
-      playGoalCelebration(data.team);
     }
 
             // Handle powerup feedback from numbered key activation
@@ -12917,6 +12905,8 @@
   Mobile players can use the keyboard overlay feature on their devices
   to access game actions if needed.
 -->
+
+<!-- Scroll-wheel zoom handled natively by Hytopia SDK -->
 
 <!-- Load SDK-compliant mobile controls -->
 <script>

@@ -150,7 +150,7 @@ function createGoalSensors(world: World) {
     },
     onCollision: (other: BlockType | Entity, started: boolean) => {
       if (other instanceof Entity && other.name === 'SoccerBall' && started) {
-        console.log('🥅 Ball entered RED goal sensor - BLUE TEAM SCORES!');
+        // console.log('🥅 Ball entered RED goal sensor - BLUE TEAM SCORES!');
         handleGoalSensorTrigger('blue', other);
       }
     },
@@ -172,7 +172,7 @@ function createGoalSensors(world: World) {
     },
     onCollision: (other: BlockType | Entity, started: boolean) => {
       if (other instanceof Entity && other.name === 'SoccerBall' && started) {
-        console.log('🥅 Ball entered BLUE goal sensor - RED TEAM SCORES!');
+        // console.log('🥅 Ball entered BLUE goal sensor - RED TEAM SCORES!');
         handleGoalSensorTrigger('red', other);
       }
     },
@@ -182,10 +182,10 @@ function createGoalSensors(world: World) {
   redGoalSensor.addToSimulation(world.simulation);
   blueGoalSensor.addToSimulation(world.simulation);
 
-  console.log('⚽ Goal sensors created and added to simulation');
-  console.log(`   Red goal (X=${GAME_CONFIG.AI_GOAL_LINE_X_RED}): Blue scores here | Sensor: X=${GAME_CONFIG.AI_GOAL_LINE_X_RED + 1} to ${GAME_CONFIG.AI_GOAL_LINE_X_RED + 4}`);
-  console.log(`   Blue goal (X=${GAME_CONFIG.AI_GOAL_LINE_X_BLUE}): Red scores here | Sensor: X=${GAME_CONFIG.AI_GOAL_LINE_X_BLUE - 4} to ${GAME_CONFIG.AI_GOAL_LINE_X_BLUE - 1}`);
-  console.log(`   Sensor size: 3x4x10 blocks (Y=0 to Y=4) | Only triggers when ball enters goal`);
+  // console.log('⚽ Goal sensors created and added to simulation');
+  // console.log(`   Red goal (X=${GAME_CONFIG.AI_GOAL_LINE_X_RED}): Blue scores here | Sensor: X=${GAME_CONFIG.AI_GOAL_LINE_X_RED + 1} to ${GAME_CONFIG.AI_GOAL_LINE_X_RED + 4}`);
+  // console.log(`   Blue goal (X=${GAME_CONFIG.AI_GOAL_LINE_X_BLUE}): Red scores here | Sensor: X=${GAME_CONFIG.AI_GOAL_LINE_X_BLUE - 4} to ${GAME_CONFIG.AI_GOAL_LINE_X_BLUE - 1}`);
+  // console.log(`   Sensor size: 3x4x10 blocks (Y=0 to Y=4) | Only triggers when ball enters goal`);
 }
 
 /**
@@ -196,25 +196,25 @@ function handleGoalSensorTrigger(scoringTeam: 'red' | 'blue', ballEntity: Entity
 
   // CRITICAL: Check if we're in ball reset lockout period (prevents false goals after respawns)
   if (currentTime - ballResetLockout < 1500) {
-    console.log(`🚫 Goal sensor triggered but in reset lockout period (${((currentTime - ballResetLockout) / 1000).toFixed(1)}s since reset)`);
+    // console.log(`🚫 Goal sensor triggered but in reset lockout period (${((currentTime - ballResetLockout) / 1000).toFixed(1)}s since reset)`);
     return;
   }
 
   // Debounce goals to prevent multiple rapid triggers (2 second cooldown)
   if (currentTime - goalSensorDebounce < 2000) {
-    console.log('🚫 Goal sensor triggered but debounced (too recent)');
+    // console.log('🚫 Goal sensor triggered but debounced (too recent)');
     return;
   }
 
   // Skip if ball is attached to a player (shouldn't happen in goal area, but safety check)
   if (sharedState.getAttachedPlayer() !== null) {
-    console.log('🚫 Goal sensor triggered but ball is attached to player');
+    // console.log('🚫 Goal sensor triggered but ball is attached to player');
     return;
   }
 
   // Skip if goal is already being handled
   if (ballHasEnteredGoal) {
-    console.log('🚫 Goal sensor triggered but goal already being handled');
+    // console.log('🚫 Goal sensor triggered but goal already being handled');
     return;
   }
   
@@ -229,12 +229,12 @@ function handleGoalSensorTrigger(scoringTeam: 'red' | 'blue', ballEntity: Entity
   const GOAL_MIN_Z = GAME_CONFIG.AI_FIELD_CENTER_Z - (GOAL_WIDTH / 2) - 1; // -9 (extra margin)
   const GOAL_MAX_Z = GAME_CONFIG.AI_FIELD_CENTER_Z + (GOAL_WIDTH / 2) + 1; // 3 (extra margin)
 
-  console.log(`🎯 GOAL SENSOR TRIGGERED: ${scoringTeam.toUpperCase()} team scoring`);
-  console.log(`   Ball position: X=${ballPos.x.toFixed(2)}, Y=${ballPos.y.toFixed(2)}, Z=${ballPos.z.toFixed(2)}`);
+  // console.log(`🎯 GOAL SENSOR TRIGGERED: ${scoringTeam.toUpperCase()} team scoring`);
+  // console.log(`   Ball position: X=${ballPos.x.toFixed(2)}, Y=${ballPos.y.toFixed(2)}, Z=${ballPos.z.toFixed(2)}`);
 
   // Only reject if ball is clearly outside the goal frame (very generous checks)
   if (ballPos.z < GOAL_MIN_Z || ballPos.z > GOAL_MAX_Z) {
-    console.log(`🚫 GOAL REJECTED: Ball way outside goal width at Z=${ballPos.z.toFixed(2)} (valid range: ${GOAL_MIN_Z} to ${GOAL_MAX_Z})`);
+    // console.log(`🚫 GOAL REJECTED: Ball way outside goal width at Z=${ballPos.z.toFixed(2)} (valid range: ${GOAL_MIN_Z} to ${GOAL_MAX_Z})`);
     // Ball will be reset - set lockout to prevent false goal on respawn
     ballResetLockout = currentTime;
     return;
@@ -242,25 +242,25 @@ function handleGoalSensorTrigger(scoringTeam: 'red' | 'blue', ballEntity: Entity
 
   // Only reject if ball is way above crossbar or underground
   if (ballPos.y < -0.5 || ballPos.y > GOAL_HEIGHT_MARGIN) {
-    console.log(`🚫 GOAL REJECTED: Ball height Y=${ballPos.y.toFixed(2)} is ${ballPos.y > GOAL_HEIGHT_MARGIN ? 'over crossbar' : 'underground'} (valid: -0.5 to ${GOAL_HEIGHT_MARGIN})`);
+    // console.log(`🚫 GOAL REJECTED: Ball height Y=${ballPos.y.toFixed(2)} is ${ballPos.y > GOAL_HEIGHT_MARGIN ? 'over crossbar' : 'underground'} (valid: -0.5 to ${GOAL_HEIGHT_MARGIN})`);
     // Ball will be reset - set lockout to prevent false goal on respawn
     ballResetLockout = currentTime;
     return;
   }
 
   // If sensor triggered and basic checks pass, TRUST IT - don't do complex X validation
-  console.log(`   ✅ Ball within goal frame bounds`);
-  console.log(`   ✅ Sensor detected ball in goal area - counting as goal!`);
+  // console.log(`   ✅ Ball within goal frame bounds`);
+  // console.log(`   ✅ Sensor detected ball in goal area - counting as goal!`);
   
   goalSensorDebounce = currentTime;
   ballHasEnteredGoal = true;
 
-  console.log(`\n🎉🎉🎉 GOAL! ${scoringTeam.toUpperCase()} TEAM SCORES! 🎉🎉🎉`);
-  console.log(`   Final position: X=${ballPos.x.toFixed(2)}, Y=${ballPos.y.toFixed(2)}, Z=${ballPos.z.toFixed(2)}\n`);
+  // console.log(`\n🎉🎉🎉 GOAL! ${scoringTeam.toUpperCase()} TEAM SCORES! 🎉🎉🎉`);
+  // console.log(`   Final position: X=${ballPos.x.toFixed(2)}, Y=${ballPos.y.toFixed(2)}, Z=${ballPos.z.toFixed(2)}\n`);
 
   // Check if we're in penalty shootout mode
   if (isPenaltyShootoutMode() && penaltyShootoutManagerRef) {
-    console.log('⚽ PENALTY SHOOTOUT GOAL!');
+    // console.log('⚽ PENALTY SHOOTOUT GOAL!');
     penaltyShootoutManagerRef.handleShotResult('goal');
     ballHasEnteredGoal = false; // Reset immediately for next penalty
     return;
@@ -275,14 +275,16 @@ function handleGoalSensorTrigger(scoringTeam: 'red' | 'blue', ballEntity: Entity
   cleanupBallTrail();
   setTimeout(() => {
     if (worldRef) {
-      ballEntity.despawn();
+      if (ballEntity.isSpawned) {
+        ballEntity.despawn();
+      }
       ballEntity.spawn(worldRef, BALL_SPAWN_POSITION);
       ballEntity.setLinearVelocity({ x: 0, y: 0, z: 0 });
       ballEntity.setAngularVelocity({ x: 0, y: 0, z: 0 });
       ballHasEnteredGoal = false;
       // Set lockout to prevent false goals immediately after respawn
       ballResetLockout = Date.now();
-      console.log('⚽ Ball respawned at center - 1.5s goal detection lockout active');
+      // console.log('⚽ Ball respawned at center - 1.5s goal detection lockout active');
     } else {
       console.error('❌ Cannot respawn ball: worldRef is null');
     }
@@ -304,7 +306,7 @@ export function setBallResetLockout() {
  */
 export function setPenaltyShootoutManager(manager: any) {
   penaltyShootoutManagerRef = manager;
-  console.log('⚽ Penalty shootout manager registered with ball system');
+  // console.log('⚽ Penalty shootout manager registered with ball system');
 }
 
 /**
@@ -325,7 +327,7 @@ const throttledStationaryUpdate = EventThrottler.throttle(
  */
 const throttledReceptionLog = EventThrottler.throttle(
   (username: string, dot: number, assistanceFactor: number) => {
-    console.log(`📥 Reception assist for ${username}: dot=${dot.toFixed(2)}, assist=${((1-assistanceFactor)*100).toFixed(0)}%`);
+    // console.log(`📥 Reception assist for ${username}: dot=${dot.toFixed(2)}, assist=${((1-assistanceFactor)*100).toFixed(0)}%`);
   },
   500 // Log at most once every 500ms
 );
@@ -344,9 +346,9 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
   const getSharedState = (): SharedStateType => roomState || sharedState;
   const roomId = roomState?.getRoomId() || 'global';
 
-  console.log(`⚽ Creating soccer ball for room: ${roomId}`);
-  console.log("Creating soccer ball with config:", JSON.stringify(BALL_CONFIG));
-  console.log("Ball spawn position:", JSON.stringify(BALL_SPAWN_POSITION));
+  // console.log(`⚽ Creating soccer ball for room: ${roomId}`);
+  // console.log("Creating soccer ball with config:", JSON.stringify(BALL_CONFIG));
+  // console.log("Ball spawn position:", JSON.stringify(BALL_SPAWN_POSITION));
 
   // Create goal sensors for reliable goal detection
   createGoalSensors(world);
@@ -365,10 +367,10 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
           shape: ColliderShape.BALL,
           radius: BALL_CONFIG.RADIUS,
           friction: BALL_CONFIG.FRICTION,
-          // ENHANCED: Improved collision groups for better crossbar/goal post interaction
+          // Ball collision groups: must include PLAYER so physics collisions fire with players
           collisionGroups: {
-            belongsTo: [1], // Default collision group for ball
-            collidesWith: [1, 2, 4, 8] // Collide with terrain(1), blocks(2), entities(4), and goal structures(8)
+            belongsTo: [CollisionGroup.ENTITY],
+            collidesWith: [CollisionGroup.BLOCK, CollisionGroup.ENTITY, CollisionGroup.ENTITY_SENSOR, CollisionGroup.ENVIRONMENT_ENTITY, CollisionGroup.PLAYER]
           }
           // Note: Ball bounce physics handled by BALL_CONFIG settings in gameConfig.ts
         },
@@ -385,8 +387,69 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
   let isInitializing = true; // Flag to prevent whistle during startup
   let whistleDebounceTimer = 0; // Add a timer to prevent multiple whistles
 
-  console.log("Ball entity created, spawning at proper ground position");
-  
+  // CRITICAL: Register collision listeners BEFORE spawn so SDK enables collision events
+  soccerBall.on(EntityEvent.ENTITY_COLLISION, ({ entity, otherEntity, started }) => {
+    if (started && otherEntity instanceof SoccerPlayerEntity) {
+      const currentAttachedPlayer = getSharedState().getAttachedPlayer();
+
+      if (currentAttachedPlayer == null && !inGoal) {
+        // Ball is loose - attach to any player who touches it
+        if (!otherEntity.isStunned) {
+          getSharedState().setAttachedPlayer(otherEntity);
+
+          // Play a subtle sound to indicate ball attachment
+          new Audio({
+            uri: "audio/sfx/soccer/kick.mp3",
+            volume: 0.15,
+            loop: false,
+          }).play(entity.world as World);
+        }
+      } else if (currentAttachedPlayer != null) {
+        // Ball is currently possessed
+        if (otherEntity.isTackling) {
+          // Tackling player steals the ball
+          getSharedState().setAttachedPlayer(null);
+          // Apply a basic impulse to the ball
+          const direction = getDirectionFromRotation(otherEntity.rotation);
+          entity.applyImpulse({
+            x: direction.x * 1.0,
+            y: 0.3,
+            z: direction.z * 1.0,
+          });
+          // Reset angular velocity to prevent unwanted spinning/backwards movement
+          entity.setAngularVelocity({ x: 0, y: 0, z: 0 });
+        } else if (currentAttachedPlayer instanceof SoccerPlayerEntity &&
+                   currentAttachedPlayer.team === otherEntity.team &&
+                   currentAttachedPlayer !== otherEntity) {
+          // Teammate collision - transfer possession to teammate
+          getSharedState().setAttachedPlayer(otherEntity);
+
+          // Play a subtle sound to indicate ball transfer
+          new Audio({
+            uri: "audio/sfx/soccer/kick.mp3",
+            volume: 0.1,
+            loop: false,
+          }).play(entity.world as World);
+        }
+      }
+    }
+  });
+
+  soccerBall.on(EntityEvent.BLOCK_COLLISION, ({ entity, blockType, started }) => {
+    if (started) {
+      // Realistic soccer ball bounce - maintain forward momentum with slight damping
+      const velocity = entity.linearVelocity;
+      const dampingFactor = 0.85;
+      entity.setLinearVelocity({
+        x: velocity.x * dampingFactor,
+        y: Math.abs(velocity.y) * 0.6,
+        z: velocity.z * dampingFactor,
+      });
+      const angVel = entity.angularVelocity;
+      entity.setAngularVelocity({ x: angVel.x * 0.4, y: angVel.y * 0.4, z: angVel.z * 0.4 });
+    }
+  });
+
   // Only spawn the ball if it's not already spawned
   if (!soccerBall.isSpawned) {
     // Simple spawn at the correct position (now with guaranteed ground block)
@@ -397,20 +460,20 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
     // Force physics update
     soccerBall.wakeUp();
     
-    console.log("Ball spawned successfully at:", JSON.stringify(BALL_SPAWN_POSITION));
-    console.log("Ball spawn status:", soccerBall.isSpawned ? "SUCCESS" : "FAILED");
+    // console.log("Ball spawned successfully at:", JSON.stringify(BALL_SPAWN_POSITION));
+    // console.log("Ball spawn status:", soccerBall.isSpawned ? "SUCCESS" : "FAILED");
   } else {
-    console.log("Ball is already spawned, skipping spawn");
+    // console.log("Ball is already spawned, skipping spawn");
   }
   
   // Short delay to complete initialization and enable boundary checks
   setTimeout(() => {
     isInitializing = false;
-    console.log("Ball initialization complete, enabling boundary checks");
-    console.log("Current ball position:", 
-      soccerBall.isSpawned ? 
-      `x=${soccerBall.position.x}, y=${soccerBall.position.y}, z=${soccerBall.position.z}` : 
-      "Ball not spawned");
+    // console.log("Ball initialization complete, enabling boundary checks");
+    // console.log("Current ball position:", 
+      // soccerBall.isSpawned ? 
+      // `x=${soccerBall.position.x}, y=${soccerBall.position.y}, z=${soccerBall.position.z}` : 
+      // "Ball not spawned");
   }, 1000); // 1 second delay is sufficient
 
   soccerBall.on(EntityEvent.TICK, ({ entity, tickDeltaMs }) => {
@@ -466,7 +529,7 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
     // If the ball falls significantly below the field, reset it immediately
     // Allow ball to rest on ground (Y=1) but reset if it goes below Y=0.5
     if (entity.position.y < FIELD_MIN_Y + 0.5 && !isRespawning && !inGoal && !isInitializing) {
-      console.log(`Ball unexpectedly below field at Y=${entity.position.y}, resetting to spawn position`);
+      // console.log(`Ball unexpectedly below field at Y=${entity.position.y}, resetting to spawn position`);
       isRespawning = true;
       cleanupBallTrail();
 
@@ -505,15 +568,15 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
         const boundaryInfo: BoundaryInfo = soccerMap.checkBoundaryDetails(currentPos);
         
         if (boundaryInfo.isOutOfBounds && !isRespawning) {
-          console.log(`Ball out of bounds:`, boundaryInfo);
+          // console.log(`Ball out of bounds:`, boundaryInfo);
           
           // Check if a whistle was recently played
           const currentTime = Date.now();
           if (currentTime - whistleDebounceTimer < 3000) {
             // Skip playing the whistle if one was played less than 3 seconds ago
-            console.log("Skipping whistle sound (debounced)");
+            // console.log("Skipping whistle sound (debounced)");
           } else {
-            console.log(`Ball out of bounds at position ${currentPos.x}, ${currentPos.y}, ${currentPos.z} - playing whistle`);
+            // console.log(`Ball out of bounds at position ${currentPos.x}, ${currentPos.y}, ${currentPos.z} - playing whistle`);
             whistleDebounceTimer = currentTime;
             
             // Play a single whistle for out of bounds
@@ -536,7 +599,7 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
               // Emit different events based on boundary type
               if (boundaryInfo.boundaryType === 'sideline') {
                 // Ball went out on sideline - throw-in
-                console.log("Emitting throw-in event");
+                // console.log("Emitting throw-in event");
                 world.emit("ball-out-sideline" as any, {
                   side: boundaryInfo.side,
                   position: boundaryInfo.position,
@@ -544,7 +607,7 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
                 } as any);
               } else if (boundaryInfo.boundaryType === 'goal-line') {
                 // Ball went out over goal line - corner kick or goal kick
-                console.log("Emitting goal-line out event");
+                // console.log("Emitting goal-line out event");
                 world.emit("ball-out-goal-line" as any, {
                   side: boundaryInfo.side,
                   position: boundaryInfo.position,
@@ -552,7 +615,7 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
                 } as any);
               } else {
                 // Fallback to old system for other cases
-                console.log("Emitting general out-of-bounds event");
+                // console.log("Emitting general out-of-bounds event");
                 world.emit("ball-reset-out-of-bounds" as any, {} as any);
               }
               
@@ -617,7 +680,7 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
               if (distance < closestPassTargetDistance) {
                 closestPassTargetDistance = distance;
                 closestPassTarget = playerEntity;
-                console.log(`🧲 MAGNETIC RECEPTION: ${playerEntity.player.username} catching pass (dist: ${distance.toFixed(1)})`);
+                // console.log(`🧲 MAGNETIC RECEPTION: ${playerEntity.player.username} catching pass (dist: ${distance.toFixed(1)})`);
               }
               continue;
             }
@@ -677,9 +740,9 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
           }).play(entity.world as World);
 
           if (isPassTargetReception) {
-            console.log(`🧲 Ball MAGNETICALLY attached to pass target ${closestPlayer.player.username} (dist: ${closestDistance.toFixed(2)} units)`);
+            // console.log(`🧲 Ball MAGNETICALLY attached to pass target ${closestPlayer.player.username} (dist: ${closestDistance.toFixed(2)} units)`);
           } else {
-            console.log(`Ball automatically attached to ${closestPlayer.player.username} (proximity: ${closestDistance.toFixed(2)} units, speed: ${ballSpeed.toFixed(1)})`);
+            // console.log(`Ball automatically attached to ${closestPlayer.player.username} (proximity: ${closestDistance.toFixed(2)} units, speed: ${ballSpeed.toFixed(1)})`);
           }
         }
       }
@@ -746,72 +809,6 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
     const profiler = (world as any)._performanceProfiler;
     if (profiler) {
       profiler.recordBallPhysics(ballPhysicsDuration);
-    }
-  });
-
-  soccerBall.on(EntityEvent.ENTITY_COLLISION, ({ entity, otherEntity, started }) => {
-    if (started && otherEntity instanceof SoccerPlayerEntity) {
-      const currentAttachedPlayer = getSharedState().getAttachedPlayer();
-
-      if (currentAttachedPlayer == null && !inGoal) {
-        // Ball is loose - attach to any player who touches it
-        if (!otherEntity.isStunned) {
-          getSharedState().setAttachedPlayer(otherEntity);
-
-          // Play a subtle sound to indicate ball attachment
-          new Audio({
-            uri: "audio/sfx/soccer/kick.mp3",
-            volume: 0.15,
-            loop: false,
-          }).play(entity.world as World);
-        }
-      } else if (currentAttachedPlayer != null) {
-        // Ball is currently possessed
-        if (otherEntity.isTackling) {
-          // Tackling player steals the ball
-          getSharedState().setAttachedPlayer(null);
-          // Apply a basic impulse to the ball
-          const direction = getDirectionFromRotation(otherEntity.rotation);
-          entity.applyImpulse({
-            x: direction.x * 1.0,
-            y: 0.3,
-            z: direction.z * 1.0,
-          });
-          // Reset angular velocity to prevent unwanted spinning/backwards movement
-          entity.setAngularVelocity({ x: 0, y: 0, z: 0 });
-        } else if (currentAttachedPlayer instanceof SoccerPlayerEntity &&
-                   currentAttachedPlayer.team === otherEntity.team &&
-                   currentAttachedPlayer !== otherEntity) {
-          // Teammate collision - transfer possession to teammate
-          getSharedState().setAttachedPlayer(otherEntity);
-
-          // Play a subtle sound to indicate ball transfer
-          new Audio({
-            uri: "audio/sfx/soccer/kick.mp3",
-            volume: 0.1,
-            loop: false,
-          }).play(entity.world as World);
-
-          console.log(`Ball transferred from ${currentAttachedPlayer.player.username} to teammate ${otherEntity.player.username}`);
-        }
-      }
-    }
-  });
-
-  soccerBall.on(EntityEvent.BLOCK_COLLISION, ({ entity, blockType, started }) => {
-    if (started) {
-      // Allow ball to bounce off ALL blocks to prevent falling through ground
-      // Realistic soccer ball bounce - maintain forward momentum with slight damping
-      const velocity = entity.linearVelocity;
-      const dampingFactor = 0.85; // Reduce speed slightly on bounce
-      entity.setLinearVelocity({
-        x: velocity.x * dampingFactor, // Keep forward momentum, just reduce speed
-        y: Math.abs(velocity.y) * 0.6, // Bounce up with reduced height
-        z: velocity.z * dampingFactor, // Keep lateral momentum, just reduce speed
-      });
-      // Preserve some spin on bounce for more natural ball behavior
-      const angVel = entity.angularVelocity;
-      entity.setAngularVelocity({ x: angVel.x * 0.4, y: angVel.y * 0.4, z: angVel.z * 0.4 });
     }
   });
 

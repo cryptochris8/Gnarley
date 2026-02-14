@@ -167,7 +167,7 @@ class SharedState {
     // --- AI System Management ---
     public setAISystem(system: AISystem) {
         this._aiSystem = system;
-        console.log(`AI system set to: ${system}`);
+        // console.log(`AI system set to: ${system}`);
     }
 
     public getAISystem(): AISystem {
@@ -238,7 +238,7 @@ class SharedState {
             if (this.ballStationaryTracker.stationaryDuration >= this.STATIONARY_TIME_LIMIT) {
                 if (!this.ballStationaryTracker.isStationary) {
                     this.ballStationaryTracker.isStationary = true;
-                    console.log(`⚠️  Ball detected as stationary for ${this.ballStationaryTracker.stationaryDuration}ms at position (${ballPosition.x.toFixed(1)}, ${ballPosition.z.toFixed(1)}) - AI should retrieve it`);
+                    // console.log(`⚠️  Ball detected as stationary for ${this.ballStationaryTracker.stationaryDuration}ms at position (${ballPosition.x.toFixed(1)}, ${ballPosition.z.toFixed(1)}) - AI should retrieve it`);
                 }
             }
         }

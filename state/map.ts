@@ -111,7 +111,7 @@ export class SoccerMap {
     
     // Ball below ground level is out of bounds (physics glitch or tunneling)
     if (position.y < boundary.y.min - 1) {
-      console.log(`Ball below field at Y=${position.y}, marking as out of bounds`);
+      // console.log(`Ball below field at Y=${position.y}, marking as out of bounds`);
       return {
         isOutOfBounds: true,
         boundaryType: 'sideline', // Treat as general out of bounds for reset
@@ -127,7 +127,7 @@ export class SoccerMap {
 
     // Check side boundaries (Z-axis boundaries for throw-ins)
     if (position.z < boundary.z.min) {
-      console.log(`Ball crossed MIN-Z sideline at position:`, position);
+      // console.log(`Ball crossed MIN-Z sideline at position:`, position);
       return {
         isOutOfBounds: true,
         boundaryType: 'sideline',
@@ -137,7 +137,7 @@ export class SoccerMap {
     }
     
     if (position.z > boundary.z.max) {
-      console.log(`Ball crossed MAX-Z sideline at position:`, position);
+      // console.log(`Ball crossed MAX-Z sideline at position:`, position);
       return {
         isOutOfBounds: true,
         boundaryType: 'sideline', 
@@ -148,7 +148,7 @@ export class SoccerMap {
 
     // Check goal line boundaries (X-axis boundaries for corner kicks/goal kicks)
     if (position.x < boundary.x.min) {
-      console.log(`Ball crossed MIN-X goal line at position:`, position);
+      // console.log(`Ball crossed MIN-X goal line at position:`, position);
       return {
         isOutOfBounds: true,
         boundaryType: 'goal-line',
@@ -158,7 +158,7 @@ export class SoccerMap {
     }
     
     if (position.x > boundary.x.max) {
-      console.log(`Ball crossed MAX-X goal line at position:`, position);
+      // console.log(`Ball crossed MAX-X goal line at position:`, position);
       return {
         isOutOfBounds: true,
         boundaryType: 'goal-line',
@@ -169,7 +169,7 @@ export class SoccerMap {
 
     // Check vertical boundaries (unlikely but possible)
     if (position.y > boundary.y.max) {
-      console.log(`Ball went too high at position:`, position);
+      // console.log(`Ball went too high at position:`, position);
       return {
         isOutOfBounds: true,
         boundaryType: 'sideline', // Treat as general out of bounds

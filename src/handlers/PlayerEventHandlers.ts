@@ -58,7 +58,7 @@ export class PlayerEventHandlers {
    */
   private registerPlayerJoinedHandler(): void {
     this.deps.world.on(PlayerEvent.JOINED_WORLD, async ({ player }) => {
-      logger.info(`Player ${player.username} joined world`);
+      logger.debug(`Player ${player.username} joined world`);
 
       // Check if this is the lobby world or a game room
       const isLobby = RoomManager.isInitialized() && RoomManager.isLobbyWorld(this.deps.world);
@@ -68,7 +68,7 @@ export class PlayerEventHandlers {
         this.deps.physicalLobby.onPlayerJoin(player);
         // Still register UI handler so room events (quick-play, create-room, etc.) work
         this.deps.uiEventHandlers.registerPlayerUIHandler(player);
-        logger.info(`Player ${player.username} entered physical lobby`);
+        logger.debug(`Player ${player.username} entered physical lobby`);
         return;
       }
 
@@ -78,7 +78,7 @@ export class PlayerEventHandlers {
         "Welcome to Hytopia Soccer! Use /spectate to watch games when teams are full."
       );
       player.ui.load("ui/index.html");
-      logger.info(`⚽ Loaded game UI for ${player.username}`);
+      logger.debug(`⚽ Loaded game UI for ${player.username}`);
 
       // Load persistent career stats for the player
       try {
@@ -101,7 +101,7 @@ export class PlayerEventHandlers {
           username: player.username,
         });
 
-        logger.info(`📊 Loaded career stats for ${player.username}: ${careerStats.totalGoals} goals, ${careerStats.totalWins} wins`);
+        logger.debug(`📊 Loaded career stats for ${player.username}: ${careerStats.totalGoals} goals, ${careerStats.totalWins} wins`);
       } catch (e) {
         logger.warn(`Failed to load career stats for ${player.username}: ${e}`);
       }
@@ -147,13 +147,13 @@ export class PlayerEventHandlers {
    */
   private registerPlayerLeftHandler(): void {
     this.deps.world.on(PlayerEvent.LEFT_WORLD, ({ player }) => {
-      logger.info(`Player ${player.username} left world - checking if game reset needed`);
+      logger.debug(`Player ${player.username} left world - checking if game reset needed`);
 
       // If this is the lobby world, clean up lobby state and return early
       const isLobby = RoomManager.isInitialized() && RoomManager.isLobbyWorld(this.deps.world);
       if (isLobby) {
         this.deps.physicalLobby.onPlayerLeave(player);
-        logger.info(`🏠 Player ${player.username} left physical lobby`);
+        logger.debug(`🏠 Player ${player.username} left physical lobby`);
         return;
       }
 
@@ -173,7 +173,7 @@ export class PlayerEventHandlers {
             careerStats.totalMatches += 1;
 
             player.setPersistedData({ careerStats });
-            logger.info(`📊 Saved career stats for ${player.username}: ${careerStats.totalGoals} total goals`);
+            logger.debug(`📊 Saved career stats for ${player.username}: ${careerStats.totalGoals} total goals`);
           }
         } catch (e) {
           logger.warn(`Failed to save career stats for ${player.username}: ${e}`);
@@ -216,7 +216,7 @@ export class PlayerEventHandlers {
             humanPlayerCount === 0 &&
             !playerStillConnected
           ) {
-            logger.info("Confirmed: Last human player left single player game. Resetting AI.");
+            logger.debug("Confirmed: Last human player left single player game. Resetting AI.");
 
             // Cleanup AI players
             this.deps.aiPlayers.forEach((ai) => {

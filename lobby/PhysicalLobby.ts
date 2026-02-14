@@ -67,7 +67,7 @@ export class PhysicalLobby {
    * Initialize the physical lobby (prepares config, portals deferred to first join)
    */
   initialize(): void {
-    logger.info("Physical lobby ready (portals spawn on first player join)");
+    logger.debug("Physical lobby ready (portals spawn on first player join)");
   }
 
   /**
@@ -78,20 +78,20 @@ export class PhysicalLobby {
     if (this.portalsSpawned) return;
     this.portalsSpawned = true;
 
-    logger.info("Spawning lobby portals...");
+    logger.debug("Spawning lobby portals...");
     for (const config of PORTAL_CONFIGS) {
       const portal = new LobbyPortal(config, this);
       portal.spawn(this.world);
       this.portals.push(portal);
     }
-    logger.info(`Physical lobby: ${this.portals.length} portals spawned`);
+    logger.debug(`Physical lobby: ${this.portals.length} portals spawned`);
   }
 
   /**
    * Handle a new player joining the lobby world
    */
   onPlayerJoin(player: Player): void {
-    logger.info(`Physical lobby: ${player.username} joining`);
+    logger.debug(`Physical lobby: ${player.username} joining`);
 
     // Load lobby HUD first so SceneUI template "portal-label" is available
     player.ui.load("ui/lobby-hud.html");
@@ -107,7 +107,7 @@ export class PhysicalLobby {
         volume: LOBBY_AMBIENT_VOLUME,
       });
       this.ambientAudio.play(this.world);
-      logger.info("Lobby ambient music started");
+      logger.debug("Lobby ambient music started");
     }
 
     // Create player entity (DefaultPlayerEntity at default scale)
@@ -158,14 +158,14 @@ export class PhysicalLobby {
       "Kick the ball through a portal to play!"
     );
 
-    logger.info(`Physical lobby: ${player.username} spawned with ball`);
+    logger.debug(`Physical lobby: ${player.username} spawned with ball`);
   }
 
   /**
    * Handle player leaving the lobby world
    */
   onPlayerLeave(player: Player): void {
-    logger.info(`Physical lobby: ${player.username} leaving`);
+    logger.debug(`Physical lobby: ${player.username} leaving`);
 
     // Despawn ball
     const ball = this.playerBalls.get(player.username);
@@ -202,14 +202,14 @@ export class PhysicalLobby {
     const now = Date.now();
     const lastTrigger = this.portalCooldowns.get(player.username) || 0;
     if (now - lastTrigger < PORTAL_COOLDOWN_MS) {
-      logger.info(
+      logger.debug(
         `Portal cooldown active for ${player.username} (${((now - lastTrigger) / 1000).toFixed(1)}s)`
       );
       return;
     }
     this.portalCooldowns.set(player.username, now);
 
-    logger.info(
+    logger.debug(
       `Portal triggered: ${player.username} -> ${gameMode}`
     );
 
@@ -219,7 +219,7 @@ export class PhysicalLobby {
     // First try to find an existing room with the same mode
     const existingRoom = roomManager.findAvailableRoom(gameMode);
     if (existingRoom) {
-      logger.info(
+      logger.debug(
         `Joining existing room ${existingRoom.config.id} for ${player.username}`
       );
       await roomManager.joinRoom(existingRoom.config.id, player);

@@ -95,8 +95,8 @@ export class AIDecisionCache {
     // Start periodic cleanup
     this.startPeriodicCleanup();
     
-    console.log('🧠 AI Decision Cache initialized');
-    console.log(`📊 Cache config: Max size: ${this.config.maxCacheSize}, TTL: ${this.config.defaultTTL}ms, Quantization: ${this.config.positionQuantization}`);
+    // console.log('🧠 AI Decision Cache initialized');
+    // console.log(`📊 Cache config: Max size: ${this.config.maxCacheSize}, TTL: ${this.config.defaultTTL}ms, Quantization: ${this.config.positionQuantization}`);
   }
 
   /**
@@ -120,7 +120,7 @@ export class AIDecisionCache {
         const decisionTime = Date.now() - startTime;
         this.recordDecisionTime(decisionTime);
         
-        console.log(`🎯 AI CACHE HIT: ${context.player.role} - ${cached.decision.action} (hit count: ${cached.hitCount})`);
+        // console.log(`🎯 AI CACHE HIT: ${context.player.role} - ${cached.decision.action} (hit count: ${cached.hitCount})`);
         
         return cached.decision;
       }
@@ -174,7 +174,7 @@ export class AIDecisionCache {
 
       this.cache.set(keyString, cachedDecision);
       
-      console.log(`🧠 AI CACHED: ${context.player.role} - ${decision.action} (TTL: ${ttl}ms)`);
+      // console.log(`🧠 AI CACHED: ${context.player.role} - ${decision.action} (TTL: ${ttl}ms)`);
       
     } catch (error) {
       errorHandler.logError(
@@ -218,7 +218,7 @@ export class AIDecisionCache {
       this.stats.invalidations += invalidatedCount;
       
       if (invalidatedCount > 0) {
-        console.log(`🧹 AI CACHE INVALIDATED: ${invalidatedCount} entries (reason: ${reason})`);
+        // console.log(`🧹 AI CACHE INVALIDATED: ${invalidatedCount} entries (reason: ${reason})`);
       }
       
     } catch (error) {
@@ -462,7 +462,7 @@ export class AIDecisionCache {
       this.cache.delete(entries[i][0]);
     }
     
-    console.log(`🧹 AI CACHE EVICTED: ${toRemove} oldest entries`);
+    // console.log(`🧹 AI CACHE EVICTED: ${toRemove} oldest entries`);
   }
 
   /**
@@ -534,7 +534,7 @@ export class AIDecisionCache {
     }
     
     if (cleanedCount > 0) {
-      console.log(`🧹 AI CACHE CLEANUP: Removed ${cleanedCount} expired entries`);
+      // console.log(`🧹 AI CACHE CLEANUP: Removed ${cleanedCount} expired entries`);
     }
     
     this.updateStats();
@@ -560,7 +560,7 @@ export class AIDecisionCache {
    */
   updateConfig(newConfig: Partial<CacheConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    console.log('🧠 AI Cache configuration updated:', newConfig);
+    // console.log('🧠 AI Cache configuration updated:', newConfig);
   }
 
   /**
@@ -581,7 +581,7 @@ export class AIDecisionCache {
     };
     this.decisionTimes = [];
     
-    console.log('🧠 AI Cache reset');
+    // console.log('🧠 AI Cache reset');
   }
 
   /**
@@ -592,7 +592,7 @@ export class AIDecisionCache {
       timerManager.clearTimer(this.cleanupTimerId);
     }
     this.cache.clear();
-    console.log('🧠 AI Cache cleaned up');
+    // console.log('🧠 AI Cache cleaned up');
   }
 }
 

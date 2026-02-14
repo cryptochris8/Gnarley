@@ -35,7 +35,7 @@ export class CachedSoccerAgent {
     this.role = role;
     this.originalDecisionMaker = originalDecisionMaker;
     
-    console.log(`🧠 CachedSoccerAgent initialized for role: ${role}`);
+    // console.log(`🧠 CachedSoccerAgent initialized for role: ${role}`);
   }
 
   /**
@@ -389,7 +389,7 @@ export class CachedSoccerAgent {
       cacheEfficiency: 0
     };
     
-    console.log(`🧠 CachedSoccerAgent reset for role: ${this.role}`);
+    // console.log(`🧠 CachedSoccerAgent reset for role: ${this.role}`);
   }
 
   /**

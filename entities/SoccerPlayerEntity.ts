@@ -1,4 +1,4 @@
-import { Audio, Entity, Player, PlayerCameraMode, PlayerEntity, World, EntityEvent, type Vector3Like, CollisionGroup, EntityModelAnimationLoopMode } from "hytopia";
+import { Audio, Entity, Player, PlayerEntity, World, EntityEvent, type Vector3Like, CollisionGroup, EntityModelAnimationLoopMode } from "hytopia";
 import CustomSoccerPlayer from "../controllers/SoccerPlayerController";
 import sharedState from "../state/sharedState";
 import { RoomSharedState } from "../state/RoomSharedState";
@@ -101,7 +101,7 @@ export default class SoccerPlayerEntity extends PlayerEntity {
     // Don't set camera properties immediately, only on EntityEvent.SPAWN
     // This ensures the entity is fully registered before attaching the camera
     this.on(EntityEvent.SPAWN, () => {
-      console.log(`Entity spawn event for ${player.username} (entity ${this.id})`);
+      // console.log(`Entity spawn event for ${player.username} (entity ${this.id})`);
       
       // CRITICAL FIX: Configure collision groups for pickup detection
       // This is essential for ability pickups to detect collisions with players
@@ -123,7 +123,7 @@ export default class SoccerPlayerEntity extends PlayerEntity {
         ],
       });
       
-      console.log(`🎯 Collision groups configured: Player belongs to PLAYER group for pickup detection`);
+      // console.log(`🎯 Collision groups configured: Player belongs to PLAYER group for pickup detection`);
       
       // Set team-appropriate rotation after spawn
       if (this.team === "blue") {
@@ -136,26 +136,26 @@ export default class SoccerPlayerEntity extends PlayerEntity {
       const isRealPlayer = player && player.camera && typeof player.camera.setAttachedToEntity === 'function';
       if (isRealPlayer) {
         try {
-          // Simple camera attachment
+          // Attach camera to player entity (SDK defaults: third-person, fov 75, zoom 2)
           player.camera.setAttachedToEntity(this);
-          console.log(`Camera attached to entity ${this.id} for player ${player.username}`);
+          // console.log(`Camera attached to entity ${this.id} for player ${player.username}`);
           
           // Only set active player for human players - important for camera attachment
           sharedState.setActivePlayer(this);
-          console.log(`Set active player in shared state: ${player.username}`);
+          // console.log(`Set active player in shared state: ${player.username}`);
         } catch (e) {
           console.error(`Error attaching camera for player ${player.username}:`, e);
         }
       }
       
-      console.log(`Entity ${this.id} (${player.username}) spawned as ${team} ${role}`);
+      // console.log(`Entity ${this.id} (${player.username}) spawned as ${team} ${role}`);
       
       // Check and correct position after spawn
       const currentPos = this.position;
       const expectedY = SAFE_SPAWN_Y;
       
       if (Math.abs(currentPos.y - expectedY) > 1) {
-        console.log(`Correcting Y position from ${currentPos.y} to ${expectedY} for ${player.username}`);
+        // console.log(`Correcting Y position from ${currentPos.y} to ${expectedY} for ${player.username}`);
         this.setPosition({ x: currentPos.x, y: expectedY, z: currentPos.z });
         this.wakeUp(); // Wake up physics after position correction
       }
@@ -170,7 +170,7 @@ export default class SoccerPlayerEntity extends PlayerEntity {
     try {
       this.abilityHolder = new AbilityHolder(player);
     } catch (e) {
-      console.log("Could not create ability holder for player", e);
+      // console.log("Could not create ability holder for player", e);
       // Create a minimal ability holder for AI players
       this.abilityHolder = {
         getAbility: () => null,
@@ -230,7 +230,7 @@ export default class SoccerPlayerEntity extends PlayerEntity {
    */
   public setRoomSharedState(roomState: RoomSharedState): void {
     this.roomSharedState = roomState;
-    console.log(`🎮 Player ${this.player.username} assigned to room: ${roomState.getRoomId()}`);
+    // console.log(`🎮 Player ${this.player.username} assigned to room: ${roomState.getRoomId()}`);
   }
 
   public stunPlayerTimeout() {
@@ -375,7 +375,7 @@ export default class SoccerPlayerEntity extends PlayerEntity {
   }
 
   public stunPlayer(tacklerPosition?: { x: number; y?: number; z: number }) {
-    console.log("Stunning player");
+    // console.log("Stunning player");
         const attachedPlayer = sharedState.getAttachedPlayer();
         const soccerBall = sharedState.getSoccerBall();
 
@@ -396,7 +396,7 @@ export default class SoccerPlayerEntity extends PlayerEntity {
 
         // Stun the other player
         this.stunPlayerTimeout();
-        console.log("Starting dizzy animation");
+        // console.log("Starting dizzy animation");
 
         // Large stadium mode - realistic soccer without visual effects
         // No stars or special effects in large stadium mode

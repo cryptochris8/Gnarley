@@ -133,7 +133,7 @@ export class RoomManager {
     soccerFieldMapData = mapData;
 
     RoomManager.instance = new RoomManager(lobbyWorld);
-    logger.info("🏠 RoomManager initialized");
+    logger.debug("🏠 RoomManager initialized");
     return RoomManager.instance;
   }
 
@@ -210,7 +210,7 @@ export class RoomManager {
       createdAt: Date.now(),
     };
 
-    logger.info(`🏠 Creating room: ${fullConfig.name} (${roomId}) - Mode: ${fullConfig.gameMode}`);
+    logger.debug(`🏠 Creating room: ${fullConfig.name} (${roomId}) - Mode: ${fullConfig.gameMode}`);
 
     try {
       // Create isolated world for this room
@@ -251,7 +251,7 @@ export class RoomManager {
       // Connect crowd manager to game for goal reactions and announcements
       game.setFIFACrowdManager(fifaCrowdManager);
 
-      logger.info(`🎵 Audio managers created for room ${roomId}`);
+      logger.debug(`🎵 Audio managers created for room ${roomId}`);
 
       const room: Room = {
         config: fullConfig,
@@ -272,7 +272,7 @@ export class RoomManager {
       // Set arcade mode flag if room is in arcade mode
       if (fullConfig.gameMode === GameMode.ARCADE) {
         arcadeManager.setRoomArcadeMode(true);
-        logger.info(`[Room ${roomId}] 🎮 Arcade mode enabled for room`);
+        logger.debug(`[Room ${roomId}] 🎮 Arcade mode enabled for room`);
       }
 
       // Set up event handlers for this room's world
@@ -281,7 +281,7 @@ export class RoomManager {
       // Store room
       this.rooms.set(roomId, room);
 
-      logger.info(`✅ Room created: ${roomId} - ${fullConfig.name}`);
+      logger.debug(`✅ Room created: ${roomId} - ${fullConfig.name}`);
 
       // Move host player to room
       await this.joinRoom(roomId, hostPlayer);
@@ -327,7 +327,7 @@ export class RoomManager {
 
     // Check if match is in progress - offer spectator mode
     if (room.status === 'playing') {
-      logger.info(`Room ${roomId} in progress - player ${player.username} will spectate`);
+      logger.debug(`Room ${roomId} in progress - player ${player.username} will spectate`);
       return this.joinAsSpectator(roomId, player);
     }
 
@@ -335,7 +335,7 @@ export class RoomManager {
     if (room.cleanupTimer) {
       clearTimeout(room.cleanupTimer);
       room.cleanupTimer = null;
-      logger.info(`Room ${roomId} cleanup cancelled - player joined`);
+      logger.debug(`Room ${roomId} cleanup cancelled - player joined`);
     }
 
     // Ensure mutual exclusion: remove from spectatorMap if somehow present
@@ -352,7 +352,7 @@ export class RoomManager {
     this.playerRoomMap.set(player.username, roomId);
     room.playerCount++;
 
-    logger.info(`👤 Player ${player.username} joined room ${roomId} (${room.playerCount}/${room.config.maxPlayers})`);
+    logger.debug(`👤 Player ${player.username} joined room ${roomId} (${room.playerCount}/${room.config.maxPlayers})`);
 
     // Move player to room world
     // NOTE: This triggers a disconnect/reconnect - all UI operations must happen
@@ -380,7 +380,7 @@ export class RoomManager {
     if (room.cleanupTimer) {
       clearTimeout(room.cleanupTimer);
       room.cleanupTimer = null;
-      logger.info(`Room ${roomId} cleanup cancelled - spectator joined`);
+      logger.debug(`Room ${roomId} cleanup cancelled - spectator joined`);
     }
 
     // Ensure mutual exclusion: remove from playerRoomMap if somehow present
@@ -394,7 +394,7 @@ export class RoomManager {
     this.spectatorMap.set(player.username, roomId);
     room.spectatorCount++;
 
-    logger.info(`👁️ Player ${player.username} spectating room ${roomId}`);
+    logger.debug(`👁️ Player ${player.username} spectating room ${roomId}`);
 
     // Move player to room world
     // NOTE: This triggers a disconnect/reconnect - all UI operations happen
@@ -432,7 +432,7 @@ export class RoomManager {
         this.playerRoomMap.delete(player.username);
         room.playerCount--;
 
-        logger.info(`👤 Player ${player.username} left room ${roomId} (${room.playerCount} remaining)`);
+        logger.debug(`👤 Player ${player.username} left room ${roomId} (${room.playerCount} remaining)`);
 
         // Schedule cleanup if room is empty
         if (room.playerCount === 0 && room.spectatorCount === 0) {
@@ -444,7 +444,7 @@ export class RoomManager {
       if (room) {
         this.spectatorMap.delete(player.username);
         room.spectatorCount--;
-        logger.info(`👁️ Spectator ${player.username} left room ${spectatingRoomId}`);
+        logger.debug(`👁️ Spectator ${player.username} left room ${spectatingRoomId}`);
 
         // Schedule cleanup if room is empty
         if (room.playerCount === 0 && room.spectatorCount === 0) {
@@ -542,7 +542,7 @@ export class RoomManager {
     const room = this.rooms.get(roomId);
     if (room) {
       room.status = status;
-      logger.info(`Room ${roomId} status changed to: ${status}`);
+      logger.debug(`Room ${roomId} status changed to: ${status}`);
       this.broadcastRoomList();
     }
   }
@@ -569,7 +569,7 @@ export class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
-    logger.info(`Room ${roomId} scheduled for cleanup in ${this.ROOM_CLEANUP_DELAY / 1000}s`);
+    logger.debug(`Room ${roomId} scheduled for cleanup in ${this.ROOM_CLEANUP_DELAY / 1000}s`);
 
     room.cleanupTimer = setTimeout(() => {
       const currentRoom = this.rooms.get(roomId);
@@ -586,24 +586,24 @@ export class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
-    logger.info(`🧹 Cleaning up room: ${roomId}`);
+    logger.debug(`🧹 Cleaning up room: ${roomId}`);
 
     // Stop all audio for this room
     if (room.audioManager) {
       room.audioManager.stopAll();
-      logger.info(`[Room ${roomId}] 🔇 Stopped all music`);
+      logger.debug(`[Room ${roomId}] 🔇 Stopped all music`);
     }
     if (room.fifaCrowdManager) {
       room.fifaCrowdManager.stop();
-      logger.info(`[Room ${roomId}] 🔇 Stopped crowd atmosphere`);
+      logger.debug(`[Room ${roomId}] 🔇 Stopped crowd atmosphere`);
     }
     if (room.pickupManager) {
       room.pickupManager.deactivate();
-      logger.info(`[Room ${roomId}] 🎯 Deactivated pickup system`);
+      logger.debug(`[Room ${roomId}] 🎯 Deactivated pickup system`);
     }
     if (room.arcadeManager) {
       room.arcadeManager.destroy();
-      logger.info(`[Room ${roomId}] 🎮 Destroyed arcade enhancement manager`);
+      logger.debug(`[Room ${roomId}] 🎮 Destroyed arcade enhancement manager`);
     }
 
     // Stop game if running
@@ -636,7 +636,7 @@ export class RoomManager {
     // Remove from tracking
     this.rooms.delete(roomId);
 
-    logger.info(`✅ Room ${roomId} cleaned up`);
+    logger.debug(`✅ Room ${roomId} cleaned up`);
 
     // Broadcast updated room list
     this.broadcastRoomList();
@@ -648,7 +648,7 @@ export class RoomManager {
   private setupLobbyEventHandlers(): void {
     // Handle player disconnect in lobby
     this.lobbyWorld.on(PlayerEvent.LEFT_WORLD, ({ player }) => {
-      logger.info(`Player ${player.username} left lobby`);
+      logger.debug(`Player ${player.username} left lobby`);
     });
   }
 
@@ -658,11 +658,11 @@ export class RoomManager {
   private setupRoomEventHandlers(room: Room): void {
     // Handle player joining room world (fires AFTER world switch reconnection completes)
     room.world.on(PlayerEvent.JOINED_WORLD, ({ player }) => {
-      logger.info(`🎮 Player ${player.username} joined room world ${room.config.id}`);
+      logger.debug(`🎮 Player ${player.username} joined room world ${room.config.id}`);
 
       // Now it's safe to load UI - the reconnection is complete
       player.ui.load("ui/index.html");
-      logger.info(`⚽ Loaded game UI for ${player.username} in room ${room.config.id}`);
+      logger.debug(`⚽ Loaded game UI for ${player.username} in room ${room.config.id}`);
 
       // Unlock pointer for UI interactions
       player.ui.lockPointer(false);
@@ -677,7 +677,7 @@ export class RoomManager {
           room: this.getRoomInfo(room),
           message: "Match in Progress - Spectating",
         });
-        logger.info(`👁️ ${player.username} is spectating room ${room.config.id}`);
+        logger.debug(`👁️ ${player.username} is spectating room ${room.config.id}`);
       } else {
         // Regular player - send room info and show team selection
         player.ui.sendData({
@@ -700,7 +700,7 @@ export class RoomManager {
             type: "show-team-selection",
             gameMode: room.config.gameMode,
           });
-          logger.info(`📋 Sent show-team-selection to ${player.username}`);
+          logger.debug(`📋 Sent show-team-selection to ${player.username}`);
         }, 300);
       }
 
@@ -710,7 +710,7 @@ export class RoomManager {
 
     // Handle player disconnect from room
     room.world.on(PlayerEvent.LEFT_WORLD, ({ player }) => {
-      logger.info(`Player ${player.username} disconnected from room ${room.config.id}`);
+      logger.debug(`Player ${player.username} disconnected from room ${room.config.id}`);
 
       // Clean up player tracking
       if (this.playerRoomMap.get(player.username) === room.config.id) {
@@ -791,7 +791,7 @@ export class RoomManager {
    */
   private async handleRoomTeamSelection(room: Room, player: Player, data: any): Promise<void> {
     const team = data.team as "red" | "blue";
-    logger.info(`[Room ${room.config.id}] ${player.username} selected team: ${team}`);
+    logger.debug(`[Room ${room.config.id}] ${player.username} selected team: ${team}`);
 
     if (!room.game) {
       logger.error(`Room ${room.config.id} has no game instance`);
@@ -800,7 +800,7 @@ export class RoomManager {
 
     // Check if player already on a team
     if (room.game.getTeamOfPlayer(player.username) !== null) {
-      logger.info(`Player ${player.username} already on a team in room ${room.config.id}`);
+      logger.debug(`Player ${player.username} already on a team in room ${room.config.id}`);
       return;
     }
 
@@ -839,7 +839,7 @@ export class RoomManager {
     // Get proper spawn position using getStartPosition helper
     const { getStartPosition } = await import("../utils/positions");
     const spawnPos = getStartPosition(team, humanPlayerRole);
-    logger.info(`[Room ${room.config.id}] Spawning ${player.username} at X=${spawnPos.x.toFixed(2)}, Y=${spawnPos.y.toFixed(2)}, Z=${spawnPos.z.toFixed(2)}`);
+    logger.debug(`[Room ${room.config.id}] Spawning ${player.username} at X=${spawnPos.x.toFixed(2)}, Y=${spawnPos.y.toFixed(2)}, Z=${spawnPos.z.toFixed(2)}`);
 
     // Spawn the player entity
     playerEntity.spawn(room.world, spawnPos);
@@ -854,7 +854,7 @@ export class RoomManager {
       // Start the game immediately for single player
       const gameStarted = room.game.startGame();
       room.status = "playing";
-      logger.info(`[Room ${room.config.id}] Single player game started! (success: ${gameStarted})`);
+      logger.debug(`[Room ${room.config.id}] Single player game started! (success: ${gameStarted})`);
 
       // Start room-specific audio based on game mode
       this.startRoomGameSystems(room);
@@ -863,12 +863,12 @@ export class RoomManager {
       setTimeout(() => {
         if (playerEntity && typeof playerEntity.unfreeze === "function") {
           playerEntity.unfreeze();
-          logger.info(`[Room ${room.config.id}] Player ${player.username} unfrozen - game active!`);
+          logger.debug(`[Room ${room.config.id}] Player ${player.username} unfrozen - game active!`);
         }
 
         // Lock pointer for gameplay
         player.ui.lockPointer(true);
-        logger.info(`[Room ${room.config.id}] Pointer locked for ${player.username} - controls enabled`);
+        logger.debug(`[Room ${room.config.id}] Pointer locked for ${player.username} - controls enabled`);
 
         // Clear loading UI
         player.ui.sendData({
@@ -889,7 +889,7 @@ export class RoomManager {
         this.startRoomGameSystems(room);
 
         room.status = "playing";
-        logger.info(`[Room ${room.config.id}] Multiplayer game starting with ${redHumans} red + ${blueHumans} blue humans`);
+        logger.debug(`[Room ${room.config.id}] Multiplayer game starting with ${redHumans} red + ${blueHumans} blue humans`);
       }
       // If only one team has players, wait for more players
       // joinTeam() auto-start handles the countdown; beginMatch() handles unfreezing
@@ -911,14 +911,14 @@ export class RoomManager {
       blueScore: gameState.score.blue,
     });
 
-    logger.info(`✅ Player ${player.username} spawned on ${team} team in room ${room.config.id}`);
+    logger.debug(`✅ Player ${player.username} spawned on ${team} team in room ${room.config.id}`);
   }
 
   /**
    * Handle single player mode in a room
    */
   private async handleRoomSinglePlayer(room: Room, player: Player, data: any): Promise<void> {
-    logger.info(`[Room ${room.config.id}] ${player.username} starting single player`);
+    logger.debug(`[Room ${room.config.id}] ${player.username} starting single player`);
 
     // Default to red team for single player, ensure singlePlayerMode is set
     await this.handleRoomTeamSelection(room, player, {
@@ -932,18 +932,18 @@ export class RoomManager {
    */
   private startRoomGameSystems(room: Room): void {
     room.audioManager.playGameplayMusic(room.config.gameMode);
-    logger.info(`[Room ${room.config.id}] 🎵 Started ${room.config.gameMode} gameplay music`);
+    logger.debug(`[Room ${room.config.id}] 🎵 Started ${room.config.gameMode} gameplay music`);
 
     if (room.config.gameMode === GameMode.FIFA || room.config.gameMode === GameMode.TOURNAMENT) {
       room.fifaCrowdManager.start();
       room.fifaCrowdManager.playGameStart();
-      logger.info(`[Room ${room.config.id}] 🏟️ Started FIFA crowd atmosphere`);
+      logger.debug(`[Room ${room.config.id}] 🏟️ Started FIFA crowd atmosphere`);
     }
 
     if (room.config.gameMode === GameMode.ARCADE) {
       room.pickupManager.activate();
       room.arcadeManager.setRoomArcadeMode(true);
-      logger.info(`[Room ${room.config.id}] 🎯 Activated pickup and arcade systems`);
+      logger.debug(`[Room ${room.config.id}] 🎯 Activated pickup and arcade systems`);
     }
   }
 
@@ -989,7 +989,7 @@ export class RoomManager {
       ai.activate();
     }
 
-    logger.info(`🤖 Spawned ${room.aiPlayers.length} AI players for multiplayer in room ${room.config.id}`);
+    logger.debug(`🤖 Spawned ${room.aiPlayers.length} AI players for multiplayer in room ${room.config.id}`);
   }
 
   /**
@@ -1017,7 +1017,7 @@ export class RoomManager {
       ai.activate();
     }
 
-    logger.info(`🤖 Spawned ${room.aiPlayers.length} AI players in room ${room.config.id}`);
+    logger.debug(`🤖 Spawned ${room.aiPlayers.length} AI players in room ${room.config.id}`);
   }
 
   /**
@@ -1068,7 +1068,7 @@ export class RoomManager {
    * This is the "Force Pass to Me" button functionality
    */
   private handleRoomRequestPass(room: Room, player: Player): void {
-    logger.info(`[Room ${room.config.id}] Request pass from ${player.username}`);
+    logger.debug(`[Room ${room.config.id}] Request pass from ${player.username}`);
 
     // Find the requesting player's entity
     const requestingPlayerEntity = room.world.entityManager
@@ -1089,7 +1089,7 @@ export class RoomManager {
       playerWithBall instanceof AIPlayerEntity &&
       playerWithBall.team === requestingPlayerEntity.team
     ) {
-      logger.info(
+      logger.debug(
         `[Room ${room.config.id}] AI ${playerWithBall.player.username} passing to human ${requestingPlayerEntity.player.username}`
       );
 
@@ -1129,7 +1129,7 @@ export class RoomManager {
       );
 
       if (passSuccess) {
-        logger.info(`[Room ${room.config.id}] Pass successful to ${requestingPlayerEntity.player.username}`);
+        logger.debug(`[Room ${room.config.id}] Pass successful to ${requestingPlayerEntity.player.username}`);
         player.ui.sendData({
           type: "action-feedback",
           feedbackType: "success",
@@ -1146,7 +1146,7 @@ export class RoomManager {
         });
       }
     } else {
-      logger.info(`[Room ${room.config.id}] No AI teammate with ball for ${player.username}`);
+      logger.debug(`[Room ${room.config.id}] No AI teammate with ball for ${player.username}`);
       player.ui.sendData({
         type: "action-feedback",
         feedbackType: "warning",
@@ -1161,7 +1161,7 @@ export class RoomManager {
    * This triggers a pass action when the player has the ball
    */
   private handleRoomForcePass(room: Room, player: Player): void {
-    logger.info(`[Room ${room.config.id}] Force pass from ${player.username}`);
+    logger.debug(`[Room ${room.config.id}] Force pass from ${player.username}`);
 
     // Find the player's entity
     const playerEntity = room.world.entityManager
@@ -1190,7 +1190,7 @@ export class RoomManager {
             16
           );
 
-          logger.info(`[Room ${room.config.id}] Force pass executed for ${player.username}`);
+          logger.debug(`[Room ${room.config.id}] Force pass executed for ${player.username}`);
           player.ui.sendData({
             type: "action-feedback",
             feedbackType: "success",
@@ -1199,7 +1199,7 @@ export class RoomManager {
           });
         }
       } else {
-        logger.info(`[Room ${room.config.id}] ${player.username} doesn't have the ball`);
+        logger.debug(`[Room ${room.config.id}] ${player.username} doesn't have the ball`);
         player.ui.sendData({
           type: "action-feedback",
           feedbackType: "warning",
@@ -1214,7 +1214,7 @@ export class RoomManager {
    * Handle start second half request in room context
    */
   private handleRoomStartSecondHalf(room: Room, player: Player): void {
-    logger.info(`[Room ${room.config.id}] ${player.username} requested to start second half`);
+    logger.debug(`[Room ${room.config.id}] ${player.username} requested to start second half`);
 
     if (!room.game) {
       logger.error(`[Room ${room.config.id}] No game instance`);
@@ -1226,12 +1226,12 @@ export class RoomManager {
     }
 
     const gameState = room.game.getState();
-    logger.info(`[Room ${room.config.id}] Game state - isHalftime: ${gameState.isHalftime}, status: ${gameState.status}`);
+    logger.debug(`[Room ${room.config.id}] Game state - isHalftime: ${gameState.isHalftime}, status: ${gameState.status}`);
 
     if (gameState.isHalftime) {
-      logger.info(`[Room ${room.config.id}] Game is in halftime, starting second half`);
+      logger.debug(`[Room ${room.config.id}] Game is in halftime, starting second half`);
       room.game.startSecondHalf();
-      logger.info(`[Room ${room.config.id}] Second half started successfully`);
+      logger.debug(`[Room ${room.config.id}] Second half started successfully`);
     } else {
       logger.warn(`[Room ${room.config.id}] Cannot start second half - not in halftime (status: ${gameState.status})`);
       player.ui.sendData({

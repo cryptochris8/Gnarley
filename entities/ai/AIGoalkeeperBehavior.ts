@@ -213,9 +213,9 @@ export class AIGoalkeeperBehavior {
             z: normalizedZ * urgentSpeed,
           });
 
-          console.log(
-            `>E GOALKEEPER DIVE: ${context.username} diving to intercept (speed: ${urgentSpeed.toFixed(1)})`
-          );
+          // console.log(
+            // `>E GOALKEEPER DIVE: ${context.username} diving to intercept (speed: ${urgentSpeed.toFixed(1)})`
+          // );
 
           // Goalkeeper save animation - dodge-roll for diving saves
           if (context.isSpawned) {
@@ -267,9 +267,9 @@ export class AIGoalkeeperBehavior {
 
     // PRIORITY 1: URGENT SHOT RESPONSE
     if (isShotOnGoal && (isFastShot || isMediumShot)) {
-      console.log(
-        `>E URGENT SAVE: ${context.username} responding to shot (speed: ${ballSpeed.toFixed(1)})`
-      );
+      // console.log(
+        // `>E URGENT SAVE: ${context.username} responding to shot (speed: ${ballSpeed.toFixed(1)})`
+      // );
       const rapidTarget = this.applyRapidResponse(context, ballPosition, ballVelocity);
       if (rapidTarget) {
         return rapidTarget;
@@ -285,7 +285,7 @@ export class AIGoalkeeperBehavior {
         context.position
       );
       if (interceptionPoint) {
-        console.log(`<� INTERCEPTION: ${context.username} moving to intercept ball`);
+        // console.log(`<� INTERCEPTION: ${context.username} moving to intercept ball`);
         return interceptionPoint;
       }
     }
@@ -305,7 +305,7 @@ export class AIGoalkeeperBehavior {
       context.isClosestTeammateToPosition(ballPosition) &&
       distanceToBall < 25
     ) {
-      console.log(`Goalkeeper ${context.username} moving to retrieve ball from corner`);
+      // console.log(`Goalkeeper ${context.username} moving to retrieve ball from corner`);
 
       if (hasBall) {
         // Clear from corner
@@ -337,10 +337,10 @@ export class AIGoalkeeperBehavior {
         }
 
         if (bestTarget && bestScore > 5) {
-          console.log(`Goalkeeper ${context.username} passing from corner to teammate`);
+          // console.log(`Goalkeeper ${context.username} passing from corner to teammate`);
           context.forcePass(bestTarget, bestTarget.position, 0.7);
         } else {
-          console.log(`Goalkeeper ${context.username} clearing from corner to mid-field`);
+          // console.log(`Goalkeeper ${context.username} clearing from corner to mid-field`);
           const clearTarget = {
             x: fieldCenterX + (context.team === "red" ? -2 : 2),
             y: context.position.y,
@@ -364,7 +364,7 @@ export class AIGoalkeeperBehavior {
 
       // Force clearance after max possession time
       if (possessionTime >= context.GOALKEEPER_MAX_POSSESSION_TIME) {
-        console.log(`Goalkeeper ${context.username} FORCED clearing after possession limit`);
+        // console.log(`Goalkeeper ${context.username} FORCED clearing after possession limit`);
 
         const forwardDirection = context.team === "red" ? 1 : -1;
         const clearDistance = 10;
@@ -448,7 +448,7 @@ export class AIGoalkeeperBehavior {
         !ballIsTooFar;
 
       if (shouldComeOut) {
-        console.log(`Goalkeeper ${context.username} coming out to claim the ball`);
+        // console.log(`Goalkeeper ${context.username} coming out to claim the ball`);
         return ballPosition;
       } else {
         return {

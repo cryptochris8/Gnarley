@@ -157,7 +157,7 @@ export class AIOffensiveBehavior {
 
     // ALWAYS shoot if we're very close and central - don't leave chances!
     if (distanceToGoal < 12 && centralPosition) {
-      console.log(`🎯 ${role} taking guaranteed shot from ${distanceToGoal.toFixed(1)}m!`);
+      // console.log(`🎯 ${role} taking guaranteed shot from ${distanceToGoal.toFixed(1)}m!`);
       return {
         shouldShoot: true,
         targetPoint: {
@@ -224,11 +224,11 @@ export class AIOffensiveBehavior {
     if (distanceHorizontal < 10) {
       // Close range: Quick powerful finish
       distanceScaledForce = SHOT_FORCE * 0.9; // 3.6
-      console.log(`🎯 Close-range shot (${distanceHorizontal.toFixed(1)}m) - Quick finish`);
+      // console.log(`🎯 Close-range shot (${distanceHorizontal.toFixed(1)}m) - Quick finish`);
     } else if (distanceHorizontal > 25) {
       // Long range: Full power driven shot
       distanceScaledForce = SHOT_FORCE * 1.1; // 4.4
-      console.log(`🚀 Long-range shot (${distanceHorizontal.toFixed(1)}m) - Full power`);
+      // console.log(`🚀 Long-range shot (${distanceHorizontal.toFixed(1)}m) - Full power`);
     } else {
       // Medium range: Solid strike
       distanceScaledForce = SHOT_FORCE * 1.0; // 4.0

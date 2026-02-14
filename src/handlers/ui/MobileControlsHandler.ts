@@ -37,8 +37,8 @@ export class MobileControlsHandler {
    * Tracks that a player is on a mobile device
    */
   handleMobileModeEnabled(player: Player, data: any): void {
-    logger.info(`Player ${player.username} enabled mobile mode`);
-    logger.info(`Device info:`, data.deviceInfo);
+    logger.debug(`Player ${player.username} enabled mobile mode`);
+    logger.debug(`Device info:`, data.deviceInfo);
 
     // Store mobile mode preference for this player
     (player as any)._isMobilePlayer = true;
@@ -53,7 +53,7 @@ export class MobileControlsHandler {
 
     // No need to notify other players - Hytopia SDK handles mobile detection automatically
 
-    logger.info(`Mobile mode enabled for ${player.username}`);
+    logger.debug(`Mobile mode enabled for ${player.username}`);
   }
 
   /**

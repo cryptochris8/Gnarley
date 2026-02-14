@@ -206,9 +206,9 @@ export class AIBallHandler {
         passDirection.z /= passLength;
 
         if (!context.isPassDirectionSafe(context.position, passDirection, distanceToTeammate)) {
-          console.log(
-            `${context.aiRole} ${context.username} skipping unsafe pass to ${teammate.player.username}`
-          );
+          // console.log(
+            // `${context.aiRole} ${context.username} skipping unsafe pass to ${teammate.player.username}`
+          // );
           continue;
         }
       }
@@ -229,9 +229,9 @@ export class AIBallHandler {
       // Human player priority
       if (!(teammate instanceof (AIPlayerEntity as any))) {
         roleBonus = 50;
-        console.log(
-          `${context.aiRole} ${context.username} prioritizing human player ${teammate.player.username}`
-        );
+        // console.log(
+          // `${context.aiRole} ${context.username} prioritizing human player ${teammate.player.username}`
+        // );
       } else {
         const aiTeammate = teammate as any;
         switch (aiTeammate.aiRole) {
@@ -306,12 +306,12 @@ export class AIBallHandler {
         passTargetPosition = bestTargetPlayer.position;
       }
 
-      console.log(
-        `${context.aiRole} ${context.username} passing to ${bestTargetPlayer.player.username} with score ${bestScore.toFixed(1)}`
-      );
+      // console.log(
+        // `${context.aiRole} ${context.username} passing to ${bestTargetPlayer.player.username} with score ${bestScore.toFixed(1)}`
+      // );
     } else {
       // No suitable teammate - make general forward pass
-      console.log(`${context.aiRole} ${context.username} - no teammate target, forward pass`);
+      // console.log(`${context.aiRole} ${context.username} - no teammate target, forward pass`);
 
       const forwardDirection = context.team === "red" ? 1 : -1;
       const currentX = context.position.x;
@@ -346,7 +346,7 @@ export class AIBallHandler {
 
     if (distanceFromCenterX > fieldWidthX * 0.35 || distanceFromCenterZ > fieldWidthZ * 0.35) {
       powerMultiplier *= 0.7;
-      console.log(`${context.aiRole} ${context.username} reducing pass power for edge target`);
+      // console.log(`${context.aiRole} ${context.username} reducing pass power for edge target`);
     }
 
     // Execute the pass

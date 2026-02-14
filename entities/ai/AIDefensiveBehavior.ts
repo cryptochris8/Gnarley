@@ -283,7 +283,7 @@ export class AIDefensiveBehavior {
     const gkPosition = opponentGoalkeeper.position;
     const formationPos = entity.getRoleBasedPosition();
 
-    console.log(`🛡️ ${role} ${entity.player.username} respecting opponent GK possession`);
+    // console.log(`🛡️ ${role} ${entity.player.username} respecting opponent GK possession`);
 
     // Different respect distances based on role
     if (role === 'striker') {
@@ -307,7 +307,7 @@ export class AIDefensiveBehavior {
         y: formationPos.y,
         z: formationPos.z
       };
-      console.log(`🛡️ Defender ${entity.player.username} holding defensive position while opponent GK has ball`);
+      // console.log(`🛡️ Defender ${entity.player.username} holding defensive position while opponent GK has ball`);
       return defensivePosition;
     }
   }
@@ -342,7 +342,7 @@ export class AIDefensiveBehavior {
     }
 
     // Far enough - use fallback position for strategic positioning
-    console.log(`${entity.role} ${entity.player.username} ${reason}`);
+    // console.log(`${entity.role} ${entity.player.username} ${reason}`);
     return fallbackPosition;
   }
 

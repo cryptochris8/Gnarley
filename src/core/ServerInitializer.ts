@@ -88,7 +88,7 @@ export class ServerInitializer {
    * Initialize all server systems and return them
    */
   initialize(): ServerSystems {
-    logger.info("Starting soccer server initialization...");
+    logger.debug("Starting soccer server initialization...");
 
     // ========================================
     // STEP 1: Load Map and Configure Lighting
@@ -102,7 +102,7 @@ export class ServerInitializer {
     // Each game room creates its own via RoomManager.createRoom().
     const game: SoccerGame | null = null;
     const aiPlayers: AIPlayerEntity[] = [];
-    logger.info("Lobby mode: no game ball or SoccerGame created");
+    logger.debug("Lobby mode: no game ball or SoccerGame created");
 
     // Initialize audio manager
     const audioManager = new AudioManager(this.world);
@@ -137,7 +137,7 @@ export class ServerInitializer {
     performanceProfiler.start(); // Start profiling immediately
 
     const performanceOptimizer = new PerformanceOptimizer("HIGH_PERFORMANCE");
-    logger.info(
+    logger.debug(
       "Performance optimizer initialized in HIGH_PERFORMANCE mode"
     );
 
@@ -146,12 +146,12 @@ export class ServerInitializer {
     // ========================================
     this.setupServerMemoryManagement();
 
-    logger.info("Lobby initialized successfully with GPU memory optimizations!");
+    logger.debug("Lobby initialized successfully with GPU memory optimizations!");
 
     // ========================================
     // STEP 6: Music System
     // ========================================
-    logger.info("Audio system initialized and ready");
+    logger.debug("Audio system initialized and ready");
     const musicStarted = { value: false }; // Wrapped in object for mutability
 
     // ========================================
@@ -159,7 +159,7 @@ export class ServerInitializer {
     // ========================================
     const physicalLobby = new PhysicalLobby(this.world);
     physicalLobby.initialize();
-    logger.info("Physical lobby initialized with portals");
+    logger.debug("Physical lobby initialized with portals");
 
     // ========================================
     // STEP 8: Initialize Event Handlers
@@ -227,7 +227,7 @@ export class ServerInitializer {
     chatCommandHandlers.registerAll();
     gameEventHandlers.registerAll();
 
-    logger.info("Server initialization complete!");
+    logger.debug("Server initialization complete!");
 
     // ========================================
     // Return all initialized systems
@@ -263,9 +263,9 @@ export class ServerInitializer {
    * Load map and configure stadium lighting
    */
   private setupMapAndLighting(): void {
-    logger.info("Loading soccer stadium...");
+    logger.debug("Loading soccer stadium...");
     this.world.loadMap(worldMap);
-    logger.info("Soccer map loaded");
+    logger.debug("Soccer map loaded");
 
     // Set up enhanced lighting for the stadium
     this.world.setDirectionalLightIntensity(0.6);
@@ -273,7 +273,7 @@ export class ServerInitializer {
     this.world.setDirectionalLightColor({ r: 255, g: 248, b: 235 });
     this.world.setAmbientLightIntensity(1.2);
     this.world.setAmbientLightColor({ r: 250, g: 250, b: 255 });
-    logger.info("Enhanced stadium lighting configured");
+    logger.debug("Enhanced stadium lighting configured");
   }
 
   /**
@@ -288,6 +288,6 @@ export class ServerInitializer {
       }
     }, 30000);
 
-    logger.info("Server memory management enabled");
+    logger.debug("Server memory management enabled");
   }
 }

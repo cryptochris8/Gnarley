@@ -224,7 +224,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       });
     } catch (error) {
       console.error("Failed to create power-bar SceneUI:", error);
-      console.log("Game will continue without power-bar display");
+      // console.log("Game will continue without power-bar display");
       this._powerBarUI = undefined;
     }
   }
@@ -340,7 +340,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
     
     // **CRITICAL FIX**: Clear charging state if player no longer has ball
     if (this._holdingQ !== null && !hasBall) {
-      console.log(`🔧 SHOT METER FIX: Clearing charging state for ${entity.player?.username || 'unknown'} - lost ball possession`);
+      // console.log(`🔧 SHOT METER FIX: Clearing charging state for ${entity.player?.username || 'unknown'} - lost ball possession`);
       this._clearPowerChargeIfNeeded(entity);
       
       // Stop wind-up animation if it's playing
@@ -352,7 +352,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
     try {
       // Early return if entity or world is invalid
       if (!entity?.isSpawned || !entity.world) {
-        console.log("❌ Controller: Entity not spawned or no world");
+        // console.log("❌ Controller: Entity not spawned or no world");
         return;
       }
 
@@ -367,7 +367,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       }
 
       if (!(entity instanceof SoccerPlayerEntity)) {
-        console.log("❌ Controller: Entity is not SoccerPlayerEntity");
+        // console.log("❌ Controller: Entity is not SoccerPlayerEntity");
         return;
       }
 
@@ -477,7 +477,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
 
             // **SHOT METER FIX**: Add failsafe timeout after 3 seconds
             if (elapsed > 3000) {
-              console.log(`🔧 SHOT METER FAILSAFE: Auto-clearing stuck charging state after 3s for ${entity.player?.username || 'unknown'}`);
+              // console.log(`🔧 SHOT METER FAILSAFE: Auto-clearing stuck charging state after 3s for ${entity.player?.username || 'unknown'}`);
               this._clearPowerChargeIfNeeded(entity);
               return;
             }
@@ -506,7 +506,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
                                       if (arcadeManager && arcadeManager.hasMegaKick && arcadeManager.hasMegaKick(entity.player.username)) {
                totalPower *= 2.0; // Double the total power for mega kick
                arcadeManager.consumeMegaKick(entity.player.username);
-               console.log(`⚽ MEGA KICK: ${entity.player.username} used mega kick enhancement!`);
+               // console.log(`⚽ MEGA KICK: ${entity.player.username} used mega kick enhancement!`);
               
               // Play special mega kick sound
               new Audio({
@@ -519,14 +519,14 @@ export default class CustomSoccerPlayer extends BaseEntityController {
           }
         }
 
-        console.log("Charge Duration:", chargeDuration, "Power:", totalPower);
+        // console.log("Charge Duration:", chargeDuration, "Power:", totalPower);
         entityState.setAttachedPlayer(null);
         const direction = directionFromOrientation(entity, cameraOrientation);
         
         // Apply impulse based on calculated totalPower
         soccerBall?.applyImpulse({
           x: direction.x * totalPower,       // Apply full power horizontally
-          y: Math.min(1.5, totalPower * 0.3), // Apply vertical power, capped (adjusted cap from 3 to 1.5)
+          y: Math.min(3.0, totalPower * 0.4), // Apply vertical power, capped to allow lobs/chips
           z: direction.z * totalPower,       // Apply full power horizontally
         });
         // Reset angular velocity to prevent unwanted spinning/backwards movement
@@ -552,13 +552,13 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       // Note: Removed !hasBall restriction to allow ability use while holding ball
       if (input["f"] && entity.abilityHolder.hasAbility()) {
         const ability = entity.abilityHolder.getAbility();
-        console.log(`🎮 F key pressed by ${entity.player?.username || 'unknown'} - activating ability: ${ability?.getIcon() || 'unknown'}`);
-        console.log(`🔍 Ability details: type=${ability?.constructor.name}, has use method=${typeof ability?.use === 'function'}`);
+        // console.log(`🎮 F key pressed by ${entity.player?.username || 'unknown'} - activating ability: ${ability?.getIcon() || 'unknown'}`);
+        // console.log(`🔍 Ability details: type=${ability?.constructor.name}, has use method=${typeof ability?.use === 'function'}`);
         const worldArcadeManager = (entity.world as any)?._arcadeManager;
-        console.log(`🔍 Global isArcadeMode()=${isArcadeMode()}, World has _arcadeManager=${!!worldArcadeManager}, roomArcadeMode=${worldArcadeManager?.isRoomArcadeMode ?? 'N/A'}`);
-        console.log(`🔍 Player has ball: ${hasBall} (ability activation now allowed regardless)`);
-        console.log(`🔍 Player position: ${JSON.stringify(entity.position)}`);
-        console.log(`🔍 Camera direction: ${entity.player?.camera?.facingDirection ? JSON.stringify(entity.player.camera.facingDirection) : 'null'}`);
+        // console.log(`🔍 Global isArcadeMode()=${isArcadeMode()}, World has _arcadeManager=${!!worldArcadeManager}, roomArcadeMode=${worldArcadeManager?.isRoomArcadeMode ?? 'N/A'}`);
+        // console.log(`🔍 Player has ball: ${hasBall} (ability activation now allowed regardless)`);
+        // console.log(`🔍 Player position: ${JSON.stringify(entity.position)}`);
+        // console.log(`🔍 Camera direction: ${entity.player?.camera?.facingDirection ? JSON.stringify(entity.player.camera.facingDirection) : 'null'}`);
         
         // Use the collected ability (from pickup system)
         // SAFETY CHECK: Ensure camera and facingDirection exist
@@ -579,7 +579,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         );
         
         if (success) {
-          console.log(`✅ Ability used successfully by ${entity.player?.username || 'unknown'}`);
+          // console.log(`✅ Ability used successfully by ${entity.player?.username || 'unknown'}`);
         } else {
           console.error(`❌ Ability execution failed for ${entity.player?.username || 'unknown'}`);
         }
@@ -589,43 +589,28 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         return; // Exit early to prevent other systems from activating
       }
 
-      // Handle F key when no ability is available (pass request only)
+      // Handle F key when no ability is available (request AI teammate to pass)
       if (input["f"]) {
-        // Debug information about F key press
-        console.log(`🎯 F key pressed by ${entity.player?.username || 'unknown'} - has ball: ${hasBall}, has ability: ${entity.abilityHolder.hasAbility()}`);
-        
         if (!entity.abilityHolder.hasAbility()) {
-          console.log(`ℹ️ No ability to use - would send pass request if not holding ball`);
-          
-          // Only send pass request if not holding ball
+          // Only request pass if player doesn't have ball
           if (!hasBall) {
             // Check cooldown to prevent spam
             const currentTime = Date.now();
             if (currentTime - this._lastPowerUpTime >= CustomSoccerPlayer.POWER_UP_COOLDOWN_MS) {
               this._lastPowerUpTime = currentTime;
-              
-              // Send request-pass message to server
-              entity.player.ui.sendData({
-                type: "request-pass"
-              });
-              
-              console.log(`✅ Pass request sent by ${entity.player?.username || 'unknown'}`);
-              
-              // Cancel the input to prevent multiple activations
+
+              // Directly execute pass request on server (controller already runs server-side)
+              this._requestPassFromTeammate(entity, entityState);
+
               input["f"] = false;
             } else {
-              // Still on cooldown, cancel the input
               input["f"] = false;
-              const remainingCooldown = Math.ceil((CustomSoccerPlayer.POWER_UP_COOLDOWN_MS - (currentTime - this._lastPowerUpTime)) / 1000);
-              console.log(`🎯 Pass request on cooldown for ${entity.player?.username || 'unknown'} - ${remainingCooldown}s remaining`);
             }
           } else {
             input["f"] = false;
-            console.log(`ℹ️ Not sending pass request - player has ball`);
           }
         } else {
           input["f"] = false;
-          console.log(`ℹ️ F key handled by ability system above`);
         }
       }
 
@@ -642,13 +627,13 @@ export default class CustomSoccerPlayer extends BaseEntityController {
             const passResult = this._executeTargetedPass(entity, bestTarget, soccerBall);
             
             if (passResult.success) {
-              console.log(`✅ HUMAN PASS: ${entity.player.username} passed to ${bestTarget.player.username} at distance ${passResult.distance.toFixed(1)}`);
+              // console.log(`✅ HUMAN PASS: ${entity.player.username} passed to ${bestTarget.player.username} at distance ${passResult.distance.toFixed(1)}`);
             } else {
               console.warn(`❌ HUMAN PASS FAILED: Could not complete pass to ${bestTarget.player.username}`);
             }
           } else {
             // Fallback to directional pass if no good target found
-            console.log(`⚠️ HUMAN PASS: No good target found, using directional pass`);
+            // console.log(`⚠️ HUMAN PASS: No good target found, using directional pass`);
             this._executeDirectionalPass(entity, cameraOrientation, soccerBall);
           }
           
@@ -692,7 +677,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
               
               // Log occasionally for debugging
               if (Math.random() < 0.002) {
-                console.log(`⏰ TIME SLOW: ${entity.player.username} - Speed reduced to ${(timeSlowScale * 100).toFixed(0)}%`);
+                // console.log(`⏰ TIME SLOW: ${entity.player.username} - Speed reduced to ${(timeSlowScale * 100).toFixed(0)}%`);
               }
             }
           }
@@ -707,7 +692,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
           
           // Log speed enhancement for debugging
           if (Math.random() < 0.001) { // Very occasional logging
-            console.log(`🏃 ARCADE SPEED: ${entity.player.username} - Base: ${(isRunning ? this.runVelocity : this.walkVelocity).toFixed(1)}, Enhanced: ${velocity.toFixed(1)}`);
+            // console.log(`🏃 ARCADE SPEED: ${entity.player.username} - Base: ${(isRunning ? this.runVelocity : this.walkVelocity).toFixed(1)}, Enhanced: ${velocity.toFixed(1)}`);
           }
         }
         
@@ -717,7 +702,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         
         // Log stamina effect for debugging (occasionally)
         if (Math.random() < 0.002 && staminaMultiplier < 1.0) { // Only log when stamina is affecting speed
-          console.log(`💨 STAMINA: ${entity.player.username} - Stamina: ${entity.getStaminaPercentage().toFixed(0)}%, Speed: ${(staminaMultiplier * 100).toFixed(0)}%`);
+          // console.log(`💨 STAMINA: ${entity.player.username} - Stamina: ${entity.getStaminaPercentage().toFixed(0)}%, Speed: ${(staminaMultiplier * 100).toFixed(0)}%`);
         }
         
         if (w) {
@@ -822,7 +807,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
           y: entity.linearVelocity.y, // Preserve vertical velocity
           z: entity.linearVelocity.z * scale
         });
-        console.log(`Player ${entity.player?.username || 'unknown'} velocity limited to prevent instability`);
+        // console.log(`Player ${entity.player?.username || 'unknown'} velocity limited to prevent instability`);
       }
 
       // Enhanced jump mechanics with goalkeeper header support
@@ -1066,7 +1051,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         // ... existing code ...
       }
     } catch (error) {
-      console.log("Tick error:", error);
+      // console.log("Tick error:", error);
     }
   }
 
@@ -1131,7 +1116,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
    * **ENHANCED**: Now properly resets all charging state to prevent freeze bugs
    */
   private _clearPowerChargeIfNeeded(player: PlayerEntity) {
-    console.log(`🔧 SHOT METER CLEANUP: Clearing all charging state for ${player.player?.username || 'unknown'}`);
+    // console.log(`🔧 SHOT METER CLEANUP: Clearing all charging state for ${player.player?.username || 'unknown'}`);
     
     // Clear charge interval if it exists
     this.clearChargeInterval();
@@ -1147,7 +1132,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         this._powerBarUI.unload();
         this._powerBarUI = undefined;
       } catch (error) {
-        console.log("Error clearing power bar UI:", error);
+        // console.log("Error clearing power bar UI:", error);
       }
     }
     
@@ -1159,20 +1144,20 @@ export default class CustomSoccerPlayer extends BaseEntityController {
     if (player instanceof SoccerPlayerEntity && player.getModelAnimation("wind_up")?.isPlaying) {
       try {
         player.stopModelAnimations(["wind_up"]);
-        console.log(`🔧 SHOT METER CLEANUP: Stopped wind_up animation for ${player.player?.username || 'unknown'}`);
+        // console.log(`🔧 SHOT METER CLEANUP: Stopped wind_up animation for ${player.player?.username || 'unknown'}`);
       } catch (error) {
-        console.log("Error stopping wind_up animation:", error);
+        // console.log("Error stopping wind_up animation:", error);
       }
     }
   }
 
   public detach(entity: Entity) {
     try {
-      console.log(`🧹 DETACH CLEANUP: Starting comprehensive cleanup for ${entity instanceof PlayerEntity ? entity.player?.username : entity.id}`);
+      // console.log(`🧹 DETACH CLEANUP: Starting comprehensive cleanup for ${entity instanceof PlayerEntity ? entity.player?.username : entity.id}`);
 
       // 1. **SHOT METER FIX**: Clear any charging state when detaching
       if (this._holdingQ !== null && entity instanceof PlayerEntity) {
-        console.log(`🔧 SHOT METER FIX: Clearing charging state during detach for ${entity.player?.username || 'unknown'}`);
+        // console.log(`🔧 SHOT METER FIX: Clearing charging state during detach for ${entity.player?.username || 'unknown'}`);
         this._clearPowerChargeIfNeeded(entity);
       }
 
@@ -1181,7 +1166,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         try {
           entity.stopModelAnimations(ALL_LOOPED_ANIMATIONS);
         } catch (error) {
-          console.log("Animation cleanup error:", error);
+          // console.log("Animation cleanup error:", error);
         }
       }
 
@@ -1207,7 +1192,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
           this._stepAudio.pause();
           this._stepAudio = undefined;
         } catch (error) {
-          console.log("Step audio cleanup error:", error);
+          // console.log("Step audio cleanup error:", error);
         }
       }
 
@@ -1231,11 +1216,11 @@ export default class CustomSoccerPlayer extends BaseEntityController {
           this._powerBarUI.unload();
           this._powerBarUI = undefined;
         } catch (error) {
-          console.log("Power bar UI cleanup error:", error);
+          // console.log("Power bar UI cleanup error:", error);
         }
       }
 
-      console.log(`✅ DETACH CLEANUP: Completed cleanup for ${entity instanceof PlayerEntity ? entity.player?.username : entity.id}`);
+      // console.log(`✅ DETACH CLEANUP: Completed cleanup for ${entity instanceof PlayerEntity ? entity.player?.username : entity.id}`);
 
       super.detach(entity);
     } catch (error) {
@@ -1286,8 +1271,8 @@ export default class CustomSoccerPlayer extends BaseEntityController {
         if (CustomSoccerPlayer._ballStuckStartTime === 0) {
           CustomSoccerPlayer._ballStuckStartTime = currentTime;
         } else if (currentTime - CustomSoccerPlayer._ballStuckStartTime > BALL_STUCK_TIME_THRESHOLD) {
-          console.log("Ball stuck detected - resetting position to global spawn.");
-          soccerBall.despawn();
+          // console.log("Ball stuck detected - resetting position to global spawn.");
+          if (soccerBall.isSpawned) soccerBall.despawn();
           entityState.setAttachedPlayer(null);
           soccerBall.spawn(world, GLOBAL_BALL_SPAWN_POSITION);
           soccerBall.setLinearVelocity({ x: 0, y: 0, z: 0 });
@@ -1348,8 +1333,8 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       
       const distanceToTeammate = Math.sqrt(toTeammate.x * toTeammate.x + toTeammate.z * toTeammate.z);
       
-      // Skip teammates that are too far away
-      if (distanceToTeammate > 25 || distanceToTeammate < 2) continue;
+      // Skip teammates that are too far away or too close
+      if (distanceToTeammate > 30 || distanceToTeammate < 2) continue;
       
       // Normalize direction to teammate
       const normalizedToTeammate = {
@@ -1362,14 +1347,14 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       const dotProduct = cameraDirection.x * normalizedToTeammate.x + cameraDirection.z * normalizedToTeammate.z;
       const angle = Math.acos(Math.max(-1, Math.min(1, dotProduct))); // Clamp to prevent NaN
       
-      // Only consider teammates within a reasonable angle (90 degrees = π/2 radians)
-      if (angle > Math.PI / 2) continue;
+      // Consider teammates within a wide angle (120 degrees) for better target finding
+      if (angle > (Math.PI * 2 / 3)) continue;
       
       // Calculate score based on multiple factors
       let score = 0;
       
       // Angle bonus - prefer teammates in camera direction (max 30 points)
-      score += (1 - (angle / (Math.PI / 2))) * 30;
+      score += (1 - (angle / (Math.PI * 2 / 3))) * 30;
       
       // Distance bonus - prefer closer teammates but not too close (max 25 points)
       const optimalDistance = 12; // Optimal pass distance
@@ -1396,7 +1381,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       // Human player priority - give massive bonus to human players (max 50 points)
       if (!(teammate as any).aiRole) {
         score += 50;
-        console.log(`Human pass targeting: Prioritizing human player ${teammate.player.username}`);
+        // console.log(`Human pass targeting: Prioritizing human player ${teammate.player.username}`);
       }
       
       if (score > bestScore) {
@@ -1459,22 +1444,22 @@ export default class CustomSoccerPlayer extends BaseEntityController {
     const targetVelocity = target.linearVelocity || { x: 0, y: 0, z: 0 };
     const velocityMagnitude = Math.sqrt(targetVelocity.x * targetVelocity.x + targetVelocity.z * targetVelocity.z);
 
-    // Calculate lead position - only lead if target is moving fast enough
+    // Calculate lead position - lead if target is moving
     let leadPosition = { ...target.position };
-    if (velocityMagnitude > 1.5) { // Higher threshold - only lead for clear movement
-      // Calculate estimated travel time based on realistic ball speed
-      const estimatedBallSpeed = 7.0; // units per second
+    if (velocityMagnitude > 0.8) { // Lower threshold to lead more often
+      // Calculate estimated travel time based on pass speed (lower power = slower ball)
+      const estimatedBallSpeed = 5.5; // units per second (reduced to match lower pass power)
       const passTravelTime = Math.min(distanceToTarget / estimatedBallSpeed, 1.5); // Cap at 1.5 seconds
 
-      // Apply conservative leading - only 50% of predicted movement
-      const leadMultiplier = 0.5;
+      // Apply aggressive leading - 85% of predicted movement for accurate delivery
+      const leadMultiplier = 0.85;
       leadPosition = {
         x: target.position.x + targetVelocity.x * passTravelTime * leadMultiplier,
         y: target.position.y,
         z: target.position.z + targetVelocity.z * passTravelTime * leadMultiplier
       };
 
-      console.log(`Human pass leading: vel=${velocityMagnitude.toFixed(1)}, travel=${passTravelTime.toFixed(2)}s`);
+      // console.log(`Human pass leading: vel=${velocityMagnitude.toFixed(1)}, travel=${passTravelTime.toFixed(2)}s`);
     }
 
     // Calculate pass direction
@@ -1495,32 +1480,23 @@ export default class CustomSoccerPlayer extends BaseEntityController {
     };
 
     // Calculate optimal pass power based on distance
-    // BALANCED POWER: Matches AI pass power range (2.5-4.5)
-    // Short passes (< 10): power ~2.5-3.0
-    // Medium passes (10-20): power ~3.0-3.5
-    // Long passes (> 20): power ~3.5-4.5 (max)
+    // BALANCED POWER: Aligned with AI pass power range (1.8-3.0)
+    // Short passes (< 10): power ~1.8-2.2
+    // Medium passes (10-20): power ~2.2-2.8
+    // Long passes (> 20): power ~2.8-3.2 (max)
     let finalPassPower: number;
     if (passDistance < 10) {
-      finalPassPower = 2.5 + (passDistance / 20); // 2.5 to 3.0
+      finalPassPower = 1.8 + (passDistance * 0.04); // 1.8 to 2.2
     } else if (passDistance < 20) {
-      finalPassPower = 3.0 + ((passDistance - 10) / 20); // 3.0 to 3.5
+      finalPassPower = 2.2 + ((passDistance - 10) * 0.06); // 2.2 to 2.8
     } else {
-      finalPassPower = 3.5 + Math.min(1.0, (passDistance - 20) / 20); // 3.5 to 4.5 max
+      finalPassPower = 2.8 + Math.min(0.4, (passDistance - 20) * 0.04); // 2.8 to 3.2 max
     }
 
-    console.log(`Human pass: dist=${passDistance.toFixed(1)}, power=${finalPassPower.toFixed(2)}`);
+    // console.log(`Human pass: dist=${passDistance.toFixed(1)}, power=${finalPassPower.toFixed(2)}`);
 
-    // Clear ball's current velocity for clean pass
-    const currentVelocity = ball.linearVelocity;
-    if (currentVelocity) {
-      ball.setLinearVelocity({
-        x: currentVelocity.x * 0.3, // Less aggressive velocity clearing for more responsive passes
-        y: currentVelocity.y * 0.3,
-        z: currentVelocity.z * 0.3
-      });
-    } else {
-      ball.setLinearVelocity({ x: 0, y: 0, z: 0 });
-    }
+    // Fully clear ball's current velocity for a clean, accurate pass
+    ball.setLinearVelocity({ x: 0, y: 0, z: 0 });
 
     try {
       // Apply pass impulse with controlled vertical component
@@ -1552,7 +1528,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       const targetAny = target as any;
       if (targetAny.notifyIncomingPass && typeof targetAny.notifyIncomingPass === 'function') {
         targetAny.notifyIncomingPass(leadPosition);
-        console.log(`📨 Human pass: Notified AI ${target.player.username} to receive pass at (${leadPosition.x.toFixed(1)}, ${leadPosition.z.toFixed(1)})`);
+        // console.log(`📨 Human pass: Notified AI ${target.player.username} to receive pass at (${leadPosition.x.toFixed(1)}, ${leadPosition.z.toFixed(1)})`);
       }
 
       return { success: true, distance: distanceToTarget };
@@ -1573,20 +1549,11 @@ export default class CustomSoccerPlayer extends BaseEntityController {
 
     const direction = directionFromOrientation(entity, cameraOrientation);
     
-    // Clear ball velocity
-    const currentVelocity = ball.linearVelocity;
-    if (currentVelocity) {
-      ball.setLinearVelocity({
-        x: currentVelocity.x * 0.3, // Less aggressive velocity clearing for more responsive passes
-        y: currentVelocity.y * 0.3,
-        z: currentVelocity.z * 0.3
-      });
-    } else {
-      ball.setLinearVelocity({ x: 0, y: 0, z: 0 });
-    }
+    // Fully clear ball velocity for clean directional pass
+    ball.setLinearVelocity({ x: 0, y: 0, z: 0 });
 
-    // Use moderate power for directional pass (conservative)
-    const directionalPassPower = 4.5; // Slightly lower than targeted passes for safety
+    // Use moderate power for directional pass (aligned with targeted pass range)
+    const directionalPassPower = 2.8; // Moderate power matching mid-range targeted passes
     
     try {
       ball.applyImpulse({
@@ -1614,7 +1581,74 @@ export default class CustomSoccerPlayer extends BaseEntityController {
     }
   }
 
-  
+  /**
+   * Request an AI teammate to pass the ball to this player.
+   * Called when the player presses F and doesn't have the ball.
+   * Executes directly on the server (no UI event roundtrip needed).
+   */
+  private _requestPassFromTeammate(entity: PlayerEntity, entityState: any): void {
+    if (!(entity instanceof SoccerPlayerEntity)) return;
+
+    const playerWithBall = entityState.getAttachedPlayer();
+
+    // Check if an AI teammate has the ball
+    if (
+      playerWithBall &&
+      playerWithBall instanceof SoccerPlayerEntity &&
+      playerWithBall !== entity &&
+      (playerWithBall as any).team === (entity as any).team &&
+      typeof (playerWithBall as any).forcePass === 'function'
+    ) {
+      // Calculate distance for power scaling
+      const distanceToPlayer = Math.sqrt(
+        Math.pow(playerWithBall.position.x - entity.position.x, 2) +
+        Math.pow(playerWithBall.position.z - entity.position.z, 2)
+      );
+
+      // Calculate target point slightly in front of the requesting player
+      const targetDirection = getDirectionFromRotation(entity.rotation);
+      const leadDistance = 2.5;
+      const passTargetPoint = {
+        x: entity.position.x + targetDirection.x * leadDistance,
+        y: entity.position.y,
+        z: entity.position.z + targetDirection.z * leadDistance,
+      };
+
+      // Scale power based on distance
+      let passPower = 0.7;
+      if (distanceToPlayer > 20) {
+        passPower = 0.95;
+      } else if (distanceToPlayer > 10) {
+        passPower = 0.8;
+      }
+
+      const passSuccess = (playerWithBall as any).forcePass(entity, passTargetPoint, passPower);
+
+      if (passSuccess) {
+        entity.player.ui.sendData({
+          type: "action-feedback",
+          feedbackType: "success",
+          title: "Pass Incoming!",
+          message: `${playerWithBall.player.username} is passing`,
+        });
+      } else {
+        entity.player.ui.sendData({
+          type: "action-feedback",
+          feedbackType: "error",
+          title: "Pass Failed",
+          message: "Teammate couldn't pass",
+        });
+      }
+    } else {
+      entity.player.ui.sendData({
+        type: "action-feedback",
+        feedbackType: "warning",
+        title: "No Pass Available",
+        message: "No AI teammate has the ball",
+      });
+    }
+  }
+
   /**
    * Performs a goalkeeper header to deflect or catch high shots
    * @param entity - The goalkeeper entity
@@ -1648,7 +1682,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       });
       
       // Play deflection sound effect if available
-      console.log(`Goalkeeper ${entity.player?.username || 'AI'} deflected a fast shot!`);
+      // console.log(`Goalkeeper ${entity.player?.username || 'AI'} deflected a fast shot!`);
       
     } else {
       // Slower shot - attempt to catch or control
@@ -1660,7 +1694,7 @@ export default class CustomSoccerPlayer extends BaseEntityController {
       
       ball.setLinearVelocity(catchDirection);
       
-      console.log(`Goalkeeper ${entity.player?.username || 'AI'} caught the ball with a header!`);
+      // console.log(`Goalkeeper ${entity.player?.username || 'AI'} caught the ball with a header!`);
     }
   }
   
