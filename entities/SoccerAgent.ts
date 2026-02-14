@@ -14,6 +14,7 @@ import {
   FIELD_MIN_Z,
   FIELD_MAX_Z
 } from '../state/gameConfig';
+import { isArcadeMode, isFIFAMode } from "../state/gameModes";
 
 /**
  * SoccerAgent class
@@ -134,14 +135,20 @@ export class SoccerAgent {
 
     // SCORING PRIORITY: If we're very close to goal and central, DON'T pass - SHOOT!
     const isCentralPosition = Math.abs(this.entity.position.z - AI_FIELD_CENTER_Z) < 12;
-    if (myDistanceToGoal < 15 && isCentralPosition) {
+    const fifaMode = isFIFAMode();
+    const arcadeMode = isArcadeMode();
+    // FIFA: Only guaranteed shot from very close; Arcade: wider shot zone
+    const primeShootDistance = fifaMode ? 12 : (arcadeMode ? 18 : 15);
+    if (myDistanceToGoal < primeShootDistance && isCentralPosition) {
       console.log(`${this.entity.player.username} in prime shooting position (${myDistanceToGoal.toFixed(1)} from goal) - NOT looking for pass`);
       return false; // Don't pass, let the shooting logic handle it
     }
 
-    // If we're close to goal (15-20 units) and striker/midfielder, bias toward shooting
-    if (myDistanceToGoal < 20 && (this.entity.aiRole === 'striker' || this.entity.aiRole.includes('midfielder'))) {
-      if (Math.random() < 0.6) { // 60% chance to NOT pass and try to shoot instead
+    // Close to goal bias: FIFA prefers passing to create better chances; Arcade shoots freely
+    const closeGoalDistance = fifaMode ? 16 : (arcadeMode ? 25 : 20);
+    const shootBias = fifaMode ? 0.35 : (arcadeMode ? 0.75 : 0.6);
+    if (myDistanceToGoal < closeGoalDistance && (this.entity.aiRole === 'striker' || this.entity.aiRole.includes('midfielder'))) {
+      if (Math.random() < shootBias) {
         console.log(`${this.entity.player.username} close to goal - biasing toward shot attempt`);
         return false;
       }
@@ -156,19 +163,48 @@ export class SoccerAgent {
       .map(o => this.entity.distanceBetween(this.entity.position, o.position)));
     const underPressure = closestOpponentDist < 6;  // Opponent within 6 units (tighter)
 
-    // Position-based passing tendency - reduced when close to goal
-    let rolePassBias = {
-      'goalkeeper': 0.95,
-      'left-back': 0.75,
-      'right-back': 0.75,
-      'central-midfielder-1': 0.60,
-      'central-midfielder-2': 0.60,
-      'striker': 0.40  // Strikers should shoot more, pass less
-    }[this.entity.aiRole] || 0.55;
-
-    // Reduce pass bias when close to goal - we want shots!
-    if (myDistanceToGoal < 25) {
-      rolePassBias *= 0.7;
+    // Position-based passing tendency - mode-aware
+    let rolePassBias: number;
+    if (fifaMode) {
+      // FIFA: Much higher passing tendency - build up play like World Cup
+      rolePassBias = {
+        'goalkeeper': 0.98,
+        'left-back': 0.88,
+        'right-back': 0.88,
+        'central-midfielder-1': 0.80,
+        'central-midfielder-2': 0.80,
+        'striker': 0.55  // Even strikers pass more in FIFA
+      }[this.entity.aiRole] || 0.75;
+      // Smaller reduction near goal in FIFA - still prefer good chances
+      if (myDistanceToGoal < 25) {
+        rolePassBias *= 0.85;
+      }
+    } else if (arcadeMode) {
+      // Arcade: Low passing tendency - shoot and dribble more, be wild
+      rolePassBias = {
+        'goalkeeper': 0.90,
+        'left-back': 0.60,
+        'right-back': 0.60,
+        'central-midfielder-1': 0.45,
+        'central-midfielder-2': 0.45,
+        'striker': 0.25  // Strikers almost always shoot in arcade
+      }[this.entity.aiRole] || 0.40;
+      // Big reduction near goal in arcade - always shoot
+      if (myDistanceToGoal < 30) {
+        rolePassBias *= 0.5;
+      }
+    } else {
+      rolePassBias = {
+        'goalkeeper': 0.95,
+        'left-back': 0.75,
+        'right-back': 0.75,
+        'central-midfielder-1': 0.60,
+        'central-midfielder-2': 0.60,
+        'striker': 0.40
+      }[this.entity.aiRole] || 0.55;
+      if (myDistanceToGoal < 25) {
+        rolePassBias *= 0.7;
+      }
     }
 
     // If under pressure OR random check passes based on role bias, look for pass

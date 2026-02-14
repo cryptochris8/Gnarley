@@ -3378,11 +3378,11 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     const fieldCenterX = (AI_GOAL_LINE_X_RED + AI_GOAL_LINE_X_BLUE) / 2;
     const fieldCenterZ = AI_FIELD_CENTER_Z;
     
-    // Define safe boundaries (more conservative margins to prevent out of bounds)
-    const safeMinX = FIELD_MIN_X + 8; // Increased margin from 5 to 8
-    const safeMaxX = FIELD_MAX_X - 8; // Increased margin from 5 to 8
-    const safeMinZ = FIELD_MIN_Z + 8; // Increased margin from 5 to 8
-    const safeMaxZ = FIELD_MAX_Z - 8; // Increased margin from 5 to 8
+    // Define safe boundaries (balanced margins for full field utilization)
+    const safeMinX = FIELD_MIN_X + 5; // Tighter margin for more playable area
+    const safeMaxX = FIELD_MAX_X - 5; // Tighter margin for more playable area
+    const safeMinZ = FIELD_MIN_Z + 5; // Tighter margin for more playable area
+    const safeMaxZ = FIELD_MAX_Z - 5; // Tighter margin for more playable area
     
     // Calculate the clamped position
     const clampedX = Math.max(safeMinX, Math.min(safeMaxX, targetPoint.x));
@@ -3392,8 +3392,8 @@ export default class AIPlayerEntity extends SoccerPlayerEntity {
     if (clampedX !== targetPoint.x || clampedZ !== targetPoint.z) {
       console.log(`Adjusted out-of-bounds pass target from (${targetPoint.x.toFixed(1)}, ${targetPoint.z.toFixed(1)}) to (${clampedX.toFixed(1)}, ${clampedZ.toFixed(1)})`);
       
-      // For all players, make a safer adjustment toward field center
-      const centerBias = 0.4; // Increased from 0.3 for more conservative passing
+      // For all players, subtle adjustment toward field center
+      const centerBias = 0.2; // Reduced for more natural sideline play
       return {
         x: clampedX * (1 - centerBias) + fieldCenterX * centerBias,
         y: targetPoint.y,

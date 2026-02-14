@@ -1,6 +1,7 @@
 import { type Vector3Like, Entity } from "hytopia";
 import type AIPlayerEntity from "../AIPlayerEntity";
 import sharedState from "../../state/sharedState";
+import { isArcadeMode, isFIFAMode } from "../../state/gameModes";
 
 // Helper to get correct state from entity (room or global)
 const getState = (entity: AIPlayerEntity) => entity.getSharedState();
@@ -69,42 +70,89 @@ export class AIOffensiveBehavior {
     const distanceToGoal = entity.distanceBetween(currentPosition, opponentGoalTarget);
     const centralPosition = Math.abs(currentPosition.z - AI_FIELD_CENTER_Z) < 15;
 
-    // Role-specific shooting parameters - AGGRESSIVE
+    // Role-specific shooting parameters - mode-aware
     let inPrimeShootingRange = false;
     let inDecentShootingRange = false;
     let shootingProbability = 0;
     let powerMultiplier = 1.0;
+    const arcadeMode = isArcadeMode();
+    const fifaMode = isFIFAMode();
 
     if (role === 'striker') {
-      // Strikers: VERY aggressive shooting
-      inPrimeShootingRange = distanceToGoal < 20;
-      inDecentShootingRange = distanceToGoal < 28;
-      shootingProbability = 0.85; // High base probability
-
-      if (inPrimeShootingRange) shootingProbability = 0.95; // Almost always shoot when close
-      if (centralPosition) shootingProbability += 0.05;
-
-      powerMultiplier = distanceToGoal > 22 ? 1.3 : 1.15;
+      if (fifaMode) {
+        // FIFA: Strategic shooting - prefer build-up, only shoot from good positions
+        inPrimeShootingRange = distanceToGoal < 16;
+        inDecentShootingRange = distanceToGoal < 22;
+        shootingProbability = 0.65; // Lower base - prefer passing in build-up
+        if (inPrimeShootingRange) shootingProbability = 0.88; // Clinical finishing when close
+        if (centralPosition) shootingProbability += 0.07;
+        powerMultiplier = distanceToGoal > 22 ? 1.2 : 1.1;
+      } else if (arcadeMode) {
+        // Arcade: Wild, aggressive shooting from distance
+        inPrimeShootingRange = distanceToGoal < 25;
+        inDecentShootingRange = distanceToGoal < 35;
+        shootingProbability = 0.90; // Very aggressive
+        if (inPrimeShootingRange) shootingProbability = 0.97;
+        if (centralPosition) shootingProbability += 0.03;
+        powerMultiplier = distanceToGoal > 22 ? 1.4 : 1.2;
+      } else {
+        inPrimeShootingRange = distanceToGoal < 20;
+        inDecentShootingRange = distanceToGoal < 28;
+        shootingProbability = 0.85;
+        if (inPrimeShootingRange) shootingProbability = 0.95;
+        if (centralPosition) shootingProbability += 0.05;
+        powerMultiplier = distanceToGoal > 22 ? 1.3 : 1.15;
+      }
     } else if (role.includes('midfielder')) {
-      // Midfielders: Aggressive shooting
-      inPrimeShootingRange = distanceToGoal < 18;
-      inDecentShootingRange = distanceToGoal < 25;
-      shootingProbability = 0.70;
-
-      if (inPrimeShootingRange) shootingProbability = 0.85;
-      if (centralPosition) shootingProbability += 0.10;
-
-      powerMultiplier = distanceToGoal > 20 ? 1.25 : 1.1;
+      if (fifaMode) {
+        // FIFA: Midfielders distribute, rarely shoot unless clear chance
+        inPrimeShootingRange = distanceToGoal < 14;
+        inDecentShootingRange = distanceToGoal < 20;
+        shootingProbability = 0.45; // Much lower - prefer passing
+        if (inPrimeShootingRange) shootingProbability = 0.70;
+        if (centralPosition) shootingProbability += 0.10;
+        powerMultiplier = distanceToGoal > 20 ? 1.15 : 1.0;
+      } else if (arcadeMode) {
+        // Arcade: Midfielders take shots freely
+        inPrimeShootingRange = distanceToGoal < 22;
+        inDecentShootingRange = distanceToGoal < 30;
+        shootingProbability = 0.80;
+        if (inPrimeShootingRange) shootingProbability = 0.90;
+        if (centralPosition) shootingProbability += 0.10;
+        powerMultiplier = distanceToGoal > 20 ? 1.35 : 1.15;
+      } else {
+        inPrimeShootingRange = distanceToGoal < 18;
+        inDecentShootingRange = distanceToGoal < 25;
+        shootingProbability = 0.70;
+        if (inPrimeShootingRange) shootingProbability = 0.85;
+        if (centralPosition) shootingProbability += 0.10;
+        powerMultiplier = distanceToGoal > 20 ? 1.25 : 1.1;
+      }
     } else {
-      // Defenders: Shoot when opportunity presents
-      inPrimeShootingRange = distanceToGoal < 15;
-      inDecentShootingRange = distanceToGoal < 20;
-      shootingProbability = 0.50;
-
-      if (inPrimeShootingRange) shootingProbability = 0.70;
-      if (centralPosition) shootingProbability += 0.15;
-
-      powerMultiplier = 1.1;
+      if (fifaMode) {
+        // FIFA: Defenders almost never shoot - clear the ball safely
+        inPrimeShootingRange = distanceToGoal < 12;
+        inDecentShootingRange = distanceToGoal < 16;
+        shootingProbability = 0.30;
+        if (inPrimeShootingRange) shootingProbability = 0.55;
+        if (centralPosition) shootingProbability += 0.10;
+        powerMultiplier = 1.0;
+      } else if (arcadeMode) {
+        // Arcade: Even defenders can bomb forward
+        inPrimeShootingRange = distanceToGoal < 18;
+        inDecentShootingRange = distanceToGoal < 25;
+        shootingProbability = 0.65;
+        if (inPrimeShootingRange) shootingProbability = 0.80;
+        if (centralPosition) shootingProbability += 0.15;
+        powerMultiplier = 1.2;
+      } else {
+        inPrimeShootingRange = distanceToGoal < 15;
+        inDecentShootingRange = distanceToGoal < 20;
+        shootingProbability = 0.50;
+        if (inPrimeShootingRange) shootingProbability = 0.70;
+        if (centralPosition) shootingProbability += 0.15;
+        powerMultiplier = 1.1;
+      }
     }
 
     // ALWAYS shoot if we're very close and central - don't leave chances!

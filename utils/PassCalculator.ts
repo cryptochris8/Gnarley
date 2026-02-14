@@ -15,8 +15,8 @@ export interface PassConfig {
 }
 
 export class PassCalculator {
-  /** Default pass speed (reduced for better accuracy) */
-  private static readonly DEFAULT_PASS_SPEED = 2.8;
+  /** Default pass speed (unified across all modules) */
+  private static readonly DEFAULT_PASS_SPEED = 4.5;
 
   /** Safety margin thresholds for different distances */
   private static readonly DISTANCE_THRESHOLDS = {

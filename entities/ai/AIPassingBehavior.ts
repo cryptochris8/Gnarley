@@ -338,7 +338,7 @@ export class AIPassingBehavior {
         const vel = (targetPlayer as any).linearVelocity;
         const speed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
         if (speed > 0.5) { // Any meaningful movement gets lead passes
-          teammateVelocity = { x: vel.x * 0.7, z: vel.z * 0.7 }; // Increased prediction factor for better leading
+          teammateVelocity = { x: vel.x * 0.9, z: vel.z * 0.9 }; // Higher prediction factor for accurate leading
         }
       }
 
@@ -348,10 +348,13 @@ export class AIPassingBehavior {
       const predictedX = targetPlayer.position.x + (teammateVelocity.x * passTravelTime);
       const predictedZ = targetPlayer.position.z + (teammateVelocity.z * passTravelTime);
 
-      // MINIMAL LEAD: Pass directly to feet, tiny buffer only for long passes
-      let safetyMargin = 0.0; // No lead for short passes - direct to feet
+      // Distance-based lead margin for accurate pass delivery
+      let safetyMargin = 0.5; // Base lead for short passes
+      if (passDist > 15) {
+        safetyMargin = 1.0; // Medium lead for mid-range passes
+      }
       if (passDist > 25) {
-        safetyMargin = 0.3; // Tiny lead only for very long passes
+        safetyMargin = 1.5; // Larger lead for long passes
       }
 
       return {

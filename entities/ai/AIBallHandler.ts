@@ -287,7 +287,7 @@ export class AIBallHandler {
           };
         }
 
-        const passSpeed = 2.8;
+        const passSpeed = 4.5;
         const passTravelTime = passDist / passSpeed;
         const predictedX = bestTargetPlayer.position.x + teammateVelocity.x * passTravelTime;
         const predictedZ = bestTargetPlayer.position.z + teammateVelocity.z * passTravelTime;

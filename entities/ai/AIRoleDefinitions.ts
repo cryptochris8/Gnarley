@@ -177,12 +177,12 @@ export const BALL_ANTICIPATION_FACTOR = 1.0;      // Was 1.5 - less anticipation
 // Position discipline - how strongly players stick to their positions
 // INCREASED ALL VALUES for more structured play
 export const POSITION_DISCIPLINE_FACTOR: Record<SoccerAIRole, number> = {
-  goalkeeper: 0.98,    // Was 0.95 - almost never leaves zone
-  "left-back": 0.90,   // Was 0.8 - stay in defensive position
-  "right-back": 0.90,  // Was 0.8 - stay in defensive position
-  "central-midfielder-1": 0.80,  // Was 0.6 - hold midfield better
-  "central-midfielder-2": 0.80,  // Was 0.6 - hold midfield better
-  striker: 0.70,       // Was 0.5 - stay forward, wait for passes
+  goalkeeper: 0.95,    // Stay in goal but allow some movement
+  "left-back": 0.82,   // More dynamic defending
+  "right-back": 0.82,  // More dynamic defending
+  "central-midfielder-1": 0.72,  // Freer midfield movement
+  "central-midfielder-2": 0.72,  // Freer midfield movement
+  striker: 0.62,       // Most mobile - creates exciting attacking runs
 };
 
 // Pursuit distances by role - REDUCED to keep players in zones
@@ -193,12 +193,12 @@ export const STRIKER_PURSUIT_DISTANCE = 18.0;      // Was 30.0 - don't track bac
 
 // Pursuit probabilities by role - REDUCED to encourage passing over chasing
 export const ROLE_PURSUIT_PROBABILITY: Record<SoccerAIRole, number> = {
-  goalkeeper: 0.10,    // Was 0.15 - rarely chase
-  "left-back": 0.20,   // Was 0.3 - stay in position
-  "right-back": 0.20,  // Was 0.3 - stay in position
-  "central-midfielder-1": 0.30,  // Was 0.4 - more passing less chasing
-  "central-midfielder-2": 0.30,  // Was 0.4 - more passing less chasing
-  striker: 0.35,       // Was 0.5 - stay forward for outlet passes
+  goalkeeper: 0.12,    // Rarely chase but slightly more active
+  "left-back": 0.28,   // More active defending and ball recovery
+  "right-back": 0.28,  // More active defending and ball recovery
+  "central-midfielder-1": 0.38,  // Active midfield presence
+  "central-midfielder-2": 0.38,  // Active midfield presence
+  striker: 0.42,       // Press opponents and chase loose balls
 };
 
 // Position recovery speeds

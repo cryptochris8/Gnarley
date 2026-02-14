@@ -13,6 +13,7 @@
 import type AIPlayerEntity from "../entities/AIPlayerEntity";
 import type { Vector3Like } from "hytopia";
 import sharedState from "../state/sharedState";
+import { isArcadeMode, isFIFAMode } from "../state/gameModes";
 
 // Helper to get correct state from entity (room or global)
 const getState = (entity: AIPlayerEntity) => entity.getSharedState();
@@ -40,6 +41,32 @@ export interface AdaptiveIntervalConfig {
 }
 
 export class AdaptiveAIController {
+  // FIFA mode: Slower, more deliberate decisions - strategic World Cup feel
+  private static readonly FIFA_CONFIG: AdaptiveIntervalConfig = {
+    hasBallInterval: 150,      // Slower with ball - think before acting
+    veryCloseInterval: 200,    // More deliberate close decisions
+    closeInterval: 300,        // Patient build-up play
+    mediumInterval: 450,       // Hold position, read the game
+    farInterval: 600,          // Conserve energy off the ball
+
+    veryCloseThreshold: 5,
+    closeThreshold: 10,
+    mediumThreshold: 20,
+  };
+
+  // Arcade mode: Faster, more reactive - chaotic and fun
+  private static readonly ARCADE_CONFIG: AdaptiveIntervalConfig = {
+    hasBallInterval: 80,       // Lightning-fast decisions with ball
+    veryCloseInterval: 100,    // Hyper-reactive near ball
+    closeInterval: 150,        // Quick reactions
+    mediumInterval: 250,       // Still active off the ball
+    farInterval: 400,          // Even far players stay engaged
+
+    veryCloseThreshold: 7,     // Wider engagement zones
+    closeThreshold: 14,
+    mediumThreshold: 25,
+  };
+
   private static readonly DEFAULT_CONFIG: AdaptiveIntervalConfig = {
     hasBallInterval: 100,      // 10 decisions/second (has ball - critical)
     veryCloseInterval: 150,    // ~6.7 decisions/second (very close)
@@ -71,9 +98,15 @@ export class AdaptiveAIController {
 
   constructor(entity: AIPlayerEntity, isGoalkeeper: boolean = false) {
     this.entity = entity;
-    this.config = isGoalkeeper
-      ? AdaptiveAIController.GOALKEEPER_CONFIG
-      : AdaptiveAIController.DEFAULT_CONFIG;
+    if (isGoalkeeper) {
+      this.config = AdaptiveAIController.GOALKEEPER_CONFIG;
+    } else if (isFIFAMode()) {
+      this.config = AdaptiveAIController.FIFA_CONFIG;
+    } else if (isArcadeMode()) {
+      this.config = AdaptiveAIController.ARCADE_CONFIG;
+    } else {
+      this.config = AdaptiveAIController.DEFAULT_CONFIG;
+    }
     this.lastInterval = isGoalkeeper ? 150 : 500;
   }
 

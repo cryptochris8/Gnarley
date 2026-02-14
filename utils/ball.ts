@@ -577,17 +577,17 @@ export default function createSoccerBall(world: World, roomState?: RoomSharedSta
       const ballSpeed = Math.sqrt(ballVelocity.x * ballVelocity.x + ballVelocity.z * ballVelocity.z);
 
       // IMPROVED PASS RECEPTION FORGIVENESS (much more forgiving for better gameplay)
-      let PROXIMITY_POSSESSION_DISTANCE = 2.5; // INCREASED from 2.0 to 2.5 for easier ball pickup
-      let MAX_BALL_SPEED_FOR_PROXIMITY = 5.0; // INCREASED from 4.0 to 5.0 for better stationary ball pickup
+      let PROXIMITY_POSSESSION_DISTANCE = 3.5; // Generous pickup radius for better ball control
+      let MAX_BALL_SPEED_FOR_PROXIMITY = 6.0; // Allow pickup of moderately moving balls
 
-      // MAGNETIC PASS RECEPTION: Much larger radius for players expecting a pass
-      const PASS_TARGET_MAGNETIC_DISTANCE = 4.5; // Magnetic "catch zone" for pass targets
+      // MAGNETIC PASS RECEPTION: Large radius for players expecting a pass
+      const PASS_TARGET_MAGNETIC_DISTANCE = 6.0; // Wide magnetic "catch zone" for pass targets
 
       // RECEPTION ASSISTANCE: If ball is moving (likely a pass), increase reception assistance significantly
       if (ballSpeed > 1.0) {
         // Ball is moving - likely a pass, so provide enhanced reception assistance
-        PROXIMITY_POSSESSION_DISTANCE = 3.5; // INCREASED from 3.0 to 3.5 for very forgiving pass reception
-        MAX_BALL_SPEED_FOR_PROXIMITY = 10.0; // INCREASED from 8.0 to 10.0 to help with all pass speeds
+        PROXIMITY_POSSESSION_DISTANCE = 4.5; // Very forgiving pass reception radius
+        MAX_BALL_SPEED_FOR_PROXIMITY = 12.0; // Help with all pass speeds
       }
       
       if (ballSpeed < MAX_BALL_SPEED_FOR_PROXIMITY) {
