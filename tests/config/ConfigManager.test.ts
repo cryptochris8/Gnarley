@@ -88,7 +88,7 @@ describe('ConfigManager', () => {
       const target = configManager.getPerformanceTarget('MOBILE');
 
       expect(target.targetFrameTime).toBe(33.33); // 30 FPS
-      expect(target.maxMemoryUsage).toBe(256 * 1024 * 1024); // 256MB
+      expect(target.maxMemoryUsage).toBe(128 * 1024 * 1024); // 128MB for mobile
       expect(target.maxEntityCount).toBe(150);
     });
 

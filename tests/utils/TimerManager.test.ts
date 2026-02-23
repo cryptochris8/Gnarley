@@ -9,7 +9,8 @@ describe('TimerManager', () => {
   let timerManager: TimerManager;
 
   beforeEach(() => {
-    // Create a fresh instance for each test
+    // Reset singleton so each test gets a fresh instance (cleanup sets isShuttingDown permanently)
+    (TimerManager as any).instance = undefined;
     timerManager = TimerManager.getInstance();
     vi.useFakeTimers();
   });

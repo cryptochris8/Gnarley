@@ -3,7 +3,16 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ErrorHandler, ErrorCategory, ErrorSeverity } from '../../utils/ErrorHandler';
+import {
+  ErrorHandler,
+  ErrorCategory,
+  ErrorSeverity,
+  logGameError,
+  logPhysicsError,
+  logAIError,
+  logAudioError,
+  logCriticalError,
+} from '../../utils/ErrorHandler';
 
 describe('ErrorHandler', () => {
   let errorHandler: ErrorHandler;
@@ -57,7 +66,8 @@ describe('ErrorHandler', () => {
 
       // Critical severity should use console.error
       errorHandler.logError(ErrorCategory.CONFIGURATION, ErrorSeverity.CRITICAL, 'Critical error');
-      expect(errorSpy).toHaveBeenCalledTimes(2); // Called for both HIGH and CRITICAL
+      // HIGH: 1 (logToConsole). CRITICAL: 1 (logToConsole) + 1 (handleErrorBySeverity) + 5 (notifyCriticalError) = 7. Total = 8
+      expect(errorSpy).toHaveBeenCalledTimes(8);
 
       logSpy.mockRestore();
       warnSpy.mockRestore();
@@ -202,10 +212,11 @@ describe('ErrorHandler', () => {
   describe('convenience functions', () => {
     it('should provide working convenience functions', () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      
-      // Import and test convenience functions
-      const { logGameError, logPhysicsError, logAIError, logAudioError, logCriticalError } =
-        require('../../utils/ErrorHandler');
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      // Clear any accumulated errors first
+      errorHandler.clearOldErrors(0);
 
       logGameError('Game logic error');
       logPhysicsError('Physics error');
@@ -217,6 +228,8 @@ describe('ErrorHandler', () => {
       expect(stats.totalErrors).toBe(5);
 
       consoleSpy.mockRestore();
+      errorSpy.mockRestore();
+      logSpy.mockRestore();
     });
   });
 });
