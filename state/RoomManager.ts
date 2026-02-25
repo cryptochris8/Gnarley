@@ -20,6 +20,8 @@ import { AudioManager } from "../src/core/AudioManager";
 import { FIFACrowdManager } from "../utils/fifaCrowdManager";
 import { PickupGameManager } from "./pickupGameManager";
 import { ArcadeEnhancementManager } from "./arcadeEnhancements";
+import { PenaltyShootoutManager } from "./PenaltyShootoutManager";
+import { setPenaltyShootoutManager } from "../utils/ball";
 
 // Forward declarations to avoid circular imports
 // These will be set during initialization
@@ -76,6 +78,7 @@ export interface Room {
   fifaCrowdManager: FIFACrowdManager; // Room-specific crowd manager
   pickupManager: PickupGameManager; // Room-specific pickup manager for Arcade mode
   arcadeManager: ArcadeEnhancementManager; // Room-specific arcade enhancement manager
+  penaltyManager: PenaltyShootoutManager | null; // Room-specific penalty shootout manager
 }
 
 /**
@@ -253,6 +256,15 @@ export class RoomManager {
 
       logger.debug(`🎵 Audio managers created for room ${roomId}`);
 
+      // Create penalty manager for penalty rooms
+      let penaltyManager: PenaltyShootoutManager | null = null;
+      if (fullConfig.gameMode === GameMode.PENALTY_SHOOTOUT) {
+        penaltyManager = new PenaltyShootoutManager(roomWorld, soccerBall);
+        penaltyManager.setRoomState(roomSharedState);
+        // Register with ball system for goal detection
+        setPenaltyShootoutManager(penaltyManager);
+      }
+
       const room: Room = {
         config: fullConfig,
         world: roomWorld,
@@ -267,6 +279,7 @@ export class RoomManager {
         fifaCrowdManager,
         pickupManager,
         arcadeManager,
+        penaltyManager,
       };
 
       // Set arcade mode flag if room is in arcade mode
@@ -606,6 +619,11 @@ export class RoomManager {
       logger.debug(`[Room ${roomId}] 🎮 Destroyed arcade enhancement manager`);
     }
 
+    // End penalty shootout if active
+    if (room.penaltyManager && room.penaltyManager.isShootoutActive()) {
+      room.penaltyManager.end();
+    }
+
     // Stop game if running
     if (room.game && room.game.resetGame) {
       room.game.resetGame();
@@ -778,6 +796,12 @@ export class RoomManager {
           this.handleRoomStartSecondHalf(room, player);
           break;
 
+        case "penalty-aim-shoot":
+          if (room.penaltyManager) {
+            room.penaltyManager.handlePenaltyAimShoot(player, data);
+          }
+          break;
+
         // Pass through other events that the global handler might need
         default:
           // Let global UIEventHandlers handle other events
@@ -823,6 +847,12 @@ export class RoomManager {
           entity.despawn();
         }
       });
+    }
+
+    // PENALTY SHOOTOUT mode: simplified 1v1 with AI goalkeeper
+    if (room.config.gameMode === GameMode.PENALTY_SHOOTOUT) {
+      await this.handlePenaltyTeamSelection(room, player, team);
+      return;
     }
 
     // Join game and team using the correct SoccerGame methods
@@ -912,6 +942,66 @@ export class RoomManager {
     });
 
     logger.debug(`✅ Player ${player.username} spawned on ${team} team in room ${room.config.id}`);
+  }
+
+  /**
+   * Handle penalty shootout team selection: 1 human + 1 AI goalkeeper
+   *
+   * Key differences from normal flow:
+   * - Do NOT call room.game.startGame() (would start match clock)
+   * - Do NOT activate AI (PenaltyShootoutManager manages AI lifecycle)
+   * - Spawn only 1 human + 1 AI keeper
+   */
+  private async handlePenaltyTeamSelection(room: Room, player: Player, team: "red" | "blue"): Promise<void> {
+    logger.debug(`[Room ${room.config.id}] Penalty: ${player.username} selected team ${team}`);
+
+    // Join game tracking (for player management, not match clock)
+    room.game.joinGame(player.username, player.username);
+    room.game.joinTeam(player.username, team);
+
+    // Spawn human player as striker
+    const playerEntity = new SoccerPlayerEntity(player, team, "striker");
+    playerEntity.setRoomSharedState(room.sharedState);
+
+    const { getStartPosition } = await import("../utils/positions");
+    const spawnPos = getStartPosition(team, "striker");
+    playerEntity.spawn(room.world, spawnPos);
+    playerEntity.freeze();
+
+    // Spawn 1 AI goalkeeper on the opposing team
+    // Do NOT activate - PenaltyShootoutManager.start() will deactivate all AI anyway
+    const opposingTeam = team === "red" ? "blue" : "red";
+    const aiKeeper = new AIPlayerEntity(room.world, opposingTeam, "goalkeeper", room.sharedState);
+    const keeperPos = getStartPosition(opposingTeam, "goalkeeper");
+    aiKeeper.spawn(room.world, keeperPos);
+    room.aiPlayers.push(aiKeeper);
+    room.sharedState.addAIToTeam(aiKeeper, opposingTeam);
+
+    // Do NOT start the SoccerGame match clock - penalty mode manages its own flow
+    room.status = "playing";
+
+    // Unfreeze player and start penalty shootout after short delay
+    setTimeout(() => {
+      if (playerEntity && typeof playerEntity.unfreeze === "function") {
+        playerEntity.unfreeze();
+      }
+      player.ui.lockPointer(true);
+      player.ui.sendData({ type: "loading-complete" });
+
+      // Start penalty shootout
+      if (room.penaltyManager) {
+        room.penaltyManager.start();
+      }
+    }, 500);
+
+    // Confirm team
+    player.ui.sendData({
+      type: "team-confirmed",
+      team,
+      message: `Penalty Shootout - You are on ${team} team!`,
+    });
+
+    logger.debug(`[Room ${room.config.id}] Penalty shootout setup complete`);
   }
 
   /**
@@ -1240,6 +1330,14 @@ export class RoomManager {
       });
     }
   }
+}
+
+/**
+ * Reset the RoomManager singleton for testing purposes.
+ * @internal Test-only — do not use in production code.
+ */
+export function _resetRoomManagerInstance(): void {
+  (RoomManager as any)['instance'] = null;
 }
 
 export default RoomManager;
