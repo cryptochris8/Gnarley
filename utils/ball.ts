@@ -310,6 +310,17 @@ export function setPenaltyShootoutManager(manager: any) {
 }
 
 /**
+ * Reset goal detection state — used by tests to clear module-level state between runs.
+ * Resets debounce timestamps, lockout, and goal-entered flag so each test starts clean.
+ */
+export function _resetGoalDetectionState() {
+  ballHasEnteredGoal = false;
+  goalSensorDebounce = 0;
+  ballResetLockout = 0;
+  penaltyShootoutManagerRef = null;
+}
+
+/**
  * Throttled stationary status updater
  * Only updates ball stationary status once every 50ms instead of every tick
  * Reduces CPU usage for non-critical tracking
